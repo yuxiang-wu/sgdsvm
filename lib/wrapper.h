@@ -74,9 +74,9 @@ Wrapper<Rep>
 //     
 // public:
 //   String(const char *s, int l)
-//     : w(s,l) {}
+//     : w(Rep(s,l)) {}
 //   String(const char *s)
-//     : w(s,::strlen(s)) {}
+//     : w(Rep(s,::strlen(s))) {}
 // 
 //   // function that do not mutate
 //   int size() const { return rep()->length; }
