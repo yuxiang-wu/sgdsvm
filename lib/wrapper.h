@@ -20,11 +20,12 @@
 // $Id$
 
 
+#ifndef WRAPPER_H
+#define WRAPPER_H
 
 
-
-template<class Rep> 
-Wrapper<Rep>
+template <class Rep> 
+class Wrapper
 {
  private:
   Rep *q;
@@ -71,6 +72,7 @@ Wrapper<Rep>
 //
 //   Wrapper<Rep> w;
 //   Rep *rep() { return w.rep(); }
+//   const Rep *rep() const { return w.rep(); }
 //     
 // public:
 //   String(const char *s, int l)
@@ -90,7 +92,7 @@ Wrapper<Rep>
 
 
 
-
+#endif
 
 
 

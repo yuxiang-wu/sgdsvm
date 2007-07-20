@@ -19,11 +19,13 @@
 
 // $Id$
 
+#ifndef VECTORS_H
+#define VECTORS_H
 
-#include "wrapper.h"
 #include <cstring>
 #include <cassert>
 #include <cstdio>
+#include "wrapper.h"
 
 
 class FVector;
@@ -39,36 +41,39 @@ private:
     int size;
     float *data;
     Rep() : size(0), data(0) {}
-    ~Rep() { delete data; }
+    ~Rep() { delete [] data; }
     void resize(int n);
     Rep *copy();
   };
   
   Wrapper<Rep> w;
   Rep *rep() { return w.rep(); }
+  const Rep *rep() const { return w.rep(); }
   
 public:
   FVector();
   FVector(int n);
-  FVector(SVector v);
+  FVector(const SVector &v);
   int size() const { return rep()->size; }
-  float get(int i) const;
-  double set(int i, float v);
+  double get(int i) const;
+  double set(int i, double v);
   operator const float* () const { return rep()->data; }
 
   void add(double c1);
-  void add(FVector v2);
-  void add(SVector v2);
-  void add(FVector v2, double c2);
-  void add(SVector v2, double c2);
-  void add(FVector v2, FVector c2);
-  void add(SVector v2, FVector c2);
+  void add(const FVector &v2);
+  void add(const SVector &v2);
+  void add(const FVector &v2, double c2);
+  void add(const SVector &v2, double c2);
+  void add(const FVector &v2, const FVector &c2);
+  void add(const SVector &v2, const FVector &c2);
   void scale(double c1);
-  void combine(double c1, FVector v2, double c2);
-  void combine(double c1, SVector v2, double c2);
+  void combine(double c1, const FVector &v2, double c2);
+  void combine(double c1, const SVector &v2, double c2);
 
   void save(FILE *f) const;
   void load(FILE *f);
+  void bsave(FILE *f) const;
+  void bload(FILE *f);
 };
 
 
@@ -91,7 +96,7 @@ private:
     struct Pair *pairs;
     
     Rep() : npairs(0), mpairs(0), size(0) {}
-    ~Rep() { delete data; }
+    ~Rep() { delete [] pairs; }
     void resize(int n);
     void addpair();
     Rep *copy();
@@ -99,38 +104,41 @@ private:
   
   Wrapper<Rep> w;
   Rep *rep() { return w.rep(); }
+  const Rep *rep() const { return w.rep(); }
   
 public:
   SVector();
-  SVector(FVector v);
+  SVector(const FVector &v);
   int size() const { return rep()->size; }
-  float get(int i) const;
-  double set(int i, float v);
+  double get(int i) const;
+  double set(int i, double v);
   int npairs() const { return rep()->npairs; }
-  operator const Pair* () const { return rep->pairs; }
+  operator const Pair* () const { return rep()->pairs; }
 
-  void add(SVector v2);
-  void add(SVector v2, double c2);
+  void add(const SVector &v2);
+  void add(const SVector &v2, double c2);
   void scale(double c1);
-  void combine(double c1, SVector v2, double c2);
+  void combine(double c1, const SVector &v2, double c2);
 
   void save(FILE *f) const;
   void load(FILE *f);
+  void bsave(FILE *f) const;
+  void bload(FILE *f);
 };
 
-double dot(FVector v1, FVector v2);
-double dot(FVector v1, SVector v2);
-double dot(SVector v1, FVector v2);
-double dot(SVector v1, SVector v2);
+double dot(const FVector &v1, const FVector &v2);
+double dot(const FVector &v1, const SVector &v2);
+double dot(const SVector &v1, const FVector &v2);
+double dot(const SVector &v1, const SVector &v2);
 
-SVector combine(SVector v1, double a1, SVector v2, double a2);
-FVector combine(FVector v1, double a1, SVector v2, double a2);
-FVector combine(SVector v1, double a1, FVector v2, double a2);
-FVector combine(FVector v1, double a1, FVector v2, double a2);
-
-
+SVector combine(const SVector &v1, double a1, const SVector &v2, double a2);
+FVector combine(const FVector &v1, double a1, const SVector &v2, double a2);
+FVector combine(const SVector &v1, double a1, const FVector &v2, double a2);
+FVector combine(const FVector &v1, double a1, const FVector &v2, double a2);
 
 
+
+#endif
 
 /* -------------------------------------------------------------
    Local Variables:
