@@ -24,6 +24,7 @@
 
 #include "vectors.h"
 #include <cassert>
+#include <cctype>
 
 
 namespace
@@ -245,12 +246,8 @@ FVector::add(const SVector &v2, const FVector &c2)
   const float *c = (const float*) c2;
   int npairs = v2.npairs();
   const SVector::Pair *pairs = v2;
-  for (int i=0; i<npairs; i++, pairs++)
-    {
-      int j = pairs->i;
-      if (j >= m) break;
-      d[j] += pairs->v * c[j];
-    }
+  for (int i=0; i<npairs && pairs->i < m; i++, pairs++)
+    d[pairs->i] += pairs->v * c[pairs->i];
 }
 
 
@@ -336,12 +333,12 @@ bool
 FVector::bload(FILE *f)
 {
   int i;
-  w.detach();
+  clear();
   if (::fread(&i, sizeof(int), 1, f) != (size_t)1)
     return false;
   resize(i);
   float *d = rep()->data;
-  if (::fread(d, sizeof(float), i, f) == (size_t)i)
+  if (i<0 || ::fread(d, sizeof(float), i, f) == (size_t)i)
     return true;
   clear();
   return false;
@@ -349,72 +346,426 @@ FVector::bload(FILE *f)
 
 
 
-
 // ----------------------------------------
-#if 0
 
-class SVector
+
+void
+SVector::Rep::resize(int n)
 {
-public:
-  struct Pair 
-  { 
-    int i; 
-    float v; 
-  };
-private:
-  struct Rep
+  Pair *p = new Pair[n+1];
+  int m = min(n, npairs);
+  int i = 0;
+  for (; i < m; i++)
+    p[i] = pairs[i];
+  for (; i <= n; i++)
+    p[i].i = -1;
+  delete pairs;
+  pairs = p;
+  npairs = m;
+  mpairs = n;
+  size = (m>0) ? p[m-1].i + 1 : 0;
+}
+
+
+SVector::Rep *
+SVector::Rep::copy()
+{
+  int n = npairs;
+  Pair *p = new Pair[n+1];
+  for (int i=0; i <= n; i++)
+    p[i] = pairs[i];
+  Rep *nr = new Rep;
+  delete nr->pairs;
+  nr->pairs = p;
+  nr->size = size;
+  nr->npairs = nr->mpairs = n;
+  return nr;
+}
+
+
+inline double
+SVector::Rep::qset(int i, double v)
+{
+  assert(i >= size);
+  if (npairs >= mpairs)
+    resize(npairs + min(16, max(npairs, 4096)));
+  Pair *p = &pairs[npairs++];
+  size = i + 1;
+  p->i = i;
+  p->v = v;
+  return v;
+}
+
+
+SVector::SVector()
+{
+  trim();
+}
+
+
+SVector::SVector(const FVector &v)
+{
+  int m = v.size();
+  const float *f = v;
+  Rep *r = rep();
+  r->resize(m);
+  for (int i=0; i<m; i++)
+    if (f[i] != 0)
+      r->qset(i,f[i]);
+  trim();
+}
+
+
+namespace {
+  
+  SVector::Pair *
+  search(SVector::Pair *pairs, int npairs, int i)
   {
-    int refcount;
-    int npairs;
-    int mpairs;
-    int size;
-    struct Pair *pairs;
-    
-    Rep() : npairs(0), mpairs(0), size(0) {}
-    ~Rep() { delete [] data; }
-    void resize(int n);
-    void addpair();
-    Rep *copy();
-  };
+    int lo = 0;
+    int hi = npairs - 1;
+    while (lo <= hi)
+      {
+        int d = (lo + hi + 1) / 2;
+        if (i == pairs[d].i)
+          return &pairs[d];
+        else if (i < pairs[d].i)
+          hi = d-1;
+        else
+          lo = d+1;
+      }
+    return 0;
+  }
+
+}
+
+
+double
+SVector::get(int i) const
+{
+  const Rep *r = rep();
+  if (i < 0 || i >= r->size)
+    return 0;
+  // binary search
+  SVector::Pair *pair = search(r->pairs, r->npairs, i);
+  if (pair)
+    return pair->v;
+  return 0;
+}
+
+
+double 
+SVector::set(int i, double v)
+{
+  w.detach();
+  Rep *r = rep();
+  if (v)
+    {
+      if (i >= r->size)
+        return r->qset(i, v);
+      SVector::Pair *p = search(r->pairs, r->npairs, i);
+      if (p)
+        return p->v = v;
+      if (r->npairs >= r->mpairs)
+        r->resize(r->npairs + min(16, max(r->npairs, 4096)));
+      SVector::Pair *s = r->pairs;
+      p = s + r->npairs;
+      for (; p > s && p[-1].i > i;  p--)
+        p[0] = p[-1];
+      p[0].i = i;
+      p[0].v = v;
+    }
+  else
+    {
+      SVector::Pair *s = r->pairs;
+      SVector::Pair *p = search(s, r->npairs, i);
+      if (p)
+        {
+          r->npairs -= 1;
+          for (; p->i >= 0; p++)
+            p[0] = p[1];
+        }
+    }
+  return v;
+}
+
+
+void 
+SVector::clear()
+{
+  w.detach();
+  rep()->resize(0);
+}
+
+void 
+SVector::trim()
+{
+  w.detach();
+  Rep *r = rep();
+  r->resize(r->npairs);
+}
+
+
+void 
+SVector::add(const SVector &v2)
+{
+  operator=( ::combine(*this, 1, v2, 1) );
+}
+
+
+void 
+SVector::add(const SVector &v2, double c2)
+{
+  operator=( ::combine(*this, 1, v2, c2) );
+}
+
+
+void 
+SVector::combine(double c1, const SVector &v2, double c2)
+{
+  operator=( ::combine(*this, c1, v2, c2) );
+}
+
+
+void 
+SVector::scale(double c1)
+{
+  if (c1)
+    {
+      w.detach();
+      Rep *r = rep();
+      Pair *pairs = r->pairs;
+      int npairs = r->npairs;
+      for (int i=0; i<npairs; i++)
+        pairs[i].v *= c1;
+    }
+  else
+    {
+      clear();
+    }
+}
+
+
+bool 
+SVector::save(FILE *f) const
+{
+  const Rep *r = rep();
+  const Pair *pairs = r->pairs;
+  int npairs = r->npairs;
+  for (int i=0; i<npairs; i++)
+    ::fprintf(f, " %d:%.6e", pairs[i].i, (double)pairs[i].v);
+  ::fprintf(f, "\n");
+  return true;
+}
+
+
+bool 
+SVector::load(FILE *f)
+{
+  clear();
+  for(;;)
+    {
+      int c = ::getc(f);
+      if (c == '\n')
+        return true;
+      if (::isspace(c))
+        continue;
+      int i;
+      double v;
+      if (::fscanf(f, " %d: %le", &i, &v) < 2)
+        return false;
+      set(i, v);
+    }
+  trim();
+  return false;
+}
+
+
+bool 
+SVector::bsave(FILE *f) const
+{
+  const Rep *r = rep();
+  const Pair *pairs = r->pairs;
+  int npairs = r->npairs;
+  if (::fwrite(&npairs, sizeof(int), 1, f) != (size_t)1)
+    return false;
+  if (::fwrite(pairs, sizeof(Pair), npairs, f) != (size_t)npairs)
+    return false;
+  return true;
+}
+
+
+bool 
+SVector::bload(FILE *f)
+{
+  clear();
+  int npairs;
+  if (::fread(&npairs, sizeof(int), 1, f) != (size_t)1)
+    return false;
+  if (npairs < 0)
+    return false;
+  rep()->resize(npairs);
+  for (int i=0; i<npairs; i++)
+    {
+      Pair pair;
+      if (::fread(&pair, sizeof(Pair), 1, f) != (size_t)1)
+        return false;
+      set(pair.i, pair.v);
+    }
+  trim();
+  return true;
+}
+
+
+double 
+dot(const FVector &v1, const FVector &v2)
+{
+  int m = min(v1.size(), v2.size());
+  const float *f1 = v1;
+  const float *f2 = v2;
+  double sum = 0.0;
+  while (--m >= 0)
+    sum += (*f1++) * (*f2++);
+  return sum;
+}
+
+
+double 
+dot(const FVector &v1, const SVector &v2)
+{
+  int m = v1.size();
+  const float *f = v1;
+  const SVector::Pair *p = v2;
+  double sum = 0;
+  if (p)
+    for( ; p->i >= 0 && p->i < m; p++)
+      sum += p->v * f[p->i];
+  return sum;
+}
+
+
+double 
+dot(const SVector &v1, const FVector &v2)
+{
+  int m = v2.size();
+  const float *f = v2;
+  int n = v1.npairs();
+  const SVector::Pair *p = v1;
+  double sum = 0;
+  if (p)
+    for( ; p->i >= 0 && p->i < m; p++)
+      sum += p->v * f[p->i];
   
-  Wrapper<Rep> w;
-  Rep *rep() { return w.rep(); }
-  void qset(int i, double v);
-  
-public:
-  SVector();
-  SVector(const FVector &v);
-  int size() const { return rep()->size; }
-  float get(int i) const;
-  double set(int i, float v);
-  int npairs() const { return rep()->npairs; }
-  operator const Pair* () const { return rep->pairs; }
 
-  void clear();
-
-  void add(const SVector &v2);
-  void add(const SVector &v2, double c2);
-  void scale(double c1);
-  void combine(double c1, const SVector &v2, double c2);
-
-  bool save(FILE *f) const;
-  bool load(FILE *f);
-  bool bsave(FILE *f) const;
-  bool bload(FILE *f);
-};
-
-double dot(const FVector &v1, const FVector &v2);
-double dot(const FVector &v1, const SVector &v2);
-double dot(const SVector &v1, const FVector &v2);
-double dot(const SVector &v1, const SVector &v2);
-
-SVector combine(const SVector &v1, double a1, const SVector &v2, double a2);
-FVector combine(const FVector &v1, double a1, const SVector &v2, double a2);
-FVector combine(const SVector &v1, double a1, const FVector &v2, double a2);
-FVector combine(const FVector &v1, double a1, const FVector &v2, double a2);
+  for( ; --n >= 0 && p->i < m; p++)
+    sum += p->v * f[p->i];
+  return sum;
+}
 
 
-#endif
+double 
+dot(const SVector &v1, const SVector &v2)
+{
+  const SVector::Pair *p1 = v1;
+  const SVector::Pair *p2 = v2;
+  double sum = 0;
+  if (p1 && p2)
+    while (p1->i >= 0 && p2->i >= 0)
+      {
+        if (p1->i < p2->i)
+          p1++;
+        else if (p1->i > p2->i)
+          p2++;
+        else
+          sum += (p1++)->v * (p2++)->v;
+      }
+  return sum;
+}
+
+
+SVector 
+combine(const SVector &v1, double a1, const SVector &v2, double a2)
+{
+  const SVector::Pair *p1 = v1;
+  const SVector::Pair *p2 = v2;
+  SVector ans;
+  SVector::Rep *r = ans.rep();
+  r->resize(v1.npairs() + v2.npairs());
+  SVector::Pair *p = r->pairs;
+  while (p1->i >= 0 && p2->i >= 0)
+     {
+       if (p1->i < p2->i)
+         p1++;
+       else if (p1->i > p2->i)
+         p2++;
+       else
+         {
+           double v = p1->v * a1 + p2->v * a2;
+           if (v)
+             {
+               p->i = p1->i;
+               p->v = v;
+               p++;
+             }
+           p1++;
+           p2++;
+         }
+     }
+  while  (p1->i >= 0)
+    {
+      double v = p1->v * a1;
+      if (v)
+        {
+          p->i = p1->i;
+          p->v = v;
+          p++;
+        }
+      p1++;
+    }
+  while  (p2->i >= 0)
+    {
+      double v = p2->v * a2;
+      if (v)
+        {
+          p->i = p2->i;
+          p->v = v;
+          p++;
+        }
+      p2++;
+    }
+  r->npairs = p - r->pairs;
+  r->size = (r->npairs > 0) ? p[-1].i + 1 : 0;
+  ans.trim();
+  return ans;
+}
+
+
+FVector 
+combine(const FVector &v1, double a1, const SVector &v2, double a2)
+{
+  FVector r = v1;
+  r.combine(a1, v2, a2);
+  return r;
+}
+
+
+FVector 
+combine(const SVector &v1, double a1, const FVector &v2, double a2)
+{
+  FVector r = v1;
+  r.combine(a1, v2, a2);
+  return r;
+}
+
+
+FVector 
+combine(const FVector &v1, double a1, const FVector &v2, double a2)
+{
+  FVector r = v1;
+  r.combine(a1, v2, a2);
+  return r;
+}
+
+
 
 /* -------------------------------------------------------------
    Local Variables:

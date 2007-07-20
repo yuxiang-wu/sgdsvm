@@ -101,7 +101,7 @@ private:
     Rep() : npairs(0), mpairs(0), size(0) {}
     ~Rep() { delete [] pairs; }
     void resize(int n);
-    void addpair();
+    double qset(int i, double v);
     Rep *copy();
   };
   
@@ -119,6 +119,7 @@ public:
   operator const Pair* () const { return rep()->pairs; }
 
   void clear();
+  void trim();
   void add(const SVector &v2);
   void add(const SVector &v2, double c2);
   void scale(double c1);
@@ -128,6 +129,9 @@ public:
   bool load(FILE *f);
   bool bsave(FILE *f) const;
   bool bload(FILE *f);
+
+  friend SVector combine(const SVector &v1, double a1, 
+                         const SVector &v2, double a2);
 };
 
 double dot(const FVector &v1, const FVector &v2);
