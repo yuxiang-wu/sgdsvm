@@ -48,11 +48,12 @@ FVector::Rep::resize(int n)
         {
           float *newdata = new float[n];
           int i = 0;
-          int s = min(i,n);
+          int s = min(size,n);
           for (; i<s; i++)
             newdata[i] = data[i];
           for (; i<n; i++)
             newdata[i] = 0;
+          delete [] data;
           data = newdata;
           size = n;
         }
@@ -288,27 +289,35 @@ FVector::combine(double c1, const SVector &v2, double c2)
   float *d = r->data;
   int npairs = v2.npairs();
   const SVector::Pair *pairs = v2;
+  int j = 0;
   for (int i=0; i<npairs; i++, pairs++)
     {
-      int j = pairs->i;
+      if (c1 != 1)
+        for (; j < pairs->i; j++)
+          d[j] = d[j] * c1;
+      j = pairs->i;
       d[j] = d[j] * c1 + pairs->v * c2;
+      j++;
     }
+  if (c1 != 1)
+    for (; j < pairs->i; j++)
+      d[j] = d[j] * c1;
 }
 
 
 bool 
-FVector::save(FILE *f) const
+FVector::print(FILE *f) const
 {
   SVector s(*this);
-  return s.save(f);
+  return s.print(f);
 }
 
 
 bool 
-FVector::load(FILE *f)
+FVector::read(FILE *f)
 {
   SVector s;
-  if (! s.load(f))
+  if (! s.read(f))
     return false;
   FVector v(s);
   operator=(v);
@@ -317,7 +326,7 @@ FVector::load(FILE *f)
 
 
 bool 
-FVector::bsave(FILE *f) const
+FVector::save(FILE *f) const
 {
   int i = size();
   const float *d = rep()->data;
@@ -330,7 +339,7 @@ FVector::bsave(FILE *f) const
 
 
 bool
-FVector::bload(FILE *f)
+FVector::load(FILE *f)
 {
   int i;
   clear();
@@ -340,7 +349,6 @@ FVector::bload(FILE *f)
   float *d = rep()->data;
   if (i<0 || ::fread(d, sizeof(float), i, f) == (size_t)i)
     return true;
-  clear();
   return false;
 }
 
@@ -352,18 +360,21 @@ FVector::bload(FILE *f)
 void
 SVector::Rep::resize(int n)
 {
-  Pair *p = new Pair[n+1];
-  int m = min(n, npairs);
-  int i = 0;
-  for (; i < m; i++)
-    p[i] = pairs[i];
-  for (; i <= n; i++)
-    p[i].i = -1;
-  delete pairs;
-  pairs = p;
-  npairs = m;
-  mpairs = n;
-  size = (m>0) ? p[m-1].i + 1 : 0;
+  if (n != mpairs)
+    {
+      Pair *p = new Pair[n+1];
+      int m = min(n, npairs);
+      int i = 0;
+      for (; i < m; i++)
+        p[i] = pairs[i];
+      for (; i <= n; i++)
+        p[i].i = -1;
+      delete [] pairs;
+      pairs = p;
+      npairs = m;
+      mpairs = n;
+      size = (m>0) ? p[m-1].i + 1 : 0;
+    }
 }
 
 
@@ -372,10 +383,11 @@ SVector::Rep::copy()
 {
   int n = npairs;
   Pair *p = new Pair[n+1];
-  for (int i=0; i <= n; i++)
+  for (int i=0; i < n; i++)
     p[i] = pairs[i];
+  p[n].i = -1;
   Rep *nr = new Rep;
-  delete nr->pairs;
+  delete [] nr->pairs;
   nr->pairs = p;
   nr->size = size;
   nr->npairs = nr->mpairs = n;
@@ -388,7 +400,7 @@ SVector::Rep::qset(int i, double v)
 {
   assert(i >= size);
   if (npairs >= mpairs)
-    resize(npairs + min(16, max(npairs, 4096)));
+    resize(npairs + min(16, max(mpairs, 4096)));
   Pair *p = &pairs[npairs++];
   size = i + 1;
   p->i = i;
@@ -466,7 +478,7 @@ SVector::set(int i, double v)
       if (p)
         return p->v = v;
       if (r->npairs >= r->mpairs)
-        r->resize(r->npairs + min(16, max(r->npairs, 4096)));
+        r->resize(r->npairs + min(16, max(r->mpairs, 4096)));
       SVector::Pair *s = r->pairs;
       p = s + r->npairs;
       for (; p > s && p[-1].i > i;  p--)
@@ -546,7 +558,7 @@ SVector::scale(double c1)
 
 
 bool 
-SVector::save(FILE *f) const
+SVector::print(FILE *f) const
 {
   const Rep *r = rep();
   const Pair *pairs = r->pairs;
@@ -559,7 +571,7 @@ SVector::save(FILE *f) const
 
 
 bool 
-SVector::load(FILE *f)
+SVector::read(FILE *f)
 {
   clear();
   for(;;)
@@ -571,7 +583,8 @@ SVector::load(FILE *f)
         continue;
       int i;
       double v;
-      if (::fscanf(f, " %d: %le", &i, &v) < 2)
+      ::ungetc(c,f);
+      if (::fscanf(f, " %d : %le", &i, &v) < 2)
         return false;
       set(i, v);
     }
@@ -581,7 +594,7 @@ SVector::load(FILE *f)
 
 
 bool 
-SVector::bsave(FILE *f) const
+SVector::save(FILE *f) const
 {
   const Rep *r = rep();
   const Pair *pairs = r->pairs;
@@ -595,7 +608,7 @@ SVector::bsave(FILE *f) const
 
 
 bool 
-SVector::bload(FILE *f)
+SVector::load(FILE *f)
 {
   clear();
   int npairs;
@@ -694,9 +707,27 @@ combine(const SVector &v1, double a1, const SVector &v2, double a2)
   while (p1->i >= 0 && p2->i >= 0)
      {
        if (p1->i < p2->i)
-         p1++;
+         {
+           double v = p1->v * a1;
+           if (v)
+             {
+               p->i = p1->i;
+               p->v = v;
+               p++;
+             }
+           p1++;
+         }
        else if (p1->i > p2->i)
-         p2++;
+         {
+           double v = p2->v * a2;
+           if (v)
+             {
+               p->i = p2->i;
+               p->v = v;
+               p++;
+             }
+           p2++;
+         }
        else
          {
            double v = p1->v * a1 + p2->v * a2;
@@ -751,8 +782,8 @@ combine(const FVector &v1, double a1, const SVector &v2, double a2)
 FVector 
 combine(const SVector &v1, double a1, const FVector &v2, double a2)
 {
-  FVector r = v1;
-  r.combine(a1, v2, a2);
+  FVector r = v2;
+  r.combine(a2, v1, a1);
   return r;
 }
 

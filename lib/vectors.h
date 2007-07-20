@@ -73,10 +73,10 @@ public:
   void combine(double c1, const FVector &v2, double c2);
   void combine(double c1, const SVector &v2, double c2);
 
+  bool print(FILE *f) const;
+  bool read(FILE *f);
   bool save(FILE *f) const;
   bool load(FILE *f);
-  bool bsave(FILE *f) const;
-  bool bload(FILE *f);
 };
 
 
@@ -98,7 +98,7 @@ private:
     int size;
     struct Pair *pairs;
     
-    Rep() : npairs(0), mpairs(0), size(0) {}
+    Rep() : npairs(0), mpairs(-1), size(0), pairs(0) {}
     ~Rep() { delete [] pairs; }
     void resize(int n);
     double qset(int i, double v);
@@ -125,10 +125,10 @@ public:
   void scale(double c1);
   void combine(double c1, const SVector &v2, double c2);
 
+  bool print(FILE *f) const;
+  bool read(FILE *f);
   bool save(FILE *f) const;
   bool load(FILE *f);
-  bool bsave(FILE *f) const;
-  bool bload(FILE *f);
 
   friend SVector combine(const SVector &v1, double a1, 
                          const SVector &v2, double a2);
