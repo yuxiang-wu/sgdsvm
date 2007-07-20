@@ -49,6 +49,7 @@ private:
   Wrapper<Rep> w;
   Rep *rep() { return w.rep(); }
   const Rep *rep() const { return w.rep(); }
+  void qset(int i, double v);
   
 public:
   FVector();
@@ -59,6 +60,8 @@ public:
   double set(int i, double v);
   operator const float* () const { return rep()->data; }
 
+  void clear();
+  void resize(int n);
   void add(double c1);
   void add(const FVector &v2);
   void add(const SVector &v2);
@@ -70,10 +73,10 @@ public:
   void combine(double c1, const FVector &v2, double c2);
   void combine(double c1, const SVector &v2, double c2);
 
-  void save(FILE *f) const;
-  void load(FILE *f);
-  void bsave(FILE *f) const;
-  void bload(FILE *f);
+  bool save(FILE *f) const;
+  bool load(FILE *f);
+  bool bsave(FILE *f) const;
+  bool bload(FILE *f);
 };
 
 
@@ -115,15 +118,16 @@ public:
   int npairs() const { return rep()->npairs; }
   operator const Pair* () const { return rep()->pairs; }
 
+  void clear();
   void add(const SVector &v2);
   void add(const SVector &v2, double c2);
   void scale(double c1);
   void combine(double c1, const SVector &v2, double c2);
 
-  void save(FILE *f) const;
-  void load(FILE *f);
-  void bsave(FILE *f) const;
-  void bload(FILE *f);
+  bool save(FILE *f) const;
+  bool load(FILE *f);
+  bool bsave(FILE *f) const;
+  bool bload(FILE *f);
 };
 
 double dot(const FVector &v1, const FVector &v2);

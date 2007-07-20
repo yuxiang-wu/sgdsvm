@@ -124,6 +124,23 @@ FVector::set(int i, double v)
 
 
 void 
+FVector::clear()
+{
+  w.detach();
+  rep()->resize(0);
+}
+
+
+void 
+FVector::resize(int n)
+{
+  w.detach();
+  assert(n >= 0);
+  rep()->resize(n);
+}
+
+
+void 
 FVector::add(double c1)
 {
   w.detach();
@@ -282,24 +299,52 @@ FVector::combine(double c1, const SVector &v2, double c2)
 }
 
 
-void 
+bool 
 FVector::save(FILE *f) const
 {
+  SVector s(*this);
+  return s.save(f);
 }
 
-void 
+
+bool 
 FVector::load(FILE *f)
 {
+  SVector s;
+  if (! s.load(f))
+    return false;
+  FVector v(s);
+  operator=(v);
+  return true;
 }
 
-void 
+
+bool 
 FVector::bsave(FILE *f) const
 {
+  int i = size();
+  const float *d = rep()->data;
+  if (::fwrite(&i, sizeof(int), 1, f) != (size_t)1)
+    return false;
+  if (::fwrite(d, sizeof(float), i, f) != (size_t)i)
+    return false;
+  return true;
 }
 
-void 
+
+bool
 FVector::bload(FILE *f)
 {
+  int i;
+  w.detach();
+  if (::fread(&i, sizeof(int), 1, f) != (size_t)1)
+    return false;
+  resize(i);
+  float *d = rep()->data;
+  if (::fread(d, sizeof(float), i, f) == (size_t)i)
+    return true;
+  clear();
+  return false;
 }
 
 
@@ -334,6 +379,7 @@ private:
   
   Wrapper<Rep> w;
   Rep *rep() { return w.rep(); }
+  void qset(int i, double v);
   
 public:
   SVector();
@@ -344,15 +390,17 @@ public:
   int npairs() const { return rep()->npairs; }
   operator const Pair* () const { return rep->pairs; }
 
+  void clear();
+
   void add(const SVector &v2);
   void add(const SVector &v2, double c2);
   void scale(double c1);
   void combine(double c1, const SVector &v2, double c2);
 
-  void save(FILE *f) const;
-  void load(FILE *f);
-  void bsave(FILE *f) const;
-  void bload(FILE *f);
+  bool save(FILE *f) const;
+  bool load(FILE *f);
+  bool bsave(FILE *f) const;
+  bool bload(FILE *f);
 };
 
 double dot(const FVector &v1, const FVector &v2);
