@@ -117,7 +117,7 @@ FVector::set(int i, double v)
 {
   w.detach();
   Rep *r = rep();
-  if (i > r->size)
+  if (i >= r->size)
     r->resize(i+1);
   assert(i>=0);
   r->data[i] = v;
@@ -482,6 +482,7 @@ SVector::set(int i, double v)
         r->resize(r->npairs + min(16, max(r->mpairs, 4096)));
       SVector::Pair *s = r->pairs;
       p = s + r->npairs;
+      r->npairs += 1;
       for (; p > s && p[-1].i > i;  p--)
         p[0] = p[-1];
       p[0].i = i;

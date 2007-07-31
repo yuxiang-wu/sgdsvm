@@ -1,0 +1,31 @@
+
+
+
+
+
+
+PREPROCESSING THE DATA.
+
+Program <preprocess> reads the RCV1-V2 files in directory ../data/rcv1/
+The four official test files become the training set.
+The official training file becomes the testing set.
+All the TF/IDF things are recomputed accordingly.
+The program outputs four sizeable files:
+
+train.bin.gz
+train.dat.gz
+  Compressed training data in both binary and svmlight formats.
+  There are 781265 training documents:
+  370541 positives and 410724 negatives.
+  The examples in this file are randomly shuffled.
+
+test.bin.gz
+test.dat.gz
+  Compressed testing data in both binary and svmlight formats.
+  There are 23149 testing documents:
+  10786 positives and 12363 negatives.
+
+Consistent with the SvmPerf and Pegasos experiments, 
+we only use the 47152 features that are present in 
+both the training set and the testing set.
+
