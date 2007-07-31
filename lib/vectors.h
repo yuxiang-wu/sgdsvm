@@ -24,7 +24,7 @@
 
 #include <cstring>
 #include <cassert>
-#include <cstdio>
+#include <iostream>
 #include "wrapper.h"
 
 
@@ -73,10 +73,10 @@ public:
   void combine(double c1, const FVector &v2, double c2);
   void combine(double c1, const SVector &v2, double c2);
 
-  bool print(FILE *f) const;
-  bool read(FILE *f);
-  bool save(FILE *f) const;
-  bool load(FILE *f);
+  friend std::ostream& operator<<(std::ostream &f, const FVector &v);
+  friend std::istream& operator>>(std::istream &f, FVector &v);
+  bool save(std::ostream &f) const;
+  bool load(std::istream &f);
 };
 
 
@@ -125,10 +125,10 @@ public:
   void scale(double c1);
   void combine(double c1, const SVector &v2, double c2);
 
-  bool print(FILE *f) const;
-  bool read(FILE *f);
-  bool save(FILE *f) const;
-  bool load(FILE *f);
+  friend std::ostream& operator<<(std::ostream &f, const SVector &v);
+  friend std::istream& operator>>(std::istream &f, SVector &v);
+  bool save(std::ostream &f) const;
+  bool load(std::istream &f);
 
   friend SVector combine(const SVector &v1, double a1, 
                          const SVector &v2, double a2);
@@ -150,6 +150,6 @@ FVector combine(const FVector &v1, double a1, const FVector &v2, double a2);
 
 /* -------------------------------------------------------------
    Local Variables:
-   c++-font-lock-extra-types: ( "\\sw+_t" "[A-Z]\\sw*[a-z]\\sw*" )
+   c++-font-lock-extra-types: ("\\sw+_t" "[A-Z]\\sw*[a-z]\\sw*" "std::\\sw+")
    End:
    ------------------------------------------------------------- */

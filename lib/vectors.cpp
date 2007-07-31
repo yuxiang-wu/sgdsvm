@@ -305,51 +305,52 @@ FVector::combine(double c1, const SVector &v2, double c2)
 }
 
 
-bool 
-FVector::print(FILE *f) const
+
+
+std::ostream& 
+operator<<(std::ostream &f, const FVector &v)
 {
-  SVector s(*this);
-  return s.print(f);
+  SVector s(v);
+  f << s;
+  return f;
 }
 
 
-bool 
-FVector::read(FILE *f)
+std::istream& 
+operator>>(std::istream &f, FVector &v)
 {
   SVector s;
-  if (! s.read(f))
-    return false;
-  FVector v(s);
-  operator=(v);
-  return true;
+  f >> s;
+  if (f.good())
+    v = s;
+  return f;
 }
 
-
 bool 
-FVector::save(FILE *f) const
+FVector::save(std::ostream &f) const
 {
   int i = size();
   const float *d = rep()->data;
-  if (::fwrite(&i, sizeof(int), 1, f) != (size_t)1)
-    return false;
-  if (::fwrite(d, sizeof(float), i, f) != (size_t)i)
-    return false;
-  return true;
+  f.write((const char*)&i, sizeof(int));
+  f.write((const char*)d, sizeof(float)*i);
+  return f.good();
 }
 
 
 bool
-FVector::load(FILE *f)
+FVector::load(std::istream &f)
 {
-  int i;
+  int i = 0;
   clear();
-  if (::fread(&i, sizeof(int), 1, f) != (size_t)1)
+  f.read((char*)&i, sizeof(int));
+  if (i<0)
+    f.setstate(std::ios::badbit);
+  if (!f.good())
     return false;
   resize(i);
   float *d = rep()->data;
-  if (i<0 || ::fread(d, sizeof(float), i, f) == (size_t)i)
-    return true;
-  return false;
+  f.read((char*)d, sizeof(float)*i);
+  return f.good();
 }
 
 
@@ -557,75 +558,81 @@ SVector::scale(double c1)
 }
 
 
-bool 
-SVector::print(FILE *f) const
+std::ostream& 
+operator<<(std::ostream &f, const SVector &v)
 {
-  const Rep *r = rep();
-  const Pair *pairs = r->pairs;
+  const SVector::Rep *r = v.rep();
+  const SVector::Pair *pairs = r->pairs;
   int npairs = r->npairs;
   for (int i=0; i<npairs; i++)
-    ::fprintf(f, " %d:%.6e", pairs[i].i, (double)pairs[i].v);
-  ::fprintf(f, "\n");
-  return true;
+    f << " " << pairs[i].i << ":" << pairs[i].v;
+  f << std::endl;
+  return f;
 }
 
 
-bool 
-SVector::read(FILE *f)
+std::istream& 
+operator>>(std::istream &f, SVector &v)
 {
-  clear();
+  v.clear();
   for(;;)
     {
-      int c = ::getc(f);
-      if (c == '\n')
-        return true;
+      int c = f.get();
+      if (!f.good() || (c=='\n' || c=='\r'))
+        break;
       if (::isspace(c))
         continue;
       int i;
-      double v;
-      ::ungetc(c,f);
-      if (::fscanf(f, " %d : %le", &i, &v) < 2)
-        return false;
-      set(i, v);
+      f.unget();
+      f >> std::skipws >> i >> std::ws;
+      if (f.get() != ':')
+        {
+          f.unget();
+          f.setstate(std::ios::badbit);
+          break;
+        }
+      double x;
+      f >> std::skipws >> x;
+      if (!f.good())
+        break;
+      v.set(i,x);
     }
-  trim();
-  return false;
+  return f;
 }
 
 
 bool 
-SVector::save(FILE *f) const
+SVector::save(std::ostream &f) const
 {
   const Rep *r = rep();
   const Pair *pairs = r->pairs;
   int npairs = r->npairs;
-  if (::fwrite(&npairs, sizeof(int), 1, f) != (size_t)1)
-    return false;
-  if (::fwrite(pairs, sizeof(Pair), npairs, f) != (size_t)npairs)
-    return false;
-  return true;
+  f.write((const char*)&npairs, sizeof(int));
+  f.write((const char*)pairs, sizeof(Pair)*npairs);
+  return f.good();
 }
 
 
 bool 
-SVector::load(FILE *f)
+SVector::load(std::istream &f)
 {
   clear();
-  int npairs;
-  if (::fread(&npairs, sizeof(int), 1, f) != (size_t)1)
-    return false;
+  int npairs = 0;
+  f.read((char*)&npairs, sizeof(int));
   if (npairs < 0)
+    f.setstate(std::ios::badbit);
+  if (!f.good())
     return false;
   rep()->resize(npairs);
   for (int i=0; i<npairs; i++)
     {
       Pair pair;
-      if (::fread(&pair, sizeof(Pair), 1, f) != (size_t)1)
-        return false;
-      set(pair.i, pair.v);
+      f.read((char*)&pair, sizeof(Pair));
+      if (f.good())
+        set(pair.i, pair.v);
     }
   trim();
-  return true;
+  return f.good();
 }
 
 
@@ -800,6 +807,6 @@ combine(const FVector &v1, double a1, const FVector &v2, double a2)
 
 /* -------------------------------------------------------------
    Local Variables:
-   c++-font-lock-extra-types: ( "\\sw+_t" "[A-Z]\\sw*[a-z]\\sw*" )
+   c++-font-lock-extra-types: ( "\\sw+_t" "[A-Z]\\sw*[a-z]\\sw*" "std::\\sw+")
    End:
    ------------------------------------------------------------- */
