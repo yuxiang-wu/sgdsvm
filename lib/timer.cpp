@@ -59,13 +59,9 @@ static double
 klock()
 {
   struct timeval tv;
-#if _POSIX_TIMERS
+#ifdef CLOCK_REALTIME_HR // wishful thinking
   struct timespec ts;
-# ifdef CLOCK_REALTIME_HR // wishful thinking
   if (::clock_gettime(CLOCK_REALTIME_HR, &ts) >= 0)
-    return (double)ts.tv_sec + (double)ts.tv_nsec * 1e-9;
-# endif
-  if (::clock_gettime(CLOCK_REALTIME, &ts) >= 0)
     return (double)ts.tv_sec + (double)ts.tv_nsec * 1e-9;
 #endif
   if (::gettimeofday(&tv, NULL) >= 0)

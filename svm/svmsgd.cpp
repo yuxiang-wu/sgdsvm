@@ -1,0 +1,307 @@
+ 
+
+// -*- C++ -*-
+// SVM with stochastic gradient
+
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+// 
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+// 
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111, USA
+
+
+
+// $Id$
+
+
+#include "vectors.h"
+#include "gzstream.h"
+#include "timer.h"
+#include <iostream>
+#include <string>
+#include <map>
+#include <vector>
+#include <cassert>
+#include <cstdlib>
+#include <cmath>
+
+using namespace std;
+
+
+typedef vector<SVector> xvec_t;
+typedef vector<double> yvec_t;
+
+
+// -- stochastic gradient
+
+class SvmSgd
+{
+public:
+  SvmSgd(int dim, double lambda);
+  void train(int imin, int imax, const xvec_t &x, const yvec_t &y,
+             const char *prefix = "# ");
+  void test(int imin, int imax, const xvec_t &x, const yvec_t &y, 
+            const char *prefix = "# ");
+private:
+  double  t;
+  double  lambda;
+  FVector w;
+  double  wscale;
+  double  wnorm;
+  double  bias;
+};
+
+
+
+SvmSgd::SvmSgd(int dim, double l)
+  : lambda(l), w(dim), wscale(1), wnorm(0), bias(0)
+{
+  // Shift t in order to have a 
+  // reasonable initial learning rate
+  double eta0 = 0.1 / sqrt(lambda);
+  t = 1 / (eta0 * lambda);
+}
+
+
+void 
+SvmSgd::train(int imin, int imax, 
+              const xvec_t &xp, const yvec_t &yp,
+              const char *prefix)
+{
+  cerr << prefix << "Training on [" << imin << ", " << imax << "]." << endl;
+  assert(imin <= imax);
+  for (int i=imin; i<=imax; i++)
+    {
+      const SVector &x = xp.at(i);
+      double y = yp.at(i);
+      double wx = dot(w,x) * wscale;
+      double z = y * (wx + bias);
+      double eta = 1.0 / (lambda * t);
+      if (z < 1)
+        {
+          w.add(x, eta * y / wscale);
+          bias += eta * y;
+          wnorm += eta * eta * dot(x,x) + 2 * eta * y * wx;
+        }
+      double s = 1 - eta * lambda;
+      wscale *= s;
+      wnorm *= s * s;
+
+      if (wscale < 1e-9)
+        {
+          w.scale(wscale);
+          wscale = 1;
+        }
+      
+      t += 1;
+    }
+  cerr << prefix << "Norm: " << wnorm << endl;
+}
+
+
+void 
+SvmSgd::test(int imin, int imax, 
+             const xvec_t &xp, const yvec_t &yp, 
+             const char *prefix)
+
+{
+  cerr << prefix << "Testing on [" << imin << ", " << imax << "]." << endl;
+  assert(imin <= imax);
+  int nerr = 0;
+  double cost = 0;
+  for (int i=imin; i<=imax; i++)
+    {
+      const SVector &x = xp.at(i);
+      double y = yp.at(i);
+      double wx = dot(w,x) * wscale;
+      double z = y * (wx + bias);
+      if (z <= 0)
+        nerr += 1;
+      if (z < 1)
+        cost += 1 - z;
+    }
+  int n = imax - imin + 1;
+  cost = cost / n + 0.5 * lambda * wnorm;
+  cerr << prefix << "Misclassification: " << (double)nerr * 100.0 / n << "%." << endl;
+  cerr << prefix << "Cost: " << cost << "." << endl;
+}
+
+
+
+
+// --- options
+
+string trainfile;
+string testfile;
+double lambda = 1e-4;
+int epochs = 3;
+int maxtrain = -1;
+
+void 
+usage()
+{
+  cerr << "Usage: svmsgd [options] trainfile [testfile]" << endl
+       << "Options:" << endl
+       << " -lambda <lambda>" << endl
+       << " -epochs <epochs>" << endl
+       << " -maxtrain <n>" << endl
+       << endl;
+  exit(10);
+}
+
+void 
+parse(int argc, const char **argv)
+{
+  for (int i=1; i<argc; i++)
+    {
+      const char *arg = argv[i];
+      if (arg[0] != '-')
+        {
+          if (trainfile.empty())
+            trainfile = arg;
+          else if (testfile.empty())
+            testfile = arg;
+          else
+            usage();
+        }
+      else
+        {
+          while (arg[0] == '-') arg += 1;
+          string opt = arg;
+          if (opt == "lambda" && i+1<argc)
+            {
+              lambda = atof(argv[++i]);
+              cerr << "# Using lambda=" << lambda << "." << endl;
+              assert(lambda>0 && lambda<1e4);
+            }
+          else if (opt == "epochs" && i+1<argc)
+            {
+              epochs = atoi(argv[++i]);
+              cerr << "# Going for " << epochs << " epochs." << endl;
+              assert(epochs>0 && epochs<1e6);
+            }
+          else if (opt == "maxtrain" && i+1<argc)
+            {
+              maxtrain = atoi(argv[++i]);
+              assert(maxtrain > 0);
+            }
+          else
+            usage();
+        }
+    }
+  if (trainfile.empty())
+    usage();
+}
+
+
+// --- loading data
+
+int dim;
+xvec_t xtrain;
+yvec_t ytrain;
+xvec_t xtest;
+yvec_t ytest;
+
+void
+load(const char *fname, xvec_t &xp, yvec_t &yp)
+{
+  cerr << "# Loading " << fname << "." << endl;
+  
+  igzstream f;
+  f.open(fname);
+  if (! f.good())
+    {
+      cerr << "ERROR: cannot open " << fname << "." << endl;
+      exit(10);
+    }
+  int pcount = 0;
+  int ncount = 0;
+
+  bool binary;
+  string suffix = fname;
+  if (suffix.size() >= 7)
+    suffix = suffix.substr(suffix.size() - 7);
+  if (suffix == ".dat.gz")
+    binary = false;
+  else if (suffix == ".bin.gz")
+    binary = true;
+  else
+    {
+      cerr << "ERROR: filename should end with .bin.gz or .dat.gz" << endl;
+      exit(10);
+    }
+
+  while (f.good())
+    {
+      SVector x;
+      double y;
+      if (binary)
+        {
+          y = (f.get()) ? +1 : -1;
+          x.load(f);
+        }
+      else
+        {
+          f >> y >> x;
+        }
+      if (f.good())
+        {
+          assert(y == +1 || y == -1);
+          xp.push_back(x);
+          yp.push_back(y);
+          if (y > 0)
+            pcount += 1;
+          else
+            ncount += 1;
+          if (x.size() > dim)
+            dim = x.size();
+        }
+    }
+  cerr << "# Read " << pcount << "+" << ncount 
+       << "=" << pcount + ncount << " examples." << endl;
+}
+
+
+
+int 
+main(int argc, const char **argv)
+{
+  parse(argc, argv);
+
+  // load training set
+  load(trainfile.c_str(), xtrain, ytrain);
+  cerr << "# Number of features " << dim << "." << endl;
+  int imin = 0;
+  int imax = xtrain.size() - 1;
+  if (imax >= maxtrain)
+    imax = imin + maxtrain -1;
+  // prepare svm
+  SvmSgd svm(dim, lambda);
+  Timer timer;
+
+  // load testing set
+  if (! testfile.empty())
+    load(testfile.c_str(), xtest, ytest);
+  int tmin = 0;
+  int tmax = xtest.size() - 1;
+
+  for(int i=0; i<epochs; i++)
+    {
+      cerr << "# --------- Epoch " << i+1 << "." << endl;
+      timer.start();
+      svm.train(imin, imax, xtrain, ytrain);
+      timer.stop();
+      cerr << "# Total training time " << timer.elapsed() << " secs." << endl;
+      svm.test(imin, imax, xtrain, ytrain, "# train: ");
+      if (tmax >= tmin)
+        svm.test(tmin, tmax, xtest, ytest, "# test:  ");
+    }
+}

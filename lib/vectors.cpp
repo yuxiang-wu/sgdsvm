@@ -598,6 +598,7 @@ operator>>(std::istream &f, SVector &v)
         break;
       v.set(i,x);
     }
+  v.trim();
   return f;
 }
 
