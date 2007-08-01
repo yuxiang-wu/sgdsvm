@@ -40,6 +40,17 @@ typedef vector<SVector> xvec_t;
 typedef vector<double> yvec_t;
 
 
+// Zero for regular hinge loss.
+// One for rounded hinge loss.
+#define SQHINGE 1
+
+// Zero when no bias
+// One when bias term
+#define BIAS 1
+
+
+
+
 // -- stochastic gradient
 
 class SvmSgd
@@ -70,6 +81,40 @@ SvmSgd::SvmSgd(int dim, double l)
   t = 1 / (eta0 * lambda);
 }
 
+inline 
+double loss(double z)
+{
+#if SQHINGE
+  if (z < 0)
+    return 0.5 - z;
+  if (z < 1)
+    return 0.5 * (1-z) * (1-z);
+  return 0;
+#else
+  if (z < 1)
+    return 1 - z;
+  return 0;
+#endif
+}
+
+inline 
+double dloss(double z)
+{
+#if SQHINGE
+  if (z < 0)
+    return 1;
+  if (z < 1)
+    return 1-z;
+  return 0;
+#else
+  if (z < 1)
+    return 1;
+  return 0;
+#endif
+}
+
+
+
 
 void 
 SvmSgd::train(int imin, int imax, 
@@ -87,9 +132,14 @@ SvmSgd::train(int imin, int imax,
       double eta = 1.0 / (lambda * t);
       if (z < 1)
         {
-          w.add(x, eta * y / wscale);
-          bias += eta * y;
-          wnorm += eta * eta * dot(x,x) + 2 * eta * y * wx;
+          double etd = eta * dloss(z);
+          w.add(x, etd * y / wscale);
+#if BIAS
+          // Slower rate on the bias because
+          // it learns at each iteration.
+          bias += etd * y * 0.01;
+#endif
+          wnorm += etd * etd * dot(x,x) + 2 * etd * y * wx;
         }
       double s = 1 - eta * lambda;
       wscale *= s;
@@ -103,7 +153,7 @@ SvmSgd::train(int imin, int imax,
       
       t += 1;
     }
-  cerr << prefix << "Norm: " << wnorm << endl;
+  cerr << prefix << "Norm: " << wnorm << ", Bias: " << bias << endl;
 }
 
 
@@ -126,7 +176,7 @@ SvmSgd::test(int imin, int imax,
       if (z <= 0)
         nerr += 1;
       if (z < 1)
-        cost += 1 - z;
+        cost += loss(z);
     }
   int n = imax - imin + 1;
   cost = cost / n + 0.5 * lambda * wnorm;
@@ -281,7 +331,7 @@ main(int argc, const char **argv)
   cerr << "# Number of features " << dim << "." << endl;
   int imin = 0;
   int imax = xtrain.size() - 1;
-  if (imax >= maxtrain)
+  if (maxtrain > 0 && imax >= maxtrain)
     imax = imin + maxtrain -1;
   // prepare svm
   SvmSgd svm(dim, lambda);
