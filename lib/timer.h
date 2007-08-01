@@ -1,6 +1,5 @@
-
 // -*- C++ -*-
-// A simple timer (copied from boost)
+// A simple timer.
 
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,23 +23,18 @@
 #ifndef TIMER_H
 #define TIMER_H 1
 
-#include <ctime>
-
 
 class Timer
 {
- public:
-  Timer() 
-    { start = std::clock(); }
-  void   restart() 
-    { start = std::clock(); }
-  double elapsed() const 
-    { double(std::clock() - start) / CLOCKS_PER_SEC; }
-  double resolution const 
-    { return double(1)/double(CLOCKS_PER_SEC); }
-  
- private:
-  std::clock_t start;
+public:
+  Timer();
+  void reset();
+  double start();
+  double stop();
+  double elapsed();
+private:
+  double a, s;
+  int    r;
 };
 
 
