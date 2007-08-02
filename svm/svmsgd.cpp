@@ -42,7 +42,7 @@ typedef vector<double> yvec_t;
 
 // Zero for regular hinge loss.
 // One for rounded hinge loss.
-#define SQHINGE 1
+#define SQHINGE 0
 
 // Zero when no bias
 // One when bias term
