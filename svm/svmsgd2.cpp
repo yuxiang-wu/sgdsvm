@@ -41,9 +41,13 @@ typedef vector<SVector> xvec_t;
 typedef vector<double> yvec_t;
 
 
-// Zero for regular hinge loss.
-// One for rounded hinge loss.
-#define SQHINGE 0
+// Available losses
+#define HINGELOSS 1
+#define SQUAREDHINGELOSS 2
+#define LOGLOSS 10
+
+// Select loss
+#define LOSS LOGLOSS
 
 // Zero when no bias
 // One when bias term
@@ -93,23 +97,37 @@ SvmSgd::SvmSgd(int dim, double l)
 inline 
 double loss(double z)
 {
-#if SQHINGE
+#if LOSS == LOGLOSS
+  if (z > 18)
+    return exp(1-z);
+  if (z < -18)
+    return 1-z;
+  return log(1+exp(1-z));
+#elif LOSS == SQUAREDHINGELOSS
   if (z < 0)
     return 0.5 - z;
   if (z < 1)
     return 0.5 * (1-z) * (1-z);
   return 0;
-#else
+#elif LOSS == HINGELOSS
   if (z < 1)
     return 1 - z;
   return 0;
+#else
+# error "Undefined loss"
 #endif
 }
 
 inline 
 double dloss(double z)
 {
-#if SQHINGE
+#if LOSS == LOGLOSS
+  if (z > 18)
+    return exp(1-z);
+  if (z < -18)
+    return 1;
+  return 1 / (exp(z-1) + 1);
+#elif LOSS == SQUAREDHINGELOSS
   if (z < 0)
     return 1;
   if (z < 1)
@@ -169,7 +187,9 @@ SvmSgd::train(int imin, int imax,
       double wx = dot(w,x);
       double z = y * (wx + bias);
       double eta = 1.0 / (lambda * t);
+#if LOSS < LOGLOSS
       if (z < 1)
+#endif
         {
           double etd = eta * dloss(z);
           w.add(x, etd * y);
@@ -206,7 +226,9 @@ SvmSgd::test(int imin, int imax,
       double z = y * (wx + bias);
       if (z <= 0)
         nerr += 1;
+#if LOSS < LOGLOSS
       if (z < 1)
+#endif
         cost += loss(z);
     }
   int n = imax - imin + 1;
