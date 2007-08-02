@@ -22,10 +22,13 @@ CXX=g++
 CXXFLAGS= -g -O2 -Wall -I$L
 LIBS = -lz -lm
 
-all: preprocess svmsgd
+PROGRAMS = preprocess svmsgd svmsgd2
+
+all: ${PROGRAMS}
 
 clean:
-	-rm *.o preprocess
+	-rm ${PROGRAMS} 2>/dev/null
+	-rm *.o 2>/dev/null
 
 
 preprocess: preprocess.o vectors.o gzstream.o
@@ -34,12 +37,17 @@ preprocess: preprocess.o vectors.o gzstream.o
 svmsgd: svmsgd.o vectors.o gzstream.o timer.o
 	${CXX} ${CXXFLAGS} -o $@ svmsgd.o vectors.o gzstream.o timer.o ${LIBS}
 
+svmsgd2: svmsgd2.o vectors.o gzstream.o timer.o
+	${CXX} ${CXXFLAGS} -o $@ svmsgd2.o vectors.o gzstream.o timer.o ${LIBS}
 
 preprocess.o: preprocess.cpp $L/vectors.h  $L/gzstream.h
 	${CXX} ${CXXFLAGS} -c -o $@ preprocess.cpp
 
 svmsgd.o: svmsgd.cpp $L/vectors.h  $L/gzstream.h $L/timer.h
 	${CXX} ${CXXFLAGS} -c -o $@ svmsgd.cpp
+
+svmsgd2.o: svmsgd2.cpp $L/vectors.h  $L/gzstream.h $L/timer.h
+	${CXX} ${CXXFLAGS} -c -o $@ svmsgd2.cpp
 
 vectors.o: $L/vectors.cpp $L/vectors.h  $L/wrapper.h
 	${CXX} ${CXXFLAGS} -c -o $@ $L/vectors.cpp

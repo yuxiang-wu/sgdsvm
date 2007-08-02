@@ -216,39 +216,39 @@ FVector::add(const SVector &v2, double c2)
 
 
 void 
-FVector::add(const FVector &v2, const FVector &c2)
+FVector::add(const FVector &v2, double c2, const FVector &q2)
 {
   w.detach();
   Rep *r = rep();
   int m = r->size;
   m = max(m, v2.size());
-  m = min(m, c2.size());
+  m = min(m, q2.size());
   if (m > r->size)
     r->resize(m);
   float *d = r->data;
   const float *s = (const float*) v2;
-  const float *c = (const float*) c2;
+  const float *q = (const float*) q2;
   for (int i=0; i<m; i++)
-    d[i] += s[i] * c[i];
+    d[i] += s[i] * q[i] * c2;
 }
 
 
 void 
-FVector::add(const SVector &v2, const FVector &c2)
+FVector::add(const SVector &v2, double c2, const FVector &q2)
 {
   w.detach();
   Rep *r = rep();
   int m = r->size;
   m = max(m, v2.size());
-  m = min(m, c2.size());
+  m = min(m, q2.size());
   if (m > r->size)
     r->resize(m);
   float *d = r->data;
-  const float *c = (const float*) c2;
+  const float *q = (const float*) q2;
   int npairs = v2.npairs();
   const SVector::Pair *pairs = v2;
   for (int i=0; i<npairs && pairs->i < m; i++, pairs++)
-    d[pairs->i] += pairs->v * c[pairs->i];
+    d[pairs->i] += pairs->v * q[pairs->i] * c2;
 }
 
 

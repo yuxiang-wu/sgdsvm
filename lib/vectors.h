@@ -67,8 +67,8 @@ public:
   void add(const SVector &v2);
   void add(const FVector &v2, double c2);
   void add(const SVector &v2, double c2);
-  void add(const FVector &v2, const FVector &c2);
-  void add(const SVector &v2, const FVector &c2);
+  void add(const FVector &v2, double c2, const FVector &q2);
+  void add(const SVector &v2, double c2, const FVector &q2);
   void scale(double c1);
   void combine(double c1, const FVector &v2, double c2);
   void combine(double c1, const SVector &v2, double c2);

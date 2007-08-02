@@ -29,6 +29,7 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <algorithm>
 #include <cassert>
 #include <cstdlib>
 #include <cmath>
@@ -57,23 +58,31 @@ class SvmSgd
 {
 public:
   SvmSgd(int dim, double lambda);
-  void train(int imin, int imax, const xvec_t &x, const yvec_t &y,
+  
+  void measure(int imin, int imax, 
+               const xvec_t &x, const yvec_t &y);
+  
+  void train(int imin, int imax, 
+             const xvec_t &x, const yvec_t &y,
              const char *prefix = "# ");
-  void test(int imin, int imax, const xvec_t &x, const yvec_t &y, 
+  void test(int imin, int imax, 
+            const xvec_t &x, const yvec_t &y, 
             const char *prefix = "# ");
 private:
   double  t;
   double  lambda;
   FVector w;
-  double  wscale;
-  double  wnorm;
   double  bias;
+  double  bscale;
+  int skip;
+  int count;
 };
 
 
 
 SvmSgd::SvmSgd(int dim, double l)
-  : lambda(l), w(dim), wscale(1), wnorm(0), bias(0)
+  : lambda(l), w(dim), bias(0),
+    bscale(1), skip(1000)
 {
   // Shift t in order to have a 
   // reasonable initial learning rate
@@ -114,6 +123,34 @@ double dloss(double z)
 }
 
 
+void 
+SvmSgd::measure(int imin, int imax, 
+                const xvec_t &xp, const yvec_t &yp)
+{
+  cerr << "# Estimating sparsity and bscale." << endl;
+  double n = 0;
+  double r = 0;
+  double m = 0;
+  FVector c(w.size());
+  for (int j=imin; j<=imax && m<=1000; j++,n++)
+    {
+      const SVector &x = xp.at(j);
+      n += 1;
+      r += x.npairs();
+      const SVector::Pair *p = x;
+      while (p->i >= 0 && p->i < c.size())
+        {
+          double z = c.get(p->i) + fabs(p->v);
+          c.set(p->i, z);
+          m = max(m, z);
+          p += 1;
+        }
+    }
+  skip = (int) ((8 * n * w.size()) / r);
+  bscale = m / n;
+  cerr << "#  using " << n << " examples." << endl;
+  cerr << "#  skip: " << skip << " bscale: " << bscale << endl;
+}
 
 
 void 
@@ -121,37 +158,33 @@ SvmSgd::train(int imin, int imax,
               const xvec_t &xp, const yvec_t &yp,
               const char *prefix)
 {
+  // -------------
   cerr << prefix << "Training on [" << imin << ", " << imax << "]." << endl;
   assert(imin <= imax);
+  count = skip;
   for (int i=imin; i<=imax; i++)
     {
       const SVector &x = xp.at(i);
       double y = yp.at(i);
-      double wx = dot(w,x) * wscale;
+      double wx = dot(w,x);
       double z = y * (wx + bias);
       double eta = 1.0 / (lambda * t);
       if (z < 1)
         {
           double etd = eta * dloss(z);
-          w.add(x, etd * y / wscale);
+          w.add(x, etd * y);
 #if BIAS
-          // Slower rate on the bias because
-          // it learns at each iteration.
-          bias += etd * y * 0.01;
+          bias += etd * y * bscale;
 #endif
-          wnorm += etd * etd * dot(x,x) + 2 * etd * y * wx;
         }
-      double s = 1 - eta * lambda;
-      wscale *= s;
-      wnorm *= s * s;
-      if (wscale < 1e-9)
+      if (--count <= 0)
         {
-          w.scale(wscale);
-          wscale = 1;
+          w.scale(1 - eta * lambda * skip);
+          count = skip;
         }
       t += 1;
     }
-  cerr << prefix << "Norm: " << wnorm << ", Bias: " << bias << endl;
+  cerr << prefix << "Norm: " << dot(w,w) << ", Bias: " << bias << endl;
 }
 
 
@@ -169,7 +202,7 @@ SvmSgd::test(int imin, int imax,
     {
       const SVector &x = xp.at(i);
       double y = yp.at(i);
-      double wx = dot(w,x) * wscale;
+      double wx = dot(w,x);
       double z = y * (wx + bias);
       if (z <= 0)
         nerr += 1;
@@ -177,7 +210,7 @@ SvmSgd::test(int imin, int imax,
         cost += loss(z);
     }
   int n = imax - imin + 1;
-  cost = cost / n + 0.5 * lambda * wnorm;
+  cost = cost / n + 0.5 * lambda * dot(w,w);
   cerr << prefix << "Misclassification: " << (double)nerr * 100.0 / n << "%." << endl;
   cerr << prefix << "Cost: " << cost << "." << endl;
 }
@@ -341,8 +374,10 @@ main(int argc, const char **argv)
   int tmin = 0;
   int tmax = xtest.size() - 1;
 
+  svm.measure(imin, imax, xtrain, ytrain);
   for(int i=0; i<epochs; i++)
     {
+      
       cerr << "# --------- Epoch " << i+1 << "." << endl;
       timer.start();
       svm.train(imin, imax, xtrain, ytrain);
