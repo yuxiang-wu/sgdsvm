@@ -47,7 +47,7 @@ typedef vector<double> yvec_t;
 #define LOGLOSS 10
 
 // Select loss
-#define LOSS LOGLOSS
+#define LOSS HINGELOSS
 
 // Zero when no bias
 // One when bias term
