@@ -26,6 +26,7 @@
 #include "gzstream.h"
 #include "timer.h"
 #include <iostream>
+#include <iomanip>
 #include <string>
 #include <map>
 #include <vector>
@@ -43,7 +44,7 @@ typedef vector<double> yvec_t;
 
 // Available losses
 #define HINGELOSS 1
-#define SQUAREDHINGELOSS 2
+#define SMOOTHHINGELOSS 2
 #define LOGLOSS 10
 
 // Select loss
@@ -103,7 +104,7 @@ double loss(double z)
   if (z < -18)
     return 1-z;
   return log(1+exp(1-z));
-#elif LOSS == SQUAREDHINGELOSS
+#elif LOSS == SMOOTHHINGELOSS
   if (z < 0)
     return 0.5 - z;
   if (z < 1)
@@ -127,7 +128,7 @@ double dloss(double z)
   if (z < -18)
     return 1;
   return 1 / (exp(z-1) + 1);
-#elif LOSS == SQUAREDHINGELOSS
+#elif LOSS == SMOOTHHINGELOSS
   if (z < 0)
     return 1;
   if (z < 1)
@@ -233,7 +234,8 @@ SvmSgd::test(int imin, int imax,
     }
   int n = imax - imin + 1;
   cost = cost / n + 0.5 * lambda * dot(w,w);
-  cerr << prefix << "Misclassification: " << (double)nerr * 100.0 / n << "%." << endl;
+  cerr << prefix << "Misclassification: " 
+       << (double)nerr * 100.0 / n << "%." << endl;
   cerr << prefix << "Cost: " << cost << "." << endl;
 }
 
@@ -316,6 +318,7 @@ yvec_t ytest;
 void
 load(const char *fname, xvec_t &xp, yvec_t &yp)
 {
+  cerr << setprecision(16) << endl;
   cerr << "# Loading " << fname << "." << endl;
   
   igzstream f;
