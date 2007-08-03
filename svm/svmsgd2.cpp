@@ -46,7 +46,7 @@ typedef vector<double> yvec_t;
 #define LOGLOSS 10
 
 // Select loss
-#define LOSS HINGELOSS
+#define LOSS LOGLOSS
 
 // Zero when no bias
 // One when bias term
@@ -140,6 +140,7 @@ double dloss(double z)
 }
 
 
+double mincost = 1e38;
 
 
 void 
@@ -178,12 +179,18 @@ SvmSgd::train(int imin, int imax,
               const xvec_t &xp, const yvec_t &yp,
               const char *prefix)
 {
+  vector<int> shuffle;
+  for (int i=imin; i<=imax; i++)
+    shuffle.push_back(i);
+  random_shuffle(shuffle.begin(), shuffle.end());
+
   // -------------
   cerr << prefix << "Training on [" << imin << ", " << imax << "]." << endl;
   assert(imin <= imax);
   count = skip;
-  for (int i=imin; i<=imax; i++)
+  for (int ii=imin; ii<=imax; ii++)
     {
+      int i = shuffle[ii-imin];
       const SVector &x = xp.at(i);
       double y = yp.at(i);
       double wx = dot(w,x);
@@ -240,6 +247,10 @@ SvmSgd::test(int imin, int imax,
        << "Misclassification: " << (double)nerr * 100.0 / n << "%." << endl;
   cerr << prefix << setprecision(12) 
        << "Cost: " << cost << "." << endl;
+
+  mincost = min(cost,mincost);
+  cerr << prefix 
+       << "Mincost: " << mincost << endl;
 }
 
 
