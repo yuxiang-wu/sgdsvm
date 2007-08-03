@@ -26,6 +26,7 @@
 #include "gzstream.h"
 #include "timer.h"
 #include <iostream>
+#include <iomanip>
 #include <string>
 #include <map>
 #include <vector>
@@ -171,7 +172,8 @@ SvmSgd::train(int imin, int imax,
         }
       t += 1;
     }
-  cerr << prefix << "Norm: " << wnorm << ", Bias: " << bias << endl;
+  cerr << prefix << setprecision(6) 
+       << "Norm: " << wnorm << ", Bias: " << bias << endl;
 }
 
 
@@ -200,9 +202,10 @@ SvmSgd::test(int imin, int imax,
     }
   int n = imax - imin + 1;
   cost = cost / n + 0.5 * lambda * wnorm;
-  cerr << prefix << "Misclassification: " 
-       << (double)nerr * 100.0 / n << "%." << endl;
-  cerr << prefix << "Cost: " << cost << "." << endl;
+  cerr << prefix << setprecision(4)
+       << "Misclassification: " << (double)nerr * 100.0 / n << "%." << endl;
+  cerr << prefix << setprecision(12) 
+       << "Cost: " << cost << "." << endl;
 }
 
 
@@ -370,7 +373,8 @@ main(int argc, const char **argv)
       timer.start();
       svm.train(imin, imax, xtrain, ytrain);
       timer.stop();
-      cerr << "# Total training time " << timer.elapsed() << " secs." << endl;
+      cerr << "# Total training time " << setprecision(6) 
+           << timer.elapsed() << " secs." << endl;
       svm.test(imin, imax, xtrain, ytrain, "# train: ");
       if (tmax >= tmin)
         svm.test(tmin, tmax, xtest, ytest, "# test:  ");

@@ -1,5 +1,3 @@
- 
-
 // -*- C++ -*-
 // SVM with stochastic gradient
 
@@ -142,6 +140,8 @@ double dloss(double z)
 }
 
 
+
+
 void 
 SvmSgd::measure(int imin, int imax, 
                 const xvec_t &xp, const yvec_t &yp)
@@ -168,7 +168,8 @@ SvmSgd::measure(int imin, int imax,
   skip = (int) ((8 * n * w.size()) / r);
   bscale = m / n;
   cerr << "#  using " << n << " examples." << endl;
-  cerr << "#  skip: " << skip << " bscale: " << bscale << endl;
+  cerr << "#  skip: " << skip 
+       << " bscale: " << setprecision(6) << bscale << endl;
 }
 
 
@@ -205,7 +206,8 @@ SvmSgd::train(int imin, int imax,
         }
       t += 1;
     }
-  cerr << prefix << "Norm: " << dot(w,w) << ", Bias: " << bias << endl;
+  cerr << prefix << setprecision(6) 
+       << "Norm: " << dot(w,w) << ", Bias: " << bias << endl;
 }
 
 
@@ -234,9 +236,10 @@ SvmSgd::test(int imin, int imax,
     }
   int n = imax - imin + 1;
   cost = cost / n + 0.5 * lambda * dot(w,w);
-  cerr << prefix << "Misclassification: " 
-       << (double)nerr * 100.0 / n << "%." << endl;
-  cerr << prefix << "Cost: " << cost << "." << endl;
+  cerr << prefix << setprecision(4)
+       << "Misclassification: " << (double)nerr * 100.0 / n << "%." << endl;
+  cerr << prefix << setprecision(12) 
+       << "Cost: " << cost << "." << endl;
 }
 
 
@@ -318,7 +321,6 @@ yvec_t ytest;
 void
 load(const char *fname, xvec_t &xp, yvec_t &yp)
 {
-  cerr << setprecision(16) << endl;
   cerr << "# Loading " << fname << "." << endl;
   
   igzstream f;
@@ -407,7 +409,8 @@ main(int argc, const char **argv)
       timer.start();
       svm.train(imin, imax, xtrain, ytrain);
       timer.stop();
-      cerr << "# Total training time " << timer.elapsed() << " secs." << endl;
+      cerr << "# Total training time " << setprecision(6) 
+           << timer.elapsed() << " secs." << endl;
       svm.test(imin, imax, xtrain, ytrain, "# train: ");
       if (tmax >= tmin)
         svm.test(tmin, tmax, xtest, ytest, "# test:  ");
