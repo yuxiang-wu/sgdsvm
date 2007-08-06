@@ -654,7 +654,7 @@ dot(const FVector &v1, const FVector &v2)
   const VFloat *f2 = v2;
   double sum = 0.0;
   while (--m >= 0)
-    sum += (*f1++) * (*f2++);
+    sum += (double)(*f1++) * (double)(*f2++);
   return sum;
 }
 
@@ -668,7 +668,7 @@ dot(const FVector &v1, const SVector &v2)
   double sum = 0;
   if (p)
     for( ; p->i >= 0 && p->i < m; p++)
-      sum += p->v * f[p->i];
+      sum += (double)p->v * (double)f[p->i];
   return sum;
 }
 
@@ -678,16 +678,11 @@ dot(const SVector &v1, const FVector &v2)
 {
   int m = v2.size();
   const VFloat *f = v2;
-  int n = v1.npairs();
   const SVector::Pair *p = v1;
   double sum = 0;
   if (p)
     for( ; p->i >= 0 && p->i < m; p++)
-      sum += p->v * f[p->i];
-  
-
-  for( ; --n >= 0 && p->i < m; p++)
-    sum += p->v * f[p->i];
+      sum += (double)p->v * (double)f[p->i];
   return sum;
 }
 
@@ -706,7 +701,7 @@ dot(const SVector &v1, const SVector &v2)
         else if (p1->i > p2->i)
           p2++;
         else
-          sum += (p1++)->v * (p2++)->v;
+          sum += (double)(p1++)->v * (double)(p2++)->v;
       }
   return sum;
 }
@@ -725,7 +720,7 @@ combine(const SVector &v1, double a1, const SVector &v2, double a2)
      {
        if (p1->i < p2->i)
          {
-           double v = p1->v * a1;
+           double v = (double)p1->v * a1;
            if (v)
              {
                p->i = p1->i;
@@ -736,7 +731,7 @@ combine(const SVector &v1, double a1, const SVector &v2, double a2)
          }
        else if (p1->i > p2->i)
          {
-           double v = p2->v * a2;
+           double v = (double)p2->v * a2;
            if (v)
              {
                p->i = p2->i;
@@ -747,7 +742,7 @@ combine(const SVector &v1, double a1, const SVector &v2, double a2)
          }
        else
          {
-           double v = p1->v * a1 + p2->v * a2;
+           double v = (double)p1->v * a1 + (double)p2->v * a2;
            if (v)
              {
                p->i = p1->i;
@@ -760,7 +755,7 @@ combine(const SVector &v1, double a1, const SVector &v2, double a2)
      }
   while  (p1->i >= 0)
     {
-      double v = p1->v * a1;
+      double v = (double)p1->v * a1;
       if (v)
         {
           p->i = p1->i;
@@ -771,7 +766,7 @@ combine(const SVector &v1, double a1, const SVector &v2, double a2)
     }
   while  (p2->i >= 0)
     {
-      double v = p2->v * a2;
+      double v = (double)p2->v * a2;
       if (v)
         {
           p->i = p2->i;
