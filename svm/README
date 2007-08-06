@@ -34,6 +34,12 @@ with the svmlight suite.
 
 
 
+
+============ HINGE LOSS CLASSIFICATION
+
+
+
+
 SVMSGD
 
 
@@ -46,33 +52,33 @@ $ ./svmsgd  train.bin.gz test.bin.gz
 # --------- Epoch 1.
 # Training on [0, 781264].
 # Norm: 1146.05, Bias: 0.0749107
-# Total training time 0.3 secs.
+# Total training time 0.32 secs.
 # train: Testing on [0, 781264].
 # train: Misclassification: 5.667%.
-# train: Cost: 0.227903108168.
+# train: Cost: 0.227903108159.
 # test:  Testing on [0, 23148].
 # test:  Misclassification: 6.018%.
-# test:  Cost: 0.244467993991.
+# test:  Cost: 0.244467994024.
 # --------- Epoch 2.
 # Training on [0, 781264].
 # Norm: 1142.41, Bias: 0.0742904
-# Total training time 0.61 secs.
+# Total training time 0.64 secs.
 # train: Testing on [0, 781264].
 # train: Misclassification: 5.659%.
-# train: Cost: 0.227650621753.
+# train: Cost: 0.227650621758.
 # test:  Testing on [0, 23148].
 # test:  Misclassification: 6.043%.
-# test:  Cost: 0.244297508179.
+# test:  Cost: 0.244297508184.
 # --------- Epoch 3.
 # Training on [0, 781264].
 # Norm: 1141.34, Bias: 0.0729949
-# Total training time 0.91 secs.
+# Total training time 0.95 secs.
 # train: Testing on [0, 781264].
 # train: Misclassification: 5.661%.
-# train: Cost: 0.227573630953.
+# train: Cost: 0.227573630947.
 # test:  Testing on [0, 23148].
 # test:  Misclassification: 6.026%.
-# test:  Cost: 0.24422215383.
+# test:  Cost: 0.244222153757.
 
 
 
@@ -88,41 +94,40 @@ $ ./svmsgd2 train.bin.gz test.bin.gz
 #  skip: 9935 bscale: 0.00883119
 # --------- Epoch 1.
 # Training on [0, 781264].
-# Norm: 1142.57, Bias: 0.0740031
-# Total training time 0.26 secs.
+# Norm: 1144.76, Bias: 0.0750328
+# Total training time 0.28 secs.
 # train: Testing on [0, 781264].
-# train: Misclassification: 5.68%.
-# train: Cost: 0.227921286842.
-# train: Mincost: 0.227921286842
+# train: Misclassification: 5.675%.
+# train: Cost: 0.227903118285.
+# train: Mincost: 0.227903118285
 # test:  Testing on [0, 23148].
-# test:  Misclassification: 6.056%.
-# test:  Cost: 0.244458993256.
-# test:  Mincost: 0.227921286842
+# test:  Misclassification: 6.035%.
+# test:  Cost: 0.24440020023.
+# test:  Mincost: 0.227903118285
 # --------- Epoch 2.
 # Training on [0, 781264].
-# Norm: 1141.94, Bias: 0.0733684
-# Total training time 0.52 secs.
+# Norm: 1142.96, Bias: 0.0739744
+# Total training time 0.56 secs.
 # train: Testing on [0, 781264].
-# train: Misclassification: 5.662%.
-# train: Cost: 0.227645931866.
-# train: Mincost: 0.227645931866
+# train: Misclassification: 5.661%.
+# train: Cost: 0.227642787389.
+# train: Mincost: 0.227642787389
 # test:  Testing on [0, 23148].
-# test:  Misclassification: 6.043%.
-# test:  Cost: 0.244283811865.
-# test:  Mincost: 0.227645931866
+# test:  Misclassification: 6.056%.
+# test:  Cost: 0.244264197418.
+# test:  Mincost: 0.227642787389
 # --------- Epoch 3.
 # Training on [0, 781264].
-# Norm: 1142.35, Bias: 0.0728536
-# Total training time 0.78 secs.
+# Norm: 1142.73, Bias: 0.0730348
+# Total training time 0.83 secs.
 # train: Testing on [0, 781264].
-# train: Misclassification: 5.663%.
-# train: Cost: 0.227576558643.
-# train: Mincost: 0.227576558643
+# train: Misclassification: 5.661%.
+# train: Cost: 0.227575207101.
+# train: Mincost: 0.227575207101
 # test:  Testing on [0, 23148].
 # test:  Misclassification: 6.022%.
-# test:  Cost: 0.24422399366.
-# test:  Mincost: 0.227576558643
-
+# test:  Cost: 0.244218563281.
+# test:  Mincost: 0.227575207101
 
 
 
@@ -131,11 +136,28 @@ COMPARATIVE TIMINGS
 $ svm_perf -c 100 train.dat svmperf.model
 duration: 66 seconds.
 test error: 6.0348%
-optimum comparison: a little bit different
-(numerical issues with exact value of c?)
+optimum: 0.2268 (within 1% of svmsgd - issues with c?)
+
 
 $ svm_light -c .1280  train.dat svmlight.model
 duration: 
 test error comparison: 
 optimum comparison: 
 
+
+
+
+
+
+
+============ SQUARED HINGE LOSS CLASSIFICATION
+
+
+
+
+
+COMPARATIVE TIMINGS
+
+$ svmlin -A1 -W2e-4  train.x.dat train.y.dat
+duration: 276 seconds
+test error: 5.34%

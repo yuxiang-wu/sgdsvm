@@ -25,10 +25,10 @@
 #include "timer.h"
 #include <iostream>
 #include <iomanip>
+#include <algorithm>
 #include <string>
 #include <map>
 #include <vector>
-#include <algorithm>
 #include <cassert>
 #include <cstdlib>
 #include <cmath>
@@ -54,45 +54,6 @@ typedef vector<double> yvec_t;
 #define BIAS 1
 
 
-
-
-// -- stochastic gradient
-
-class SvmSgd
-{
-public:
-  SvmSgd(int dim, double lambda);
-  
-  void measure(int imin, int imax, 
-               const xvec_t &x, const yvec_t &y);
-  
-  void train(int imin, int imax, 
-             const xvec_t &x, const yvec_t &y,
-             const char *prefix = "# ");
-  void test(int imin, int imax, 
-            const xvec_t &x, const yvec_t &y, 
-            const char *prefix = "# ");
-private:
-  double  t;
-  double  lambda;
-  FVector w;
-  double  bias;
-  double  bscale;
-  int skip;
-  int count;
-};
-
-
-
-SvmSgd::SvmSgd(int dim, double l)
-  : lambda(l), w(dim), bias(0),
-    bscale(1), skip(1000)
-{
-  // Shift t in order to have a 
-  // reasonable initial learning rate
-  double eta0 = 0.1 / sqrt(lambda);
-  t = 1 / (eta0 * lambda);
-}
 
 inline 
 double loss(double z)
@@ -146,6 +107,48 @@ double dloss(double z)
     return 1;
   return 0;
 #endif
+}
+
+
+// -- stochastic gradient
+
+class SvmSgd
+{
+public:
+  SvmSgd(int dim, double lambda);
+  
+  void measure(int imin, int imax, 
+               const xvec_t &x, const yvec_t &y);
+  
+  void train(int imin, int imax, 
+             const xvec_t &x, const yvec_t &y,
+             const char *prefix = "# ");
+  void test(int imin, int imax, 
+            const xvec_t &x, const yvec_t &y, 
+            const char *prefix = "# ");
+private:
+  double  t;
+  double  lambda;
+  FVector w;
+  double  bias;
+  double  bscale;
+  int skip;
+  int count;
+};
+
+
+
+SvmSgd::SvmSgd(int dim, double l)
+  : lambda(l), w(dim), bias(0),
+    bscale(1), skip(1000)
+{
+  // Shift t in order to have a 
+  // reasonable initial learning rate.
+  // This assumes |x| \approx 1.
+  double maxw = 1.0 / sqrt(lambda);
+  double typw = sqrt(maxw);
+  double eta0 = typw / max(1.0,dloss(-typw));
+  t = 1 / (eta0 * lambda);
 }
 
 
@@ -210,7 +213,10 @@ SvmSgd::train(int imin, int imax,
         }
       if (--count <= 0)
         {
-          w.scale(1 - eta * lambda * skip);
+          double s = 1 - eta * lambda * skip;
+          if (s < 0.9) // sometimes we need more accuracy
+            s = pow(1 - eta * lambda, skip);
+          w.scale(s);
           count = skip;
         }
       t += 1;
@@ -389,6 +395,7 @@ load(const char *fname, xvec_t &xp, yvec_t &yp)
   cerr << "# Read " << pcount << "+" << ncount 
        << "=" << pcount + ncount << " examples." << endl;
 }
+
 
 
 

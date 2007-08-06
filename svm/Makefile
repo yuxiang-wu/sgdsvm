@@ -19,7 +19,8 @@ L=../lib
 
 
 CXX=g++
-CXXFLAGS= -g -O2 -Wall -I$L
+OPTS=-g -O2
+CXXFLAGS= ${OPTS} -Wall -I$L
 LIBS = -lz -lm
 
 PROGRAMS = preprocess svmsgd svmsgd2

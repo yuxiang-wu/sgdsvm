@@ -22,12 +22,24 @@
 #include "timer.h"
 #include <ctime>
 
+#ifdef USE_REALTIME_CLOCK
+# include <sys/time.h>
+# include <time.h>
 static double
 klock()
 {
-  return (double) std::clock() / CLOCKS_PER_SEC;
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return (double) tv.tv_sec + (double) tv.tv_usec * 1e-6;
+  return (double) std::clock() / (double) CLOCKS_PER_SEC;
 }
-
+#else
+static double
+klock()
+{
+  return (double) std::clock() / (double) CLOCKS_PER_SEC;
+}
+#endif
 
 Timer::Timer()
   : a(0), s(0), r(0)

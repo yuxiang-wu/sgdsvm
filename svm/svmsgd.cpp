@@ -55,38 +55,6 @@ typedef vector<double> yvec_t;
 #define BIAS 1
 
 
-
-
-// -- stochastic gradient
-
-class SvmSgd
-{
-public:
-  SvmSgd(int dim, double lambda);
-  void train(int imin, int imax, const xvec_t &x, const yvec_t &y,
-             const char *prefix = "# ");
-  void test(int imin, int imax, const xvec_t &x, const yvec_t &y, 
-            const char *prefix = "# ");
-private:
-  double  t;
-  double  lambda;
-  FVector w;
-  double  wscale;
-  double  wnorm;
-  double  bias;
-};
-
-
-
-SvmSgd::SvmSgd(int dim, double l)
-  : lambda(l), w(dim), wscale(1), wnorm(0), bias(0)
-{
-  // Shift t in order to have a 
-  // reasonable initial learning rate
-  double eta0 = 0.1 / sqrt(lambda);
-  t = 1 / (eta0 * lambda);
-}
-
 inline 
 double loss(double z)
 {
@@ -142,7 +110,38 @@ double dloss(double z)
 }
 
 
+// -- stochastic gradient
 
+class SvmSgd
+{
+public:
+  SvmSgd(int dim, double lambda);
+  void train(int imin, int imax, const xvec_t &x, const yvec_t &y,
+             const char *prefix = "# ");
+  void test(int imin, int imax, const xvec_t &x, const yvec_t &y, 
+            const char *prefix = "# ");
+private:
+  double  t;
+  double  lambda;
+  FVector w;
+  double  wscale;
+  double  wnorm;
+  double  bias;
+};
+
+
+
+SvmSgd::SvmSgd(int dim, double l)
+  : lambda(l), w(dim), wscale(1), wnorm(0), bias(0)
+{
+  // Shift t in order to have a 
+  // reasonable initial learning rate.
+  // This assumes |x| \approx 1.
+  double maxw = 1.0 / sqrt(lambda);
+  double typw = sqrt(maxw);
+  double eta0 = typw / max(1.0,dloss(-typw));
+  t = 1 / (eta0 * lambda);
+}
 
 void 
 SvmSgd::train(int imin, int imax, 
