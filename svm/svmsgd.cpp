@@ -44,6 +44,7 @@ typedef vector<double> yvec_t;
 // Available losses
 #define HINGELOSS 1
 #define SMOOTHHINGELOSS 2
+#define SQUAREDHINGELOSS 3
 #define LOGLOSS 10
 
 // Select loss
@@ -101,6 +102,10 @@ double loss(double z)
   if (z < 1)
     return 0.5 * (1-z) * (1-z);
   return 0;
+#elif LOSS == SQUAREDHINGELOSS
+  if (z < 1)
+    return 0.5 * (1 - z) * (1 - z);
+  return 0;
 #elif LOSS == HINGELOSS
   if (z < 1)
     return 1 - z;
@@ -124,6 +129,10 @@ double dloss(double z)
     return 1;
   if (z < 1)
     return 1-z;
+  return 0;
+#elif LOSS == SQUAREDHINGELOSS
+  if (z < 1)
+    return (1 - z);
   return 0;
 #else
   if (z < 1)

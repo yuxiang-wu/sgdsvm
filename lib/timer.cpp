@@ -20,57 +20,13 @@
 
 
 #include "timer.h"
-
-
-#ifdef WIN32
-# include <windows.h>
-#else
-# include <time.h>
-# include <sys/time.h>
-#endif
-
-
-#ifdef WIN32
-# include <windows.h>
-
-static double 
-klock()
-{
-#if 0 // this does not work when laptops change frequency.
-  static LARGE_INTEGER f;
-  LARGE_INTEGER n;
-  QueryPerformanceCounter(&n);
-  if (! f.QuadPart)
-    QueryPerformanceFrequency(&f);
-  return (double)n.QuadPart / (double)f.QuadPart;
-#else
-  FILETIME ft;
-  GetSystemTimeAsFileTime(&ft);
-  return ((double)ft.dwHighDateTime*4294967296.0 + ft.dwLowDateTime) * 1e-7;
-#endif
-}
-
-#else
-# include <time.h>
-# include <sys/time.h>
-# include <unistd.h>
+#include <ctime>
 
 static double
 klock()
 {
-  struct timeval tv;
-#ifdef CLOCK_REALTIME_HR // wishful thinking
-  struct timespec ts;
-  if (::clock_gettime(CLOCK_REALTIME_HR, &ts) >= 0)
-    return (double)ts.tv_sec + (double)ts.tv_nsec * 1e-9;
-#endif
-  if (::gettimeofday(&tv, NULL) >= 0)
-    return (double)tv.tv_sec + (double)tv.tv_usec * 1e-6;
-  return (double)::clock() / CLOCKS_PER_SEC;
+  return (double) std::clock() / CLOCKS_PER_SEC;
 }
-
-#endif
-
 
 
 Timer::Timer()
