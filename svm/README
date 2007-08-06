@@ -28,4 +28,64 @@ test.dat.gz
 Consistent with the SvmPerf and Pegasos experiments, 
 we only use the 47152 features that are present in 
 both the training set and the testing set.
+The programs report 47153 features because we
+start numbering features at 1 for compatibility
+with the svmlight suite.
+
+
+
+SVMSGD
+$ ./svmsgd  train.bin.gz test.bin.gz
+# Loading train.bin.gz.
+# Read 370541+410724=781265 examples.
+# Number of features 47153.
+# Loading test.bin.gz.
+# Read 10786+12363=23149 examples.
+# --------- Epoch 1.
+# Training on [0, 781264].
+# Norm: 1146.05, Bias: 0.0749107
+# Total training time 0.3 secs.
+# train: Testing on [0, 781264].
+# train: Misclassification: 5.667%.
+# train: Cost: 0.227903108168.
+# test:  Testing on [0, 23148].
+# test:  Misclassification: 6.018%.
+# test:  Cost: 0.244467993991.
+# --------- Epoch 2.
+# Training on [0, 781264].
+# Norm: 1142.41, Bias: 0.0742904
+# Total training time 0.61 secs.
+# train: Testing on [0, 781264].
+# train: Misclassification: 5.659%.
+# train: Cost: 0.227650621753.
+# test:  Testing on [0, 23148].
+# test:  Misclassification: 6.043%.
+# test:  Cost: 0.244297508179.
+# --------- Epoch 3.
+# Training on [0, 781264].
+# Norm: 1141.34, Bias: 0.0729949
+# Total training time 0.91 secs.
+# train: Testing on [0, 781264].
+# train: Misclassification: 5.661%.
+# train: Cost: 0.227573630953.
+# test:  Testing on [0, 23148].
+# test:  Misclassification: 6.026%.
+# test:  Cost: 0.24422215383.
+
+
+
+
+
+COMPARATIVE TIMINGS
+
+$ svm_perf -c 100 train.dat svmperf.model
+duration: 66 seconds.
+test error: 6.0348%
+optimum comparison: a little bit different
+(numerical issues with exact value of c?)
+
+$ svm_light -c .1280  train.dat svmlight.model
+duration: 
+test error comparison: 
+optimum comparison: 
 

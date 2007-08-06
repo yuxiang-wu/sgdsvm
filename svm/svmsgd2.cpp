@@ -43,11 +43,11 @@ typedef vector<double> yvec_t;
 // Available losses
 #define HINGELOSS 1
 #define SMOOTHHINGELOSS 2
-#define HINGELOSS 3
+#define SQUAREDHINGELOSS 3
 #define LOGLOSS 10
 
 // Select loss
-#define LOSS SQUAREDHINGELOSS
+#define LOSS HINGELOSS
 
 // Zero when no bias
 // One when bias term
@@ -188,18 +188,11 @@ SvmSgd::train(int imin, int imax,
               const xvec_t &xp, const yvec_t &yp,
               const char *prefix)
 {
-  vector<int> shuffle;
-  for (int i=imin; i<=imax; i++)
-    shuffle.push_back(i);
-  random_shuffle(shuffle.begin(), shuffle.end());
-
-  // -------------
   cerr << prefix << "Training on [" << imin << ", " << imax << "]." << endl;
   assert(imin <= imax);
   count = skip;
-  for (int ii=imin; ii<=imax; ii++)
+  for (int i=imin; i<=imax; i++)
     {
-      int i = shuffle[ii-imin];
       const SVector &x = xp.at(i);
       double y = yp.at(i);
       double wx = dot(w,x);
