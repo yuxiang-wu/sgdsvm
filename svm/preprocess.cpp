@@ -154,7 +154,7 @@ readDocs(const char *fname, docs_t &docs, bool freezedico=false)
                 continue;
               else
                 {
-                  wid = dico.size();
+                  wid = dico.size() + 1;
                   dico[token] = wid;
                 }
               otoken = token;
