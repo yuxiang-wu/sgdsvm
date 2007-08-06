@@ -35,6 +35,8 @@ with the svmlight suite.
 
 
 SVMSGD
+
+
 $ ./svmsgd  train.bin.gz test.bin.gz
 # Loading train.bin.gz.
 # Read 370541+410724=781265 examples.
@@ -72,6 +74,54 @@ $ ./svmsgd  train.bin.gz test.bin.gz
 # test:  Misclassification: 6.026%.
 # test:  Cost: 0.24422215383.
 
+
+
+
+$ ./svmsgd2 train.bin.gz test.bin.gz
+# Loading train.bin.gz.
+# Read 370541+410724=781265 examples.
+# Number of features 47153.
+# Loading test.bin.gz.
+# Read 10786+12363=23149 examples.
+# Estimating sparsity and bscale.
+#  using 113238 examples.
+#  skip: 9935 bscale: 0.00883119
+# --------- Epoch 1.
+# Training on [0, 781264].
+# Norm: 1142.57, Bias: 0.0740031
+# Total training time 0.26 secs.
+# train: Testing on [0, 781264].
+# train: Misclassification: 5.68%.
+# train: Cost: 0.227921286842.
+# train: Mincost: 0.227921286842
+# test:  Testing on [0, 23148].
+# test:  Misclassification: 6.056%.
+# test:  Cost: 0.244458993256.
+# test:  Mincost: 0.227921286842
+# --------- Epoch 2.
+# Training on [0, 781264].
+# Norm: 1141.94, Bias: 0.0733684
+# Total training time 0.52 secs.
+# train: Testing on [0, 781264].
+# train: Misclassification: 5.662%.
+# train: Cost: 0.227645931866.
+# train: Mincost: 0.227645931866
+# test:  Testing on [0, 23148].
+# test:  Misclassification: 6.043%.
+# test:  Cost: 0.244283811865.
+# test:  Mincost: 0.227645931866
+# --------- Epoch 3.
+# Training on [0, 781264].
+# Norm: 1142.35, Bias: 0.0728536
+# Total training time 0.78 secs.
+# train: Testing on [0, 781264].
+# train: Misclassification: 5.663%.
+# train: Cost: 0.227576558643.
+# train: Mincost: 0.227576558643
+# test:  Testing on [0, 23148].
+# test:  Misclassification: 6.022%.
+# test:  Cost: 0.24422399366.
+# test:  Mincost: 0.227576558643
 
 
 
