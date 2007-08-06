@@ -31,6 +31,7 @@
 class FVector;
 class SVector;
 
+typedef float VFloat;
 
 class FVector
 {
@@ -39,7 +40,7 @@ private:
   {
     int refcount;
     int size;
-    float *data;
+    VFloat *data;
     Rep() : size(0), data(0) {}
     ~Rep() { delete [] data; }
     void resize(int n);
@@ -58,7 +59,7 @@ public:
   int size() const { return rep()->size; }
   double get(int i) const;
   double set(int i, double v);
-  operator const float* () const { return rep()->data; }
+  operator const VFloat* () const { return rep()->data; }
 
   void clear();
   void resize(int n);
@@ -87,7 +88,7 @@ public:
   struct Pair 
   { 
     int i; 
-    float v; 
+    VFloat v; 
   };
 private:
   struct Rep

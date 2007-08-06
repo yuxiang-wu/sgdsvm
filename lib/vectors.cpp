@@ -23,6 +23,9 @@
 
 
 #include "vectors.h"
+#include <ios>
+#include <iomanip>
+#include <iostream>
 #include <cassert>
 #include <cctype>
 
@@ -46,7 +49,7 @@ FVector::Rep::resize(int n)
     {
       if (n > 0)
         {
-          float *newdata = new float[n];
+          VFloat *newdata = new VFloat[n];
           int i = 0;
           int s = min(size,n);
           for (; i<s; i++)
@@ -147,7 +150,7 @@ FVector::add(double c1)
 {
   w.detach();
   Rep *r = rep();
-  float *d = r->data;
+  VFloat *d = r->data;
   for (int i=0; i<r->size; i++)
     d[i] += c1;
 }
@@ -161,8 +164,8 @@ FVector::add(const FVector &v2)
   int m = max(r->size, v2.size());
   if (m > r->size)
     r->resize(m);
-  float *d = r->data;
-  const float *s = (const float*) v2;
+  VFloat *d = r->data;
+  const VFloat *s = (const VFloat*) v2;
   for (int i=0; i<m; i++)
     d[i] += s[i];
 }
@@ -176,7 +179,7 @@ FVector::add(const SVector &v2)
   int m = max(r->size, v2.size());
   if (m > r->size)
     r->resize(m);
-  float *d = r->data;
+  VFloat *d = r->data;
   int npairs = v2.npairs();
   const SVector::Pair *pairs = v2;
   for (int i=0; i<npairs; i++, pairs++)
@@ -192,8 +195,8 @@ FVector::add(const FVector &v2, double c2)
   int m = max(r->size, v2.size());
   if (m > r->size)
     r->resize(m);
-  float *d = r->data;
-  const float *s = (const float*) v2;
+  VFloat *d = r->data;
+  const VFloat *s = (const VFloat*) v2;
   for (int i=0; i<m; i++)
     d[i] += s[i] * c2;
 }
@@ -207,7 +210,7 @@ FVector::add(const SVector &v2, double c2)
   int m = max(r->size, v2.size());
   if (m > r->size)
     r->resize(m);
-  float *d = r->data;
+  VFloat *d = r->data;
   int npairs = v2.npairs();
   const SVector::Pair *pairs = v2;
   for (int i=0; i<npairs; i++, pairs++)
@@ -225,9 +228,9 @@ FVector::add(const FVector &v2, double c2, const FVector &q2)
   m = min(m, q2.size());
   if (m > r->size)
     r->resize(m);
-  float *d = r->data;
-  const float *s = (const float*) v2;
-  const float *q = (const float*) q2;
+  VFloat *d = r->data;
+  const VFloat *s = (const VFloat*) v2;
+  const VFloat *q = (const VFloat*) q2;
   for (int i=0; i<m; i++)
     d[i] += s[i] * q[i] * c2;
 }
@@ -243,8 +246,8 @@ FVector::add(const SVector &v2, double c2, const FVector &q2)
   m = min(m, q2.size());
   if (m > r->size)
     r->resize(m);
-  float *d = r->data;
-  const float *q = (const float*) q2;
+  VFloat *d = r->data;
+  const VFloat *q = (const VFloat*) q2;
   int npairs = v2.npairs();
   const SVector::Pair *pairs = v2;
   for (int i=0; i<npairs && pairs->i < m; i++, pairs++)
@@ -257,7 +260,7 @@ FVector::scale(double c1)
 {
   w.detach();
   Rep *r = rep();
-  float *d = r->data;
+  VFloat *d = r->data;
   for (int i=0; i<r->size; i++)
     d[i] *= c1;
 }
@@ -271,8 +274,8 @@ FVector::combine(double c1, const FVector &v2, double c2)
   int m = max(r->size, v2.size());
   if (m > r->size)
     r->resize(m);
-  float *d = r->data;
-  const float *s = (const float*) v2;
+  VFloat *d = r->data;
+  const VFloat *s = (const VFloat*) v2;
   for (int i=0; i<m; i++)
     d[i] = d[i] * c1 + s[i] * c2;
 }
@@ -286,7 +289,7 @@ FVector::combine(double c1, const SVector &v2, double c2)
   int m = max(r->size, v2.size());
   if (m > r->size)
     r->resize(m);
-  float *d = r->data;
+  VFloat *d = r->data;
   int npairs = v2.npairs();
   const SVector::Pair *pairs = v2;
   int j = 0;
@@ -330,9 +333,9 @@ bool
 FVector::save(std::ostream &f) const
 {
   int i = size();
-  const float *d = rep()->data;
+  const VFloat *d = rep()->data;
   f.write((const char*)&i, sizeof(int));
-  f.write((const char*)d, sizeof(float)*i);
+  f.write((const char*)d, sizeof(VFloat)*i);
   return f.good();
 }
 
@@ -348,8 +351,8 @@ FVector::load(std::istream &f)
   if (!f.good())
     return false;
   resize(i);
-  float *d = rep()->data;
-  f.read((char*)d, sizeof(float)*i);
+  VFloat *d = rep()->data;
+  f.read((char*)d, sizeof(VFloat)*i);
   return f.good();
 }
 
@@ -419,7 +422,7 @@ SVector::SVector()
 SVector::SVector(const FVector &v)
 {
   int m = v.size();
-  const float *f = v;
+  const VFloat *f = v;
   Rep *r = rep();
   r->resize(m);
   for (int i=0; i<m; i++)
@@ -565,9 +568,14 @@ operator<<(std::ostream &f, const SVector &v)
   const SVector::Rep *r = v.rep();
   const SVector::Pair *pairs = r->pairs;
   int npairs = r->npairs;
+  std::ios::fmtflags oldflags = f.flags();
+  std::streamsize oldprec = f.precision();
+  f << std::scientific << std::setprecision(sizeof(VFloat)==4 ? 7 : 16);
   for (int i=0; i<npairs; i++)
     f << " " << pairs[i].i << ":" << pairs[i].v;
   f << std::endl;
+  f.precision(oldprec);
+  f.flags(oldflags);
   return f;
 }
 
@@ -642,8 +650,8 @@ double
 dot(const FVector &v1, const FVector &v2)
 {
   int m = min(v1.size(), v2.size());
-  const float *f1 = v1;
-  const float *f2 = v2;
+  const VFloat *f1 = v1;
+  const VFloat *f2 = v2;
   double sum = 0.0;
   while (--m >= 0)
     sum += (*f1++) * (*f2++);
@@ -655,7 +663,7 @@ double
 dot(const FVector &v1, const SVector &v2)
 {
   int m = v1.size();
-  const float *f = v1;
+  const VFloat *f = v1;
   const SVector::Pair *p = v2;
   double sum = 0;
   if (p)
@@ -669,7 +677,7 @@ double
 dot(const SVector &v1, const FVector &v2)
 {
   int m = v2.size();
-  const float *f = v2;
+  const VFloat *f = v2;
   int n = v1.npairs();
   const SVector::Pair *p = v1;
   double sum = 0;
