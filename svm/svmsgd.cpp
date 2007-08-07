@@ -46,6 +46,7 @@ typedef vector<double> yvec_t;
 #define SMOOTHHINGELOSS 2
 #define SQUAREDHINGELOSS 3
 #define LOGLOSS 10
+#define LOGLOSSMARGIN 11
 
 // Select loss
 #define LOSS HINGELOSS
@@ -59,6 +60,12 @@ inline
 double loss(double z)
 {
 #if LOSS == LOGLOSS
+  if (z > 18)
+    return exp(-z);
+  if (z < -18)
+    return -z;
+  return log(1+exp(-z));
+#elif LOSS == LOGLOSSMARGIN
   if (z > 18)
     return exp(1-z);
   if (z < -18)
@@ -87,6 +94,12 @@ inline
 double dloss(double z)
 {
 #if LOSS == LOGLOSS
+  if (z > 18)
+    return exp(-z);
+  if (z < -18)
+    return 1;
+  return 1 / (exp(z) + 1);
+#elif LOSS == LOGLOSSMARGIN
   if (z > 18)
     return exp(1-z);
   if (z < -18)
@@ -125,14 +138,13 @@ private:
   double  lambda;
   FVector w;
   double  wscale;
-  double  wnorm;
   double  bias;
 };
 
 
 
 SvmSgd::SvmSgd(int dim, double l)
-  : lambda(l), w(dim), wscale(1), wnorm(0), bias(0)
+  : lambda(l), w(dim), wscale(1), bias(0)
 {
   // Shift t in order to have a 
   // reasonable initial learning rate.
@@ -152,11 +164,18 @@ SvmSgd::train(int imin, int imax,
   assert(imin <= imax);
   for (int i=imin; i<=imax; i++)
     {
+      double eta = 1.0 / (lambda * t);
+      double s = 1 - eta * lambda;
+      wscale *= s;
+      if (wscale < 1e-9)
+        {
+          w.scale(wscale);
+          wscale = 1;
+        }
       const SVector &x = xp.at(i);
       double y = yp.at(i);
       double wx = dot(w,x) * wscale;
       double z = y * (wx + bias);
-      double eta = 1.0 / (lambda * t);
 #if LOSS < LOGLOSS
       if (z < 1)
 #endif
@@ -168,18 +187,10 @@ SvmSgd::train(int imin, int imax,
           // it learns at each iteration.
           bias += etd * y * 0.01;
 #endif
-          wnorm += etd * etd * dot(x,x) + 2 * etd * y * wx;
-        }
-      double s = 1 - eta * lambda;
-      wscale *= s;
-      wnorm *= s * s;
-      if (wscale < 1e-9)
-        {
-          w.scale(wscale);
-          wscale = 1;
         }
       t += 1;
     }
+  double wnorm =  dot(w,w) * wscale * wscale;
   cerr << prefix << setprecision(6) 
        << "Norm: " << wnorm << ", Bias: " << bias << endl;
 }
@@ -209,6 +220,7 @@ SvmSgd::test(int imin, int imax,
         cost += loss(z);
     }
   int n = imax - imin + 1;
+  double wnorm =  dot(w,w) * wscale * wscale;
   cost = cost / n + 0.5 * lambda * wnorm;
   cerr << prefix << setprecision(4)
        << "Misclassification: " << (double)nerr * 100.0 / n << "%." << endl;
@@ -224,7 +236,7 @@ SvmSgd::test(int imin, int imax,
 string trainfile;
 string testfile;
 double lambda = 1e-4;
-int epochs = 3;
+int epochs = 5;
 int maxtrain = -1;
 
 void 

@@ -45,6 +45,7 @@ typedef vector<double> yvec_t;
 #define SMOOTHHINGELOSS 2
 #define SQUAREDHINGELOSS 3
 #define LOGLOSS 10
+#define LOGLOSSMARGIN 11
 
 // Select loss
 #define LOSS HINGELOSS
@@ -53,17 +54,23 @@ typedef vector<double> yvec_t;
 // One when bias term
 #define BIAS 1
 
+// One when bias is regularized
+#define REGULARIZEBIAS 0
 
 
 inline 
 double loss(double z)
 {
 #if LOSS == LOGLOSS
-  if (z > 18)
-    return exp(1-z);
-  if (z < -18)
-    return 1-z;
-  return log(1+exp(1-z));
+  if (z >= 0)
+    return log(1+exp(-z));
+  else
+    return -z + log(1+exp(z));
+#elif LOSS == LOGLOSSMARGIN
+  if (z >= 1)
+    return log(1+exp(1-z));
+  else
+    return 1-z + log(1+exp(z-1));
 #elif LOSS == SMOOTHHINGELOSS
   if (z < 0)
     return 0.5 - z;
@@ -87,11 +94,15 @@ inline
 double dloss(double z)
 {
 #if LOSS == LOGLOSS
-  if (z > 18)
-    return exp(1-z);
-  if (z < -18)
-    return 1;
-  return 1 / (exp(z-1) + 1);
+  if (z < 0)
+    return 1 / (exp(z) + 1);
+  double ez = exp(-z);
+  return ez / (ez + 1);
+#elif LOSS == LOGLOSSMARGIN
+  if (z < 1)
+    return 1 / (exp(z-1) + 1);
+  double ez = exp(1-z);
+  return ez / (ez + 1);
 #elif LOSS == SMOOTHHINGELOSS
   if (z < 0)
     return 1;
@@ -152,19 +163,19 @@ SvmSgd::SvmSgd(int dim, double l)
 }
 
 
-double mincost = 1e38;
-
-
 void 
 SvmSgd::measure(int imin, int imax, 
                 const xvec_t &xp, const yvec_t &yp)
 {
   cerr << "# Estimating sparsity and bscale." << endl;
+  int j;
+
+  // compute average gradient size
   double n = 0;
-  double r = 0;
   double m = 0;
+  double r = 0;
   FVector c(w.size());
-  for (int j=imin; j<=imax && m<=1000; j++,n++)
+  for (j=imin; j<=imax && m<=1000; j++,n++)
     {
       const SVector &x = xp.at(j);
       n += 1;
@@ -178,8 +189,12 @@ SvmSgd::measure(int imin, int imax,
           p += 1;
         }
     }
+
+  // bias update scaling
+  bscale = m/n;
+
+  // compute weight decay skip
   skip = (int) ((8 * n * w.size()) / r);
-  bscale = m / n;
   cerr << "#  using " << n << " examples." << endl;
   cerr << "#  skip: " << skip 
        << " bscale: " << setprecision(6) << bscale << endl;
@@ -208,15 +223,18 @@ SvmSgd::train(int imin, int imax,
           double etd = eta * dloss(z);
           w.add(x, etd * y);
 #if BIAS
+#if REGULARIZEBIAS
+          bias *= 1 - eta * lambda * bscale;
+#endif
           bias += etd * y * bscale;
 #endif
         }
       if (--count <= 0)
         {
-          double s = 1 - eta * lambda * skip;
-          if (s < 0.9) // sometimes we need more accuracy
-            s = pow(1 - eta * lambda, skip);
-          w.scale(s);
+          double r = 1 - eta * lambda * skip;
+          if (r < 0.8)
+            r = pow(1 - eta * lambda, skip);
+          w.scale(r);
           count = skip;
         }
       t += 1;
@@ -255,10 +273,6 @@ SvmSgd::test(int imin, int imax,
        << "Misclassification: " << (double)nerr * 100.0 / n << "%." << endl;
   cerr << prefix << setprecision(12) 
        << "Cost: " << cost << "." << endl;
-
-  mincost = min(cost,mincost);
-  cerr << prefix 
-       << "Mincost: " << mincost << endl;
 }
 
 
@@ -269,7 +283,7 @@ SvmSgd::test(int imin, int imax,
 string trainfile;
 string testfile;
 double lambda = 1e-4;
-int epochs = 3;
+int epochs = 5;
 int maxtrain = -1;
 
 void 
