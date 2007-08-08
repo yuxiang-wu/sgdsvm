@@ -10,14 +10,14 @@
 
 COMPARATIVE EXPERIMENTS WITH CRF++
 
-$../../crf_learn -c 4.0 -f 3 template train.data model
+$../../crf_learn -c 4.0 -f 3 template train.txt model
 Number of sentences: 8936
 Number of features:  1679700
 ...
 iter=199 terr=0.00038 serr=0.00638 act=1679700 obj=4138.23633 diff=0.00009
 Done!6071.06 s
 
-$ ../../crf_test -m model test.data | tr '	' ' ' | ../../../conlleval 
+$ ../../crf_test -m model test.txt | tr '	' ' ' | ../../../conlleval 
 processed 47377 tokens with 23852 phrases; found: 23809 phrases; correct: 22323
 accuracy:  95.95%; precision:  93.76%; recall:  93.59%; FB1:  93.67
              ADJP: precision:  80.24%; recall:  75.11%; FB1:  77.59  410

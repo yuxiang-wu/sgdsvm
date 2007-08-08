@@ -111,7 +111,7 @@ int
 pstreambuf::sync() {
   if ( pptr() && pptr() > pbase()) {
     int w = pptr() - pbase();
-    if (std::fwrite( pbase(), 1, w, f ) != w)
+    if (std::fwrite( pbase(), 1, w, f ) != (size_t)w)
       return EOF;
     pbump( -w);
   }
