@@ -6,11 +6,12 @@
 
 ** PREPROCESSING THE DATA.
 
-Program <preprocess> reads the RCV1-V2 files in directory ../data/rcv1/
+You must first run the program <preprocess>
+to reads the RCV1-V2 files stored directory ../data/rcv1/
 The four official test files become the training set.
 The official training file becomes the testing set.
 All the TF/IDF things are recomputed accordingly.
-The program outputs four sizeable files:
+This program outputs four sizeable files:
 
 train.bin.gz
 train.dat.gz
