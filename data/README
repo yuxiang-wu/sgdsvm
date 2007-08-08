@@ -15,3 +15,10 @@ rcv1/lyrl2004_tokens_train.dat.gz
 rcv1/rcv1-v2.topics.qrels.gz
 
 
+* The following CONLL2000 data available from
+  http://www.cnts.ua.ac.be/conll2000/chunking
+
+conll2000/train.txt.gz
+conll2000/test.txt.gz
+
+

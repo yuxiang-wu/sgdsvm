@@ -1,0 +1,34 @@
+
+
+
+
+
+
+
+
+
+
+COMPARATIVE EXPERIMENTS WITH CRF++
+
+$../../crf_learn -c 4.0 -f 3 template train.data model
+Number of sentences: 8936
+Number of features:  1679700
+...
+iter=199 terr=0.00038 serr=0.00638 act=1679700 obj=4138.23633 diff=0.00009
+Done!6071.06 s
+
+$ ../../crf_test -m model test.data | tr '	' ' ' | ../../../conlleval 
+processed 47377 tokens with 23852 phrases; found: 23809 phrases; correct: 22323
+accuracy:  95.95%; precision:  93.76%; recall:  93.59%; FB1:  93.67
+             ADJP: precision:  80.24%; recall:  75.11%; FB1:  77.59  410
+             ADVP: precision:  83.73%; recall:  80.25%; FB1:  81.96  830
+            CONJP: precision:  55.56%; recall:  55.56%; FB1:  55.56  9
+             INTJ: precision:  50.00%; recall:  50.00%; FB1:  50.00  2
+              LST: precision:   0.00%; recall:   0.00%; FB1:   0.00  0
+               NP: precision:  94.11%; recall:  93.96%; FB1:  94.03  12403
+               PP: precision:  96.79%; recall:  97.82%; FB1:  97.30  4862
+              PRT: precision:  79.25%; recall:  79.25%; FB1:  79.25  106
+             SBAR: precision:  87.84%; recall:  85.05%; FB1:  86.42  518
+               VP: precision:  93.72%; recall:  93.95%; FB1:  93.84  4669
+
+
