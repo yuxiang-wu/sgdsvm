@@ -3,7 +3,7 @@
 MAKE=make
 SHELL=/bin/sh
 
-SUBDIRS=svm
+SUBDIRS=svm crf
 
 
 world: check all
