@@ -56,36 +56,8 @@ namespace __gnu_cxx {
 
 
 
-// ============================================================
-// Strings_t, Sentence_t
 
 
-typedef vector<string> strings_t;
-typedef vector<strings_t> sentence_t;
-
-
-ostream& 
-operator<<(ostream &f, const strings_t &s)
-{
-  const char *sep = "";
-  for (unsigned int i=0; i<s.size(); i++)
-    {
-      f << sep << s[i];
-      sep = " ";
-    }
-  f << endl;
-  return f;
-}
-
-
-ostream&
-operator<<(ostream &f, const sentence_t &s)
-{
-  for (unsigned int i=0; i<s.size(); i++)
-    f << s[i];
-  f << endl;
-  return f;
-}
 
 
 
@@ -120,10 +92,12 @@ skipSpace(istream &f)
 // Parsing data file
 
 
+typedef vector<string> strings_t;
+
 int
 readDataLine(istream &f, strings_t &line, int &expected)
 {
-  line.clear();
+  int obtained = 0;
   while (f.good())
     {
       int c = skipBlank(f);
@@ -132,12 +106,14 @@ readDataLine(istream &f, strings_t &line, int &expected)
       string s;
       f >> s;
       if (! s.empty())
-        line.push_back(s);
+        {
+          line.push_back(s);
+          obtained += 1;
+        }
     }
   int c = f.get();
   if (c == '\r' && f.get() != '\n')
     f.unget();
-  int obtained = line.size();
   if (obtained > 0)
     {
       if (expected <= 0)
@@ -156,18 +132,17 @@ readDataLine(istream &f, strings_t &line, int &expected)
 
 
 int 
-readDataSentence(istream &f, sentence_t &s, int &expected)
+readDataSentence(istream &f, strings_t &s, int &expected)
 {
   strings_t line;
   s.clear();
   while (f.good())
-    if (readDataLine(f, line, expected))
+    if (readDataLine(f, s, expected))
       break;
-  if (line.size())
-    s.push_back(line);
-  while (f.good() && readDataLine(f, line, expected))
-    s.push_back(line);
-  return s.size();
+  while (f.good())
+    if (! readDataLine(f, s, expected))
+      break;
+  return s.size() / expected;
 }
 
 
@@ -218,11 +193,10 @@ checkTemplate(string tpl)
 
 
 string
-expandTemplate(string tpl, const sentence_t &s, unsigned int pos)
+expandTemplate(string tpl, const strings_t &s, int columns, int pos)
 {
   string e;
-  int rows = s.size();
-  int columns = s[0].size();
+  int rows = s.size() / columns;
   const char *t = tpl.c_str();
   const char *p = t;
   
@@ -250,7 +224,7 @@ expandTemplate(string tpl, const sentence_t &s, unsigned int pos)
           if (b>=0 && b<columns)
             {
               if (a>=0 && a<rows)
-                e.append(s[a][b]);
+                e.append(s[a*columns+b]);
               else if (a<0)
                 e.append(BOS[min(3,-a-1)]);
               else if (a>=rows)
@@ -313,9 +287,7 @@ private:
   dict_t outputs;
   dict_t features;
   strings_t templates;
-  mutable dict_t outputExtra;
-  mutable map<int,string> outputNames;
-  int oindex;
+  dict_t internedStrings;
   int index;
 
 public:
@@ -328,7 +300,7 @@ public:
   
   int output(string s) const { 
     dict_t::const_iterator it = outputs.find(s);
-    return (it != outputs.end()) ? it->second : outputHelper(s);
+    return (it != outputs.end()) ? it->second : -1;
   }
   
   int feature(string s) const { 
@@ -337,28 +309,26 @@ public:
   }
   
   string templateString(int i) const { return templates.at(i); }
-  string outputString(int i) const { return outputNames[i]; }
+
+  string internString(string s) const;
+  
   void initFromData(const char *tFile, const char *dFile, int cutoff=1);
+
   friend istream& operator>> ( istream &f, Dictionary &d );
   friend ostream& operator<< ( ostream &f, const Dictionary &d );
-
-private:
-  int outputHelper(string s) const;
 };
 
 
-int 
-Dictionary::outputHelper(string s) const
+
+string
+Dictionary::internString(string s) const
 {
-  dict_t::iterator it = outputExtra.find(s);
-  if (it != outputExtra.end())
-    return it->second;
-  int index = - 1 - outputExtra.size();
-  cerr << "WARNING: unknown output label " << s 
-       << ", index " << index << "." << endl;
-  outputExtra[s] = index;
-  outputNames[index] = s;
-  return index;
+  dict_t::const_iterator it = internedStrings.find(s);
+  if (it != internedStrings.end())
+    return it->first;
+  // not all compilers support 'mutable'
+  const_cast<Dictionary*>(this)->internedStrings[s] = 1;
+  return s;
 }
 
 
@@ -458,15 +428,12 @@ operator>>(istream &f, Dictionary &d)
         }
     }
   d.index = findex;
-  for (dict_t::iterator it=d.outputs.begin(); it!=d.outputs.end(); it++)
-    d.outputNames[it->second] = it->first;
   if (!f.good() && !f.eof())
     {
       d.outputs.clear();
       d.features.clear();
       d.templates.clear();
       d.index = 0;
-      d.oindex = 0;
     }
   return f;
 }
@@ -507,24 +474,29 @@ Dictionary::initFromData(const char *tFile, const char *dFile, int cutoff)
   int columns = 0;
   int oindex = 0;
   int sentences = 0;
-  sentence_t s;
+  strings_t s;
   igzstream f(dFile);
   Timer timer;
   timer.start();
   while (readDataSentence(f, s, columns))
     {
       sentences += 1;
-      for (unsigned int p=0; p<s.size(); p++)
+      // intern strings to save memory
+      for (strings_t::iterator it=s.begin(); it!=s.end(); it++)
+        *it = internString(*it);
+      // expand features and count them
+      int rows = s.size()/columns;
+      for (int pos=0; pos<rows; pos++)
         {
           // check output keyword
-          string &y = s[p][columns-1];
+          string &y = s[pos*columns+columns-1];
           dict_t::iterator di = outputs.find(y);
           if (di == outputs.end())
             outputs[y] = oindex++;
           // expand templates
           for (unsigned int t=0; t<templates.size(); t++)
             {
-              string x = expandTemplate(templates[t], s, p);
+              string x = expandTemplate(templates[t], s, columns, pos);
               hash_t::iterator hi = fcount.find(x);
               if (hi != fcount.end())
                 hi->second += 1;
@@ -539,8 +511,6 @@ Dictionary::initFromData(const char *tFile, const char *dFile, int cutoff)
            << "Problem reading data file " << dFile << endl;
       exit(10);
     }
-  for (dict_t::iterator it=outputs.begin(); it!=outputs.end(); it++)
-    outputNames[it->second] = it->first;
   cerr << "  sentences: " << sentences 
        << "  outputs: " << oindex << endl;
   
@@ -578,6 +548,8 @@ private:
   struct Rep 
   {
     int refcount;
+    int columns;
+    strings_t data;
     svec_t uFeatures;
     svec_t bFeatures;
     ivec_t yLabels;
@@ -590,33 +562,40 @@ private:
 public:
   Sentence() {}
 
-  void init(const Dictionary &dict, const sentence_t &s);
-  void print(ostream &f, const Dictionary &dict) const;
+  void init(const Dictionary &dict, const strings_t &s, int columns);
 
   int size() const { return rep()->uFeatures.size(); }
   SVector u(int i) const { return rep()->uFeatures.at(i); }
   SVector b(int i) const { return rep()->bFeatures.at(i); }
   int y(int i) const { return rep()->yLabels.at(i); }
+  
+  int columns() const { return rep()->columns; }
+  string data(int pos, int col) const;
 
+  friend ostream& operator<<(ostream &f, const Sentence &s);
 };
 
 
 void
-Sentence::init(const Dictionary &dict, const sentence_t &s)
+Sentence::init(const Dictionary &dict, const strings_t &s, int columns)
 {
   w.detach();
   Rep *r = rep();
-  int maxpos = s.size() - 1;
-  int maxcol = s[0].size() - 1;
+  int maxcol = columns - 1;
+  int maxpos = s.size()/columns - 1;
   int ntemplat = dict.nTemplates();
   r->uFeatures.clear();
   r->bFeatures.clear();
   r->yLabels.clear();
-
+  r->columns = columns;
+  // intern strings to save memory
+  for (strings_t::const_iterator it=s.begin(); it!=s.end(); it++)
+    r->data.push_back(dict.internString(*it));
+  // expand features
   for (int pos=0; pos<=maxpos; pos++)
     {
       // labels
-      string y = s[pos][maxcol];
+      string y = s[pos*columns+maxcol];
       int yindex = dict.output(y);
       r->yLabels.push_back(yindex);
       // features
@@ -625,7 +604,7 @@ Sentence::init(const Dictionary &dict, const sentence_t &s)
       for (int t=0; t<ntemplat; t++)
         {
           string tpl = dict.templateString(t); 
-          int findex = dict.feature(expandTemplate(tpl, s, pos));
+          int findex = dict.feature(expandTemplate(tpl, s, columns, pos));
           if (findex >= 0)
             {
               if (tpl[0]=='U')
@@ -641,16 +620,31 @@ Sentence::init(const Dictionary &dict, const sentence_t &s)
 }
 
 
-void
-Sentence::print(ostream &f, const Dictionary &dict) const
+string
+Sentence::data(int pos, int col) const
 {
-  int maxpos = size() - 1;
-  f << "S " << maxpos + 1 << endl;
+  const Rep *r = rep();
+  if (pos>=0 && pos<size())
+    if (col>=0 && col<r->columns)
+      return r->data[pos*r->columns+col];
+  return string();
+}
+
+
+ostream&
+operator<<(ostream &f, const Sentence &s)
+{
+  int maxpos = s.size() - 1;
+  int columns = s.columns();
   for (int pos = 0; pos<=maxpos; pos++) {
-    f << "U" << pos << "=" << dict.outputString(y(pos)) << " " << u(pos);
+    for (int col = 0; col<columns; col++)
+      f << s.data(pos, col) << " ";
+    f << endl << "   Y" << pos << " " << s.y(pos) << endl;
+    f << "   U" << pos << s.u(pos);
     if (pos < maxpos)
-      f << "   B" << pos << " " << b(pos);
+      f << "   B" << pos << s.b(pos);
   }
+  return f;
 }
 
 
@@ -664,13 +658,13 @@ loadSentences(const char *fname, const Dictionary &dict, dataset_t &data)
   Timer timer;
   int sentences = 0;
   int columns = 0;
-  sentence_t s;
+  strings_t s;
   igzstream f(fname);
   timer.start();
   while (readDataSentence(f, s, columns))
     {
       Sentence ps;
-      ps.init(dict, s);
+      ps.init(dict, s, columns);
       data.push_back(ps);
       sentences += 1;
     }
@@ -701,7 +695,7 @@ main(int argc, char **argv)
   loadSentences(trainFile.c_str(), dict, train);
   loadSentences(testFile.c_str(), dict, test);
 
-  test[0].print(cout, dict);
+  cout << test[0];
 
   return 0;
 }
