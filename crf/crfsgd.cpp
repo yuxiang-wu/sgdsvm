@@ -333,7 +333,7 @@ public:
   
   int feature(string s) const { 
     dict_t::const_iterator it = features.find(s);
-    return (it == features.end()) ? -1 : it->second;
+    return (it != features.end()) ? it->second : -1;
   }
   
   string templateString(int i) const { return templates.at(i); }
