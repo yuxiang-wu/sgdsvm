@@ -42,7 +42,7 @@ class Wrapper
   ~Wrapper() 
     { deref(q); }
   Wrapper& operator=(const Wrapper<Rep> &other) 
-    { if (&other != this) { deref(q); q=ref(other.q); } return *this; }
+    { Rep *p = q; q = ref(other.q); deref(p); return *this; }
   void detach() 
     { if (q->refcount > 1) { deref(q); q=q->copy(); q->refcount=1; } }
   Rep *rep() const

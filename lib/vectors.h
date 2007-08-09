@@ -60,6 +60,7 @@ public:
   double get(int i) const;
   double set(int i, double v);
   operator const VFloat* () const { return rep()->data; }
+  operator VFloat* () { w.detach(); return rep()->data; }
 
   void clear();
   void resize(int n);

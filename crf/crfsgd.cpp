@@ -22,6 +22,7 @@
 
 #include "wrapper.h"
 #include "vectors.h"
+#include "matrices.h"
 #include "gzstream.h"
 #include "pstream.h"
 #include "timer.h"
@@ -53,11 +54,12 @@ namespace __gnu_cxx {
 # define hash_map map
 #endif
 
+#ifndef HUGE_VAL
+# define HUGE_VAL 1e+100
+#endif
 
-
-
-
-
+typedef vector<string> strings_t;
+typedef vector<int> ints_t;
 
 
 
@@ -87,12 +89,55 @@ skipSpace(istream &f)
 }
 
 
+static double
+logSum(const VFloat *v, int n)
+{
+  int i;
+  VFloat m = v[0];
+  for (i=0; i<n; i++)
+    m = max(m, v[i]);
+  double s = 0;
+  for (i=0; i<n; i++)
+    s = exp(v[i]-m);
+  return m + log(s);
+}
+
+
+static double
+logSum(const FVector &v)
+{
+  return logSum(v, v.size());
+}
+
+
+static void
+dLogSum(double g, const VFloat *v, VFloat *r, int n)
+{
+  int i;
+  VFloat m = v[0];
+  for (i=0; i<n; i++)
+    m = max(m, v[i]);
+  double z = 0;
+  for (i=0; i<n; i++)
+    z += ( r[i] = exp(v[i]-m) );
+  for (i=0; i<n; i++)
+    r[i] = g * r[i] / z;
+}
+
+
+static void
+dLogSum(double g, const FVector &v, FVector &r)
+{
+  assert(v.size() <= r.size());
+  dLogSum(g, v, r, v.size());
+}
+
+
+
 
 // ============================================================
 // Parsing data file
 
-
-typedef vector<string> strings_t;
 
 int
 readDataLine(istream &f, strings_t &line, int &expected)
@@ -287,6 +332,7 @@ private:
   dict_t outputs;
   dict_t features;
   strings_t templates;
+  strings_t outputnames;
   dict_t internedStrings;
   int index;
 
@@ -307,7 +353,8 @@ public:
     dict_t::const_iterator it = features.find(s);
     return (it != features.end()) ? it->second : -1;
   }
-  
+
+  string outputString(int i) const { return outputnames.at(i); }
   string templateString(int i) const { return templates.at(i); }
 
   string internString(string s) const;
@@ -435,6 +482,10 @@ operator>>(istream &f, Dictionary &d)
       d.templates.clear();
       d.index = 0;
     }
+  d.outputnames.resize(oindex);
+  for (dict_t::const_iterator it=d.outputs.begin(); 
+       it!=d.outputs.end(); it++)
+    d.outputnames[it->second] = it->first;
   return f;
 }
 
@@ -511,6 +562,9 @@ Dictionary::initFromData(const char *tFile, const char *dFile, int cutoff)
            << "Problem reading data file " << dFile << endl;
       exit(10);
     }
+  outputnames.resize(oindex);
+  for (dict_t::const_iterator it=outputs.begin(); it!=outputs.end(); it++)
+    outputnames[it->second] = it->first;
   cerr << "  sentences: " << sentences 
        << "  outputs: " << oindex << endl;
   
@@ -674,13 +728,277 @@ loadSentences(const char *fname, const Dictionary &dict, dataset_t &data)
 
 
 
+
+// ============================================================
+// Scorer
+
+
+class Scorer
+{
+public:
+  Sentence s;
+  const Dictionary &d;
+  VFloat *w;
+  double &wscale;
+  
+  Scorer(const Sentence &s, const Dictionary &d, FVector &w, double &c);
+  virtual ~Scorer() {}
+  
+  virtual void uScores(int pos, int fy, int ny, VFloat *scores);
+  virtual void bScores(int pos, int fy, int ny, int y, VFloat *scores);
+  virtual void uGradients(const VFloat *g, int pos, int fy, int ny) {}
+  virtual void bGradients(const VFloat *g, int pos, int fy, int ny, int y) {}
+
+  double viterbi(ints_t &path);
+  double test(ostream &f);
+  double scoreCorrect();
+  void gradCorrect(double g);
+  double scoreForward();
+  void gradForward(double g);
+};
+
+
+Scorer::Scorer(const Sentence &s, const Dictionary &d, FVector &w, double &c)
+  : s(s), d(d), w(w), wscale(c) 
+{
+  assert(w.size() == d.nParams());
+}
+
+
+void
+Scorer::uScores(int pos, int fy, int ny, VFloat *c)
+{
+  int n = d.nOutputs();
+  assert(pos>=0 && pos<s.size());
+  assert(fy>=0 && fy<n);
+  assert(fy+ny>0 && fy+ny<=n);
+  int off = fy;
+  SVector x = s.u(pos);
+  for (int j=0; j<ny; j++)
+    c[j] = 0;
+  for (const SVector::Pair *p = x; p->i>=0; p++)
+    for (int j=0; j<ny; j++)
+      c[j] += w[p->i + off + j]; // we know that p->v is 1
+  for (int j=0; j<ny; j++)
+    c[j] *= wscale;
+}
+
+
+void
+Scorer::bScores(int pos, int fy, int ny, int y, VFloat *c)
+{
+  int n = d.nOutputs();
+  assert(pos>=0 && pos<s.size());
+  assert(y>=0 && y<n);
+  assert(fy>=0 && fy<n);
+  assert(fy+ny>0 && fy+ny<=n);
+  int off = y * n + fy;
+  SVector x = s.b(pos);
+  for (int j=0; j<ny; j++)
+    c[j] = 0;
+  for (const SVector::Pair *p = x; p->i>=0; p++)
+    for (int j=0; j<ny; j++)
+      c[j] += w[p->i + off + j]; // we know that p->v is 1
+  for (int j=0; j<ny; j++)
+    c[j] *= wscale;
+}
+
+
+
+double 
+Scorer::viterbi(ints_t &path)
+{
+  int npos = s.size();
+  int nout = d.nOutputs();
+  int pos, i, j;
+  
+  // allocate backpointer array
+  vector<ints_t> pointers(npos);
+  for (int i=0; i<npos; i++)
+    pointers[i].resize(nout);
+  
+  // process scores
+  FVector scores(nout);
+  uScores(0, 0, nout, scores);
+  for (pos=1; pos<npos; pos++)
+    {
+      FVector us(nout);
+      FVector bs(nout);
+      uScores(pos, 0, nout, us);
+      for (i=0; i<nout; i++)
+        {
+          bScores(pos-1, 0, nout, i, bs);
+          bs.add(scores);
+          int bestj = 0;
+          double bests = bs[0];
+          for (j=1; j<nout; j++)
+            if (bs[j] > bests)
+              { bests = bs[j]; bestj = j; }
+          pointers[pos][i] = bestj;
+          us[i] += bests;
+        }
+      scores = us;
+    }
+  // find best final score
+  int bestj = 0;
+  double bests = scores[0];
+  for (j=1; j<nout; j++)
+    if (scores[j] > bests)
+      { bests = scores[j]; bestj = j; }
+  // backtrack
+  path.resize(npos);
+  for (pos = npos-1; pos>=0; pos--)
+    {
+      path[pos] = bestj;
+      bestj = pointers[pos][bestj];
+    }
+  return bests;
+}
+
+
+double
+Scorer::test(ostream &f)
+{
+  ints_t path;
+  double score = viterbi(path);
+  int npos = s.size();
+  int ncol = s.columns();
+  for (int pos=0; pos<npos; pos++)
+    {
+      for (int c=0; c<ncol; c++)
+        f << s.data(pos,c) << " ";
+      f << d.outputString(path[pos]) << endl;
+    }
+  f << endl;
+  return score;
+}
+
+
+double 
+Scorer::scoreCorrect()
+{
+  int npos = s.size();
+  int y = s.y(0);
+  VFloat vf;
+  uScores(0, y, 1, &vf);
+  double sum = vf;
+  for (int pos=1; pos<npos; pos++)
+    {
+      int fy = y;
+      y = s.y(pos);
+      bScores(pos-1, fy, 1, y, &vf);
+      sum += vf;
+      uScores(pos, y, 1, &vf);
+      sum += vf;
+    }
+  return sum;
+}
+
+
+void
+Scorer::gradCorrect(double g)
+{
+  int npos = s.size();
+  int y = s.y(0);
+  VFloat vf = g;
+  uGradients(&vf, 0, y, 1);
+  for (int pos=1; pos<npos; pos++)
+    {
+      int fy = y;
+      y = s.y(pos);
+      bGradients(&vf, pos-1, fy, 1, y);
+      uGradients(&vf, pos, y, 1);
+    }
+}
+
+
+double 
+Scorer::scoreForward()
+{
+  int npos = s.size();
+  int nout = d.nOutputs();
+  int pos, i;
+  
+  FVector scores(nout);
+  uScores(0, 0, nout, scores);
+  for (pos=1; pos<npos; pos++)
+    {
+      FVector us(nout);
+      FVector bs(nout);
+      uScores(pos, 0, nout, us);
+      for (i=0; i<nout; i++)
+        {
+          bScores(pos-1, 0, nout, i, bs);
+          bs.add(scores);
+          us[i] += logSum(bs);
+        }
+      scores = us;
+    }
+  return logSum(scores);
+}
+
+
+
+void 
+Scorer::gradForward(double g)
+{
+  int npos = s.size();
+  int nout = d.nOutputs();
+  int pos, i;
+  // forward pass
+  FMatrix scores(npos, nout);
+  uScores(0, 0, nout, scores[0]);
+  for (pos=1; pos<npos; pos++)
+    {
+      FVector &us = scores[pos];
+      FVector bs(nout);
+      uScores(pos, 0, nout, us);
+      for (i=0; i<nout; i++)
+        {
+          bScores(pos, 0, nout, i, bs);
+          bs.add(scores[pos-1]);
+          us[i] += logSum(bs);
+        }
+    }
+  // backward pass
+  FVector tmp(nout);
+  FVector grads(nout);
+  dLogSum(g, scores[npos-1], grads);
+  for (pos=npos-1; pos>0; pos--)
+    {
+      FVector bs(nout);
+      FVector ug(nout);
+      uGradients(grads, pos, 0, nout);
+      for (int i=0; i<nout; i++)
+        {
+          // recomputing bScores is not efficient
+          // when there are many B templates.
+          bScores(pos-1, 0, nout, i, bs);
+          bs.add(scores[pos-1]);
+          dLogSum(grads[i], bs, tmp);
+          bGradients(tmp, pos-1, 0, nout, i);
+          ug.add(tmp);
+        }
+      grads = ug;
+    }
+  uGradients(grads, 0, 0, nout);
+}
+
+
+
+
 // ============================================================
 // Main function
+
 
 
 string templateFile = "template";
 string trainFile = "../data/conll2000/train.txt.gz";
 string testFile = "../data/conll2000/test.txt.gz";
+
+//string trainFile = "small.gz";
+//string testFile = "small.gz";
+
 int cutoff = 3;
 dataset_t train;
 dataset_t test;
@@ -695,7 +1013,35 @@ main(int argc, char **argv)
   loadSentences(trainFile.c_str(), dict, train);
   loadSentences(testFile.c_str(), dict, test);
 
-  cout << test[0];
+  double wscale = 1;
+  FVector w(dict.nParams());
+
+  {
+    Timer tm;
+    tm.start();
+    opstream f("./conlleval");
+    for (unsigned int i=0; i<train.size(); i++)
+      {
+        Scorer scorer(train[i], dict, w, wscale);
+        scorer.test(f);
+      }
+    cerr << "tagging time (train): " << tm.elapsed() << " seconds." << endl;
+  }
+
+  {
+    Timer tm;
+    tm.start();
+    opstream f("./conlleval");    
+    for (unsigned int i=0; i<test.size(); i++)
+      {
+        Scorer scorer(test[i], dict, w, wscale);
+        scorer.test(f);
+      }
+    cerr << "tagging time (test): " << tm.elapsed() << " seconds." << endl;
+  }
+
+
+
 
   return 0;
 }

@@ -25,15 +25,16 @@ LIBS = -lz -lm
 
 PROGRAMS = crfsgd
 
+OBJS = crfsgd.o vectors.o matrices.o gzstream.o pstream.o timer.o
+
 all: ${PROGRAMS}
 
 clean:
 	-rm ${PROGRAMS} 2>/dev/null
 	-rm *.o 2>/dev/null
 
-
-crfsgd: crfsgd.o vectors.o matrices.o gzstream.o pstream.o timer.o
-	${CXX} ${CXXFLAGS} -o $@ crfsgd.o vectors.o gzstream.o timer.o ${LIBS}
+crfsgd: ${OBJS}
+	${CXX} ${CXXFLAGS} -o $@ ${OBJS} ${LIBS}
 
 crfsgd.o: crfsgd.cpp $L/vectors.h  $L/gzstream.h $L/timer.h
 	${CXX} ${CXXFLAGS} -c -o $@ crfsgd.cpp
