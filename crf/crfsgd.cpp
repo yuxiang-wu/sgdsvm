@@ -1,7 +1,5 @@
- 
-
 // -*- C++ -*-
-// SVM with stochastic gradient
+// CRF with stochastic gradient
 
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -22,6 +20,7 @@
 // $Id$
 
 
+#include "wrapper.h"
 #include "vectors.h"
 #include "gzstream.h"
 #include "pstream.h"
@@ -30,6 +29,7 @@
 #include <iomanip>
 #include <string>
 #include <map>
+#include <algorithm>
 #include <vector>
 #include <cassert>
 #include <cstdlib>
@@ -251,10 +251,10 @@ expandTemplate(string tpl, const sentence_t &s, unsigned int pos)
             {
               if (a>=0 && a<rows)
                 e.append(s[a][b]);
-              else if (a<0 && -a-1<4)
-                e.append(BOS[-a-1]);
-              else if (a>=rows && a-rows<4)
-                e.append(EOS[a-rows]);
+              else if (a<0)
+                e.append(BOS[min(3,-a-1)]);
+              else if (a>=rows)
+                e.append(EOS[min(3,a-rows)]);
             }
         }
       p += 1;
@@ -301,9 +301,6 @@ readTemplateFile(const char *fname, strings_t &templateVector)
 
 
 
-
-
-
 // ============================================================
 // Dictionary
 
@@ -316,6 +313,9 @@ private:
   dict_t outputs;
   dict_t features;
   strings_t templates;
+  mutable dict_t outputExtra;
+  mutable map<int,string> outputNames;
+  int oindex;
   int index;
 
 public:
@@ -328,7 +328,7 @@ public:
   
   int output(string s) const { 
     dict_t::const_iterator it = outputs.find(s);
-    return (it == outputs.end()) ? -1 : it->second;
+    return (it != outputs.end()) ? it->second : outputHelper(s);
   }
   
   int feature(string s) const { 
@@ -336,15 +336,30 @@ public:
     return (it == features.end()) ? -1 : it->second;
   }
   
-  string templat(int i) const {
-    return templates.at(i);
-  }
-  
+  string templateString(int i) const { return templates.at(i); }
+  string outputString(int i) const { return outputNames[i]; }
   void initFromData(const char *tFile, const char *dFile, int cutoff=1);
-  
   friend istream& operator>> ( istream &f, Dictionary &d );
   friend ostream& operator<< ( ostream &f, const Dictionary &d );
+
+private:
+  int outputHelper(string s) const;
 };
+
+
+int 
+Dictionary::outputHelper(string s) const
+{
+  dict_t::iterator it = outputExtra.find(s);
+  if (it != outputExtra.end())
+    return it->second;
+  int index = - 1 - outputExtra.size();
+  cerr << "WARNING: unknown output label " << s 
+       << ", index " << index << "." << endl;
+  outputExtra[s] = index;
+  outputNames[index] = s;
+  return index;
+}
 
 
 ostream&
@@ -443,12 +458,15 @@ operator>>(istream &f, Dictionary &d)
         }
     }
   d.index = findex;
+  for (dict_t::iterator it=d.outputs.begin(); it!=d.outputs.end(); it++)
+    d.outputNames[it->second] = it->first;
   if (!f.good() && !f.eof())
     {
       d.outputs.clear();
       d.features.clear();
       d.templates.clear();
       d.index = 0;
+      d.oindex = 0;
     }
   return f;
 }
@@ -464,7 +482,7 @@ Dictionary::initFromData(const char *tFile, const char *dFile, int cutoff)
   index = 0;
   
   // read templates
-  cerr << "Reading " << tFile << "." << endl;
+  cerr << "Reading template file " << tFile << "." << endl;
   readTemplateFile(tFile, templates);
   int nu = 0;
   int nb = 0;
@@ -473,8 +491,8 @@ Dictionary::initFromData(const char *tFile, const char *dFile, int cutoff)
       nu += 1;
     else if (templates[t][0]=='B')
       nb += 1;
-  cerr << "  U templates: " << nu << endl
-       << "  B templates: " << nb << endl;
+  cerr << "  u-templates: " << nu 
+       << "  b-templates: " << nb << endl;
   if (nu + nb != (int)templates.size())
     {
       cerr << "ERROR (building dictionary): "
@@ -491,6 +509,8 @@ Dictionary::initFromData(const char *tFile, const char *dFile, int cutoff)
   int sentences = 0;
   sentence_t s;
   igzstream f(dFile);
+  Timer timer;
+  timer.start();
   while (readDataSentence(f, s, columns))
     {
       sentences += 1;
@@ -519,10 +539,12 @@ Dictionary::initFromData(const char *tFile, const char *dFile, int cutoff)
            << "Problem reading data file " << dFile << endl;
       exit(10);
     }
-
-  // allocating parameters
-  cerr << "  sentences: " << sentences << endl
+  for (dict_t::iterator it=outputs.begin(); it!=outputs.end(); it++)
+    outputNames[it->second] = it->first;
+  cerr << "  sentences: " << sentences 
        << "  outputs: " << oindex << endl;
+  
+  // allocating parameters
   for (hash_t::iterator hi = fcount.begin(); hi != fcount.end(); hi++)
     {
       if (hi->second >= cutoff)
@@ -534,11 +556,127 @@ Dictionary::initFromData(const char *tFile, const char *dFile, int cutoff)
           index += size;
         }
     }
-  cerr << "  cutoff: " << cutoff << endl
-       << "  features: " << features.size() << endl
-       << "  parameters: " << index << endl;
+  cerr << "  cutoff: " << cutoff 
+       << "  features: " << features.size() 
+       << "  parameters: " << index << endl
+       << "  duration: " << timer.elapsed() << " seconds." << endl;
 }
 
+
+
+// ============================================================
+// Preprocessing data
+
+
+typedef vector<SVector> svec_t;
+typedef vector<int> ivec_t;
+
+
+class Sentence
+{
+private:
+  struct Rep 
+  {
+    int refcount;
+    svec_t uFeatures;
+    svec_t bFeatures;
+    ivec_t yLabels;
+    Rep *copy() { return new Rep(*this); }
+  };
+  Wrapper<Rep> w;
+  Rep *rep() { return w.rep(); }
+  const Rep *rep() const { return w.rep(); }
+
+public:
+  Sentence() {}
+
+  void init(const Dictionary &dict, const sentence_t &s);
+  void print(ostream &f, const Dictionary &dict) const;
+
+  int size() const { return rep()->uFeatures.size(); }
+  SVector u(int i) const { return rep()->uFeatures.at(i); }
+  SVector b(int i) const { return rep()->bFeatures.at(i); }
+  int y(int i) const { return rep()->yLabels.at(i); }
+
+};
+
+
+void
+Sentence::init(const Dictionary &dict, const sentence_t &s)
+{
+  w.detach();
+  Rep *r = rep();
+  int maxpos = s.size() - 1;
+  int maxcol = s[0].size() - 1;
+  int ntemplat = dict.nTemplates();
+  r->uFeatures.clear();
+  r->bFeatures.clear();
+  r->yLabels.clear();
+
+  for (int pos=0; pos<=maxpos; pos++)
+    {
+      // labels
+      string y = s[pos][maxcol];
+      int yindex = dict.output(y);
+      r->yLabels.push_back(yindex);
+      // features
+      SVector u;
+      SVector b;
+      for (int t=0; t<ntemplat; t++)
+        {
+          string tpl = dict.templateString(t); 
+          int findex = dict.feature(expandTemplate(tpl, s, pos));
+          if (findex >= 0)
+            {
+              if (tpl[0]=='U')
+                u.set(findex, 1);
+              else if (tpl[0]=='B')
+                b.set(findex, 1);
+            }
+        }
+      r->uFeatures.push_back(u);
+      if (pos < maxpos)
+        r->bFeatures.push_back(b);
+    }
+}
+
+
+void
+Sentence::print(ostream &f, const Dictionary &dict) const
+{
+  int maxpos = size() - 1;
+  f << "S " << maxpos + 1 << endl;
+  for (int pos = 0; pos<=maxpos; pos++) {
+    f << "U" << pos << "=" << dict.outputString(y(pos)) << " " << u(pos);
+    if (pos < maxpos)
+      f << "   B" << pos << " " << b(pos);
+  }
+}
+
+
+typedef vector<Sentence> dataset_t;
+
+
+void
+loadSentences(const char *fname, const Dictionary &dict, dataset_t &data)
+{
+  cerr << "Reading and preprocessing " << fname << "." << endl;
+  Timer timer;
+  int sentences = 0;
+  int columns = 0;
+  sentence_t s;
+  igzstream f(fname);
+  timer.start();
+  while (readDataSentence(f, s, columns))
+    {
+      Sentence ps;
+      ps.init(dict, s);
+      data.push_back(ps);
+      sentences += 1;
+    }
+  cerr << "  processed: " << sentences << " sentences." << endl
+       << "  duration: " << timer.elapsed() << " seconds." << endl;
+}
 
 
 
@@ -546,22 +684,24 @@ Dictionary::initFromData(const char *tFile, const char *dFile, int cutoff)
 // Main function
 
 
+string templateFile = "template";
+string trainFile = "../data/conll2000/train.txt.gz";
+string testFile = "../data/conll2000/test.txt.gz";
+int cutoff = 3;
+dataset_t train;
+dataset_t test;
+
+
 int 
 main(int argc, char **argv)
 {
   Dictionary dict;
-  dict.initFromData("template", "../data/conll2000/train.txt.gz", 3);
+  dict.initFromData(templateFile.c_str(), trainFile.c_str(), cutoff);
 
-  { ofstream f("model"); f << dict; }
+  loadSentences(trainFile.c_str(), dict, train);
+  loadSentences(testFile.c_str(), dict, test);
 
-  Dictionary d2;
-
-  { ifstream f("model"); f >> d2; }
-
-  cerr << "  templates: " << d2.nTemplates() << endl
-       << "  outputs: " << d2.nOutputs() << endl
-       << "  features: " << d2.nFeatures() << endl
-       << "  parameters: " << d2.nParams() << endl;
+  test[0].print(cout, dict);
 
   return 0;
 }
