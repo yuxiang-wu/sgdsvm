@@ -89,6 +89,39 @@ skipSpace(istream &f)
 }
 
 
+inline double
+expmx(double x)
+{
+#ifdef EXACT_EXPONENTIAL
+  return exp(-x);
+#else
+  // fast approximation of exp(-x) for x positive
+# define A0   (1.0)
+# define A1   (0.125)
+# define A2   (0.0078125)
+# define A3   (0.00032552083)
+# define A4   (1.0172526e-5) 
+  if (x < 13.0) 
+    {
+      assert(x>=0);
+      double y;
+      y = A0+x*(A1+x*(A2+x*(A3+x*A4)));
+      y *= y;
+      y *= y;
+      y *= y;
+      y = 1/y;
+      return y;
+    }
+  return 0;
+# undef A0
+# undef A1
+# undef A2
+# undef A3
+# undef A4
+#endif
+}
+
+
 static double
 logSum(const VFloat *v, int n)
 {
@@ -98,7 +131,7 @@ logSum(const VFloat *v, int n)
     m = max(m, v[i]);
   double s = 0;
   for (i=0; i<n; i++)
-    s = exp(v[i]-m);
+    s += expmx(m-v[i]);
   return m + log(s);
 }
 
@@ -119,7 +152,11 @@ dLogSum(double g, const VFloat *v, VFloat *r, int n)
     m = max(m, v[i]);
   double z = 0;
   for (i=0; i<n; i++)
-    z += ( r[i] = exp(v[i]-m) );
+    {
+      double e = expmx(m-v[i]);
+      r[i] = e;
+      z += e;
+    }
   for (i=0; i<n; i++)
     r[i] = g * r[i] / z;
 }
@@ -333,7 +370,7 @@ private:
   dict_t features;
   strings_t templates;
   strings_t outputnames;
-  dict_t internedStrings;
+  mutable dict_t internedStrings;
   int index;
 
 public:
@@ -373,8 +410,10 @@ Dictionary::internString(string s) const
   dict_t::const_iterator it = internedStrings.find(s);
   if (it != internedStrings.end())
     return it->first;
-  // not all compilers support 'mutable'
-  const_cast<Dictionary*>(this)->internedStrings[s] = 1;
+#if defined(mutable)
+  const_cast<Dictionary*>(this)->
+#endif
+  internedStrings[s] = 1;
   return s;
 }
 
@@ -955,7 +994,7 @@ Scorer::gradForward(double g)
       uScores(pos, 0, nout, us);
       for (i=0; i<nout; i++)
         {
-          bScores(pos, 0, nout, i, bs);
+          bScores(pos-1, 0, nout, i, bs);
           bs.add(scores[pos-1]);
           us[i] += logSum(bs);
         }
@@ -1015,11 +1054,27 @@ main(int argc, char **argv)
 
   double wscale = 1;
   FVector w(dict.nParams());
+  
+  for (int i=0; i<w.size(); i++)
+    w[i] = (double)rand() / RAND_MAX - 0.5;
 
   {
     Timer tm;
     tm.start();
-    opstream f("./conlleval");
+    for (unsigned int i=0; i<train.size(); i++)
+      {
+        Scorer scorer(train[i], dict, w, wscale);
+        scorer.gradCorrect(+1);
+        scorer.gradForward(-1);
+      }
+    cerr << "estimated epoch time (train): " 
+         << tm.elapsed() << " seconds." << endl;
+  }
+  
+  {
+    Timer tm;
+    tm.start();
+    opstream f("./conlleval -q");    
     for (unsigned int i=0; i<train.size(); i++)
       {
         Scorer scorer(train[i], dict, w, wscale);
@@ -1031,7 +1086,7 @@ main(int argc, char **argv)
   {
     Timer tm;
     tm.start();
-    opstream f("./conlleval");    
+    opstream f("./conlleval -q");    
     for (unsigned int i=0; i<test.size(); i++)
       {
         Scorer scorer(test[i], dict, w, wscale);
