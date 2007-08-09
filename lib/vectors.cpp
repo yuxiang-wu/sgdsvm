@@ -459,9 +459,10 @@ double
 SVector::get(int i) const
 {
   const Rep *r = rep();
-  if (i < 0 || i >= r->size)
+  if (i >= r->size)
     return 0;
   // binary search
+  assert(i >= 0);
   SVector::Pair *pair = search(r->pairs, r->npairs, i);
   if (pair)
     return pair->v;
@@ -478,6 +479,7 @@ SVector::set(int i, double v)
     {
       if (i >= r->size)
         return r->qset(i, v);
+      assert(i >= 0);
       SVector::Pair *p = search(r->pairs, r->npairs, i);
       if (p)
         return p->v = v;

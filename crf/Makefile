@@ -32,7 +32,7 @@ clean:
 	-rm *.o 2>/dev/null
 
 
-crfsgd: crfsgd.o vectors.o gzstream.o pstream.o timer.o
+crfsgd: crfsgd.o vectors.o matrices.o gzstream.o pstream.o timer.o
 	${CXX} ${CXXFLAGS} -o $@ crfsgd.o vectors.o gzstream.o timer.o ${LIBS}
 
 crfsgd.o: crfsgd.cpp $L/vectors.h  $L/gzstream.h $L/timer.h
@@ -40,6 +40,9 @@ crfsgd.o: crfsgd.cpp $L/vectors.h  $L/gzstream.h $L/timer.h
 
 vectors.o: $L/vectors.cpp $L/vectors.h  $L/wrapper.h
 	${CXX} ${CXXFLAGS} -c -o $@ $L/vectors.cpp
+
+matrices.o: $L/matrices.cpp $L/matrices.h $L/vectors.h  $L/wrapper.h
+	${CXX} ${CXXFLAGS} -c -o $@ $L/matrices.cpp
 
 gzstream.o: $L/gzstream.cpp $L/gzstream.h 
 	${CXX} ${CXXFLAGS} -c -o $@ $L/gzstream.cpp
