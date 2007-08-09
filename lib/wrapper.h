@@ -35,6 +35,8 @@ class Wrapper
  public:
   Wrapper() 
     : q(new Rep) { q->refcount = 1; }
+  Wrapper(Rep *rep)
+    : q(rep) { q->refcount = 1; }
   Wrapper(const Wrapper<Rep> &other) 
     : q(ref(other.q)) {}
   ~Wrapper() 
@@ -76,9 +78,9 @@ class Wrapper
 //     
 // public:
 //   String(const char *s, int l)
-//     : w(Rep(s,l)) {}
+//     : w(new Rep(s,l)) {}
 //   String(const char *s)
-//     : w(Rep(s,::strlen(s))) {}
+//     : w(new Rep(s,::strlen(s))) {}
 // 
 //   // function that do not mutate
 //   int size() const { return rep()->length; }
@@ -86,7 +88,7 @@ class Wrapper
 //   char operator[](int i) const { return rep()->data[i]; }
 //   
 //   // functions that perform a mutation
-//   void set(int i, char c) { detach(); rep()->data[i] = c; }
+//   void set(int i, char c) { w.detach(); rep()->data[i] = c; }
 // }
 // 
 

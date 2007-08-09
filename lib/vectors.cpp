@@ -572,7 +572,15 @@ operator<<(std::ostream &f, const SVector &v)
   std::streamsize oldprec = f.precision();
   f << std::scientific << std::setprecision(sizeof(VFloat)==4 ? 7 : 16);
   for (int i=0; i<npairs; i++)
-    f << " " << pairs[i].i << ":" << pairs[i].v;
+    {
+      f << " " << pairs[i].i << ":";
+      VFloat v = pairs[i].v;
+      short iv = (int)v;
+      if (v == (VFloat)iv)
+        f << iv;
+      else
+        f << v;
+    }
   f << std::endl;
   f.precision(oldprec);
   f.flags(oldflags);
