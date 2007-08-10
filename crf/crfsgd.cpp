@@ -781,20 +781,20 @@ public:
   VFloat *w;
   double &wscale;
   
+  vector<FVector> uScores;
+  vector<FMatrix> bScores;
+
   Scorer(const Sentence &s, const Dictionary &d, FVector &w, double &c);
   virtual ~Scorer() {}
-  
-  virtual void uScores(int pos, int fy, int ny, VFloat *scores);
-  virtual void bScores(int pos, int fy, int ny, int y, VFloat *scores);
   virtual void uGradients(const VFloat *g, int pos, int fy, int ny) {}
   virtual void bGradients(const VFloat *g, int pos, int fy, int ny, int y) {}
-
+  
   double viterbi(ints_t &path);
   double test(ostream &f);
   double scoreCorrect();
-  void gradCorrect(double g);
+  double gradCorrect(double g);
   double scoreForward();
-  void gradForward(double g);
+  double gradForward(double g);
 };
 
 
@@ -802,47 +802,47 @@ Scorer::Scorer(const Sentence &s, const Dictionary &d, FVector &w, double &c)
   : s(s), d(d), w(w), wscale(c) 
 {
   assert(w.size() == d.nParams());
+  int nout = d.nOutputs();
+  int npos = s.size();
+  int pos;
+  // compute uScores
+  uScores.resize(npos);
+  for (pos=0; pos<npos; pos++)
+    {
+      FVector &c = uScores[pos];
+      c.resize(nout);
+      SVector x = s.u(pos);
+      for (const SVector::Pair *p = x; p->i >= 0; p++)
+        for (int j=0; j<nout; j++)
+          c[j] += w[p->i + j] * p->v;
+      for (int j=0; j<nout; j++)
+        c[j] *= wscale;
+    }
+  // compute bScores
+  bScores.resize(npos-1);
+  for (pos=0; pos<npos-1; pos++)
+    {
+      FMatrix &b = bScores[pos];
+      b.resize(nout,nout);
+      SVector x = s.b(pos);
+      for (const SVector::Pair *p = x; p->i >= 0; p++)
+        { 
+          int k = 0;
+          for (int i=0; i<nout; i++)
+            {
+              FVector &c = b[i];
+              for (int j=0; j<nout; j++, k++)
+                c[j] += w[p->i + k] * p->v;
+            }
+        }
+      for (int i=0; i<nout; i++) 
+        {
+          FVector &c = b[i];
+          for (int j=0; j<nout; j++)
+            c[j] *= wscale;
+        }
+    }
 }
-
-
-void
-Scorer::uScores(int pos, int fy, int ny, VFloat *c)
-{
-  int n = d.nOutputs();
-  assert(pos>=0 && pos<s.size());
-  assert(fy>=0 && fy<n);
-  assert(fy+ny>0 && fy+ny<=n);
-  int off = fy;
-  SVector x = s.u(pos);
-  for (int j=0; j<ny; j++)
-    c[j] = 0;
-  for (const SVector::Pair *p = x; p->i>=0; p++)
-    for (int j=0; j<ny; j++)
-      c[j] += w[p->i + off + j] * p->v;
-  for (int j=0; j<ny; j++)
-    c[j] *= wscale;
-}
-
-
-void
-Scorer::bScores(int pos, int fy, int ny, int y, VFloat *c)
-{
-  int n = d.nOutputs();
-  assert(pos>=0 && pos<s.size());
-  assert(y>=0 && y<n);
-  assert(fy>=0 && fy<n);
-  assert(fy+ny>0 && fy+ny<=n);
-  int off = y * n + fy;
-  SVector x = s.b(pos);
-  for (int j=0; j<ny; j++)
-    c[j] = 0;
-  for (const SVector::Pair *p = x; p->i>=0; p++)
-    for (int j=0; j<ny; j++)
-      c[j] += w[p->i + off + j] * p->v;
-  for (int j=0; j<ny; j++)
-    c[j] *= wscale;
-}
-
 
 
 double 
@@ -858,16 +858,13 @@ Scorer::viterbi(ints_t &path)
     pointers[i].resize(nout);
   
   // process scores
-  FVector scores(nout);
-  uScores(0, 0, nout, scores);
+  FVector scores = uScores[0];
   for (pos=1; pos<npos; pos++)
     {
-      FVector us(nout);
-      FVector bs(nout);
-      uScores(pos, 0, nout, us);
+      FVector us = uScores[pos];
       for (i=0; i<nout; i++)
         {
-          bScores(pos-1, 0, nout, i, bs);
+          FVector bs = bScores[pos-1][i];
           bs.add(scores);
           int bestj = 0;
           double bests = bs[0];
@@ -919,36 +916,36 @@ Scorer::scoreCorrect()
 {
   int npos = s.size();
   int y = s.y(0);
-  VFloat vf;
-  uScores(0, y, 1, &vf);
-  double sum = vf;
+  double sum = uScores[0][y];
   for (int pos=1; pos<npos; pos++)
     {
       int fy = y;
       y = s.y(pos);
-      bScores(pos-1, fy, 1, y, &vf);
-      sum += vf;
-      uScores(pos, y, 1, &vf);
-      sum += vf;
+      sum += bScores[pos-1][y][fy];
+      sum += uScores[pos][y];
     }
   return sum;
 }
 
 
-void
+double
 Scorer::gradCorrect(double g)
 {
   int npos = s.size();
   int y = s.y(0);
   VFloat vf = g;
   uGradients(&vf, 0, y, 1);
+  double sum = uScores[0][y];
   for (int pos=1; pos<npos; pos++)
     {
       int fy = y;
       y = s.y(pos);
+      sum += bScores[pos-1][y][fy];
+      sum += uScores[pos][y];
       bGradients(&vf, pos-1, fy, 1, y);
       uGradients(&vf, pos, y, 1);
     }
+  return sum;
 }
 
 
@@ -958,17 +955,14 @@ Scorer::scoreForward()
   int npos = s.size();
   int nout = d.nOutputs();
   int pos, i;
-  
-  FVector scores(nout);
-  uScores(0, 0, nout, scores);
+
+  FVector scores = uScores[0];
   for (pos=1; pos<npos; pos++)
     {
-      FVector us(nout);
-      FVector bs(nout);
-      uScores(pos, 0, nout, us);
+      FVector us = uScores[pos];
       for (i=0; i<nout; i++)
         {
-          bScores(pos-1, 0, nout, i, bs);
+          FVector bs = bScores[pos-1][i];
           bs.add(scores);
           us[i] += logSum(bs);
         }
@@ -979,41 +973,105 @@ Scorer::scoreForward()
 
 
 
-void 
+double 
 Scorer::gradForward(double g)
 {
   int npos = s.size();
   int nout = d.nOutputs();
-  int pos, i;
-  // forward pass
-  FMatrix scores(npos, nout);
-  uScores(0, 0, nout, scores[0]);
+  int pos;
+
+#ifdef USE_FORWARD_BACKWARD
+  
+  FMatrix alpha(npos,nout);
+  FMatrix beta(npos,nout);
+  // forward
+  alpha[0] = uScores[0];
   for (pos=1; pos<npos; pos++)
     {
-      FVector &us = scores[pos];
-      FVector bs(nout);
-      uScores(pos, 0, nout, us);
-      for (i=0; i<nout; i++)
+      FVector us = uScores[pos];
+      for (int i=0; i<nout; i++)
         {
-          bScores(pos-1, 0, nout, i, bs);
+          FVector bs = bScores[pos-1][i];
+          bs.add(alpha[pos-1]);
+          us[i] += logSum(bs);
+        }
+      alpha[pos] = us;
+    }
+
+  // backward
+  beta[pos-1] = uScores[pos-1];
+  for (pos=pos-2; pos>=0; pos--)
+    {
+      FVector us = uScores[pos];
+      for (int i=0; i<nout; i++)
+        {
+          FVector bs(nout);
+          const FMatrix &bsc = bScores[pos];
+          for (int j=0; j<nout; j++)
+            bs[j] = bsc[j][i];
+          bs.add(beta[pos+1]);
+          us[i] += logSum(bs);
+        }
+      beta[pos] = us;
+    }
+  // score
+  double score = logSum(beta[0]);
+
+  // collect gradients
+  for (pos=0; pos<npos; pos++)
+    {
+      FVector b = beta[pos];
+      if (pos > 0)
+        {
+          FVector a = alpha[pos-1];
+          const FMatrix &bsc = bScores[pos-1];
+          for (int j=0; j<nout; j++)
+            {
+              FVector bs = bsc[j];
+              FVector bgrad(nout);
+              for (int i=0; i<nout; i++)
+                bgrad[i] = g * expmx(max(0.0, score - bs[i] - a[i] - b[j]));
+              bGradients(bgrad, pos-1, 0, nout, j);
+            }
+        }
+      FVector a = alpha[pos];
+      FVector us = uScores[pos];
+      FVector ugrad(nout);
+      for (int i=0; i<nout; i++)
+        ugrad[i] = g * expmx(max(0.0, score + us[i] - a[i] - b[i]));
+      uGradients(ugrad, pos, 0, nout);
+    }
+
+#else
+
+  // forward
+  FMatrix scores(npos, nout);
+  scores[0] = uScores[0];
+  for (pos=1; pos<npos; pos++)
+    {
+      FVector us = uScores[pos];
+      for (int i=0; i<nout; i++)
+        {
+          FVector bs = bScores[pos-1][i];
           bs.add(scores[pos-1]);
           us[i] += logSum(bs);
         }
+      scores[pos] = us;
     }
-  // backward pass
+  double score = logSum(scores[npos-1]);
+
+  // backward with chain rule
   FVector tmp(nout);
   FVector grads(nout);
   dLogSum(g, scores[npos-1], grads);
   for (pos=npos-1; pos>0; pos--)
     {
-      FVector bs(nout);
-      FVector ug(nout);
+      FVector ug;
       uGradients(grads, pos, 0, nout);
       for (int i=0; i<nout; i++)
         if (grads[i])
-          { // recomputing bScores is not efficient
-            // when there are many B templates.
-            bScores(pos-1, 0, nout, i, bs);
+          { 
+            FVector bs = bScores[pos-1][i];
             bs.add(scores[pos-1]);
             dLogSum(grads[i], bs, tmp);
             bGradients(tmp, pos-1, 0, nout, i);
@@ -1022,6 +1080,10 @@ Scorer::gradForward(double g)
       grads = ug;
     }
   uGradients(grads, 0, 0, nout);
+
+#endif
+
+  return score;
 }
 
 
@@ -1163,15 +1225,29 @@ dataset_t test;
 int 
 main(int argc, char **argv)
 {
-  Dictionary dict;
+#if 1
+  Dictionary dict;  
   dict.initFromData(templateFile.c_str(), trainFile.c_str(), cutoff);
-
   loadSentences(trainFile.c_str(), dict, train);
   loadSentences(testFile.c_str(), dict, test);
-
   double wscale = 1;
   FVector w(dict.nParams());
-
+#else
+  Dictionary dict;
+  double wscale;
+  FVector w;
+  {
+    ifstream f("model");
+    f >> dict;
+    f >> wscale;
+    cerr << "Wscale: " << wscale << endl;
+    f >> w;
+    assert(w.size() == dict.nParams());
+  }
+  loadSentences(trainFile.c_str(), dict, train);
+  loadSentences(testFile.c_str(), dict, test);
+#endif 
+  
 #if 0
   for (int i=0; i<10; i++)
     {
@@ -1237,12 +1313,14 @@ main(int argc, char **argv)
           }
       }
 
+#if 0
       {
         ofstream f("model");
         f << dict << endl;
         f << wscale << endl;
         f << w;
       }
+#endif
     }
   return 0;
 }
