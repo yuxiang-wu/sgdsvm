@@ -818,7 +818,7 @@ Scorer::uScores(int pos, int fy, int ny, VFloat *c)
     c[j] = 0;
   for (const SVector::Pair *p = x; p->i>=0; p++)
     for (int j=0; j<ny; j++)
-      c[j] += w[p->i + off + j]; // we know that p->v is 1
+      c[j] += w[p->i + off + j] * p->v;
   for (int j=0; j<ny; j++)
     c[j] *= wscale;
 }
@@ -838,7 +838,7 @@ Scorer::bScores(int pos, int fy, int ny, int y, VFloat *c)
     c[j] = 0;
   for (const SVector::Pair *p = x; p->i>=0; p++)
     for (int j=0; j<ny; j++)
-      c[j] += w[p->i + off + j]; // we know that p->v is 1
+      c[j] += w[p->i + off + j] * p->v;
   for (int j=0; j<ny; j++)
     c[j] *= wscale;
 }
@@ -1026,6 +1026,122 @@ Scorer::gradForward(double g)
 
 
 
+// ============================================================
+// GScorer - compute gradients as SVectors
+
+
+class GScorer : public Scorer
+{
+private:
+  SVector grad;
+public:
+  GScorer(const Sentence &s,const Dictionary &d,FVector &w,double &c);
+  void clear() { grad.clear(); }
+  SVector gradient() { return grad; }
+  virtual void uGradients(const VFloat *g, int pos, int fy, int ny);
+  virtual void bGradients(const VFloat *g, int pos, int fy, int ny, int y);
+};
+
+
+GScorer::GScorer(const Sentence &s,const Dictionary &d,FVector &w,double &c)
+  : Scorer(s,d,w,c)
+{
+}
+
+
+void 
+GScorer::uGradients(const VFloat *g, int pos, int fy, int ny)
+{
+  int n = d.nOutputs();
+  assert(pos>=0 && pos<s.size());
+  assert(fy>=0 && fy<n);
+  assert(fy+ny>0 && fy+ny<=n);
+  int off = fy;
+  SVector x = s.u(pos);
+  SVector a;
+  for (const SVector::Pair *p = x; p->i>=0; p++)
+    for (int j=0; j<ny; j++)
+      a.set(p->i + off + j, g[j] * p->v);
+  grad.add(a);
+}
+
+
+void 
+GScorer::bGradients(const VFloat *g, int pos, int fy, int ny, int y)
+{
+  int n = d.nOutputs();
+  assert(pos>=0 && pos<s.size());
+  assert(y>=0 && y<n);
+  assert(fy>=0 && fy<n);
+  assert(fy+ny>0 && fy+ny<=n);
+  int off = y * n + fy;
+  SVector x = s.b(pos);
+  SVector a;
+  for (const SVector::Pair *p = x; p->i>=0; p++)
+    for (int j=0; j<ny; j++)
+      a.set(p->i + off + j, g[j] * p->v);
+  grad.add(a);
+}
+
+
+
+// ============================================================
+// TScorer - training score: update weights directly
+
+
+class TScorer : public Scorer
+{
+private:
+  double eta;
+public:
+  TScorer(const Sentence &s, const Dictionary &d,
+          FVector &w, double &c, double eta);
+  virtual void uGradients(const VFloat *g, int pos, int fy, int ny);
+  virtual void bGradients(const VFloat *g, int pos, int fy, int ny, int y);
+};
+
+
+TScorer::TScorer(const Sentence &s, const Dictionary &d,
+                 FVector &w, double &c, double eta )
+  : Scorer(s,d,w,c), eta(eta)
+{
+}
+
+
+void 
+TScorer::uGradients(const VFloat *g, int pos, int fy, int ny)
+{
+  int n = d.nOutputs();
+  assert(pos>=0 && pos<s.size());
+  assert(fy>=0 && fy<n);
+  assert(fy+ny>0 && fy+ny<=n);
+  int off = fy;
+  SVector x = s.u(pos);
+  double gain = eta / wscale;
+  for (const SVector::Pair *p = x; p->i>=0; p++)
+    for (int j=0; j<ny; j++)
+      w[p->i + off + j] += g[j] * p->v * gain;
+}
+
+
+void 
+TScorer::bGradients(const VFloat *g, int pos, int fy, int ny, int y)
+{
+  int n = d.nOutputs();
+  assert(pos>=0 && pos<s.size());
+  assert(y>=0 && y<n);
+  assert(fy>=0 && fy<n);
+  assert(fy+ny>0 && fy+ny<=n);
+  int off = y * n + fy;
+  SVector x = s.b(pos);
+  SVector a;
+  double gain = eta / wscale;
+  for (const SVector::Pair *p = x; p->i>=0; p++)
+    for (int j=0; j<ny; j++)
+      w[p->i + off + j] += g[j] * p->v * gain;
+}
+
+
 
 // ============================================================
 // Main function
@@ -1053,52 +1169,71 @@ main(int argc, char **argv)
   loadSentences(trainFile.c_str(), dict, train);
   loadSentences(testFile.c_str(), dict, test);
 
-  double wscale = 10;
+  double wscale = 1;
   FVector w(dict.nParams());
-  
-  for (int i=0; i<w.size(); i++)
-    w[i] = (double)rand() / RAND_MAX - 0.5;
 
-  {
-    Timer tm;
-    tm.start();
-    for (unsigned int i=0; i<train.size(); i++)
+#if 0
+  for (int i=0; i<10; i++)
+    {
+      GScorer scorer(train[i], dict, w, wscale);
+      cout << "[" << i << "]" << "  size: " << train[i].size()
+           << "  forward: " << scorer.scoreForward()
+           << "  correct: " << scorer.scoreCorrect() 
+           << endl;
+      
+      scorer.gradCorrect(+1);
+      scorer.gradForward(-1);
+      SVector grad = scorer.gradient();
+      cout << " gradient norm: " << dot(grad,grad) 
+           << " pairs: " << grad.npairs() << endl;
+    }
+#endif
+
+  double eta0 = 0.1;
+  double C = 4;
+  double lambda = 1 / (C * train.size());
+  double t = 1 / (lambda * eta0);
+
+  Timer tm;
+  for (int epoch=0; epoch<20; epoch++)
+    {
+      tm.start();
+      for (unsigned int i=0; i<train.size(); i++)
+        {
+          double eta = 1/(lambda*t);
+          TScorer scorer(train[i], dict, w, wscale, eta);
+          scorer.gradCorrect(+1);
+          scorer.gradForward(-1);
+          wscale *= (1 - eta*lambda);
+          t += 1;
+        }
+      tm.stop();
+      double wnorm = dot(w,w)*wscale*wscale;
+      cerr << "[" << epoch << "] ---------------------" << endl
+           << " Total training time: " << tm.elapsed() << " seconds." << endl
+           << " Norm: " << wnorm
+           << " WScale: " << wscale << endl;
       {
-        Scorer scorer(train[i], dict, w, wscale);
-        scorer.gradCorrect(+1);
-        scorer.gradForward(-1);
+        double obj = 0.5*wnorm*lambda*train.size();
+        opstream f("./conlleval -q");    
+        for (unsigned int i=0; i<train.size(); i++)
+          {
+            Scorer scorer(train[i], dict, w, wscale);
+            scorer.test(f);
+            obj += scorer.scoreForward() - scorer.scoreCorrect();
+          }
+        cout << "Training perf:  obj=" << obj << endl;
       }
-    cerr << "estimated epoch time (train): " 
-         << tm.elapsed() << " seconds." << endl;
-  }
-  
-  {
-    Timer tm;
-    tm.start();
-    opstream f("./conlleval -q");    
-    for (unsigned int i=0; i<train.size(); i++)
       {
-        Scorer scorer(train[i], dict, w, wscale);
-        scorer.test(f);
+        cout << "Testing perf: " << endl;
+        opstream f("./conlleval -q");    
+        for (unsigned int i=0; i<test.size(); i++)
+          {
+            Scorer scorer(test[i], dict, w, wscale);
+            scorer.test(f);
+          }
       }
-    cerr << "tagging time (train): " << tm.elapsed() << " seconds." << endl;
-  }
-
-  {
-    Timer tm;
-    tm.start();
-    opstream f("./conlleval -q");    
-    for (unsigned int i=0; i<test.size(); i++)
-      {
-        Scorer scorer(test[i], dict, w, wscale);
-        scorer.test(f);
-      }
-    cerr << "tagging time (test): " << tm.elapsed() << " seconds." << endl;
-  }
-
-
-
-
+    }
   return 0;
 }
 
