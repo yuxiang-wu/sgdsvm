@@ -608,16 +608,17 @@ Dictionary::initFromData(const char *tFile, const char *dFile, int cutoff)
        << "  outputs: " << oindex << endl;
   
   // allocating parameters
+  strings_t keys;
   for (hash_t::iterator hi = fcount.begin(); hi != fcount.end(); hi++)
+    if (hi->second >= cutoff)
+      keys.push_back(hi->first);
+  sort(keys.begin(), keys.end());
+  for (strings_t::iterator si = keys.begin(); si != keys.end(); si++)
     {
-      if (hi->second >= cutoff)
-        {
-          int size = oindex;
-          if (hi->first[0] == 'B')
-            size = oindex * oindex;
-          features[hi->first] = index;
-          index += size;
-        }
+      string k = *si;
+      int size = (k[0] == 'B') ? oindex * oindex : oindex;
+      features[k] = index;
+      index += size;
     }
   cerr << "  cutoff: " << cutoff 
        << "  features: " << features.size() 
