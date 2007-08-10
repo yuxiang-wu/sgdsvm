@@ -447,7 +447,7 @@ SVector::Rep::qset(int i, double v)
 {
   assert(i >= size);
   if (npairs >= mpairs)
-    resize(npairs + min(16, max(mpairs, 4096)));
+    resize(npairs + min(16, mpairs));
   Pair *p = &pairs[npairs++];
   size = i + 1;
   p->i = i;
