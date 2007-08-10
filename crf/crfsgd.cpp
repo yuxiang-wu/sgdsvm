@@ -1009,15 +1009,15 @@ Scorer::gradForward(double g)
       FVector ug(nout);
       uGradients(grads, pos, 0, nout);
       for (int i=0; i<nout; i++)
-        {
-          // recomputing bScores is not efficient
-          // when there are many B templates.
-          bScores(pos-1, 0, nout, i, bs);
-          bs.add(scores[pos-1]);
-          dLogSum(grads[i], bs, tmp);
-          bGradients(tmp, pos-1, 0, nout, i);
-          ug.add(tmp);
-        }
+        if (grads[i])
+          { // recomputing bScores is not efficient
+            // when there are many B templates.
+            bScores(pos-1, 0, nout, i, bs);
+            bs.add(scores[pos-1]);
+            dLogSum(grads[i], bs, tmp);
+            bGradients(tmp, pos-1, 0, nout, i);
+            ug.add(tmp);
+          }
       grads = ug;
     }
   uGradients(grads, 0, 0, nout);
@@ -1052,7 +1052,7 @@ main(int argc, char **argv)
   loadSentences(trainFile.c_str(), dict, train);
   loadSentences(testFile.c_str(), dict, test);
 
-  double wscale = 1;
+  double wscale = 10;
   FVector w(dict.nParams());
   
   for (int i=0; i<w.size(); i++)
