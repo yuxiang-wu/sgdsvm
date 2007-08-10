@@ -48,8 +48,8 @@ class FMatrix
   const Rep *rep() const { return w.rep(); }
 
  public:
-  FMatrix();
-  FMatrix(int rows, int cols);
+  FMatrix() {}
+  FMatrix(int rows, int cols) { resize(rows, cols); }
   int rows() const { return rep()->nrows; }
   int cols() const { return rep()->ncols; }
   void resize(int nrows, int ncols=-1);
@@ -86,8 +86,8 @@ class SMatrix
   const Rep *rep() const { return w.rep(); }
 
  public:
-  SMatrix();
-  SMatrix(int rows, int cols);
+  SMatrix() {}
+  SMatrix(int rows, int cols) { resize(rows,cols); }
   int rows() const { return rep()->nrows; }
   int cols() const { return rep()->ncols; }
   void resize(int nrows, int ncols=-1);

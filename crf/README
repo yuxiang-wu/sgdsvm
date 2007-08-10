@@ -15,7 +15,7 @@ Number of sentences: 8936
 Number of features:  1679700
 ...
 iter=199 terr=0.00038 serr=0.00638 act=1679700 obj=4138.23633 diff=0.00009
-Done!6071.06 s
+Done! 6071.06 seconds.
 
 $ ../../crf_test -m model test.txt | tr '	' ' ' | ../../../conlleval 
 processed 47377 tokens with 23852 phrases; found: 23809 phrases; correct: 22323

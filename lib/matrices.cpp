@@ -20,12 +20,6 @@
 #include <matrices.h>
 
 
-FMatrix::FMatrix(int rows, int cols)
-{
-  resize(rows,cols);
-}
-
-
 void 
 FMatrix::resize(int nrows, int ncols)
 {
@@ -83,12 +77,6 @@ FMatrix::operator[](int r)
 
 
 // ----------------------------------------
-
-
-SMatrix::SMatrix(int rows, int cols)
-{
-  resize(rows,cols);
-}
 
 
 void 

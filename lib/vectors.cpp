@@ -308,13 +308,25 @@ FVector::combine(double c1, const SVector &v2, double c2)
 }
 
 
-
-
 std::ostream& 
 operator<<(std::ostream &f, const FVector &v)
 {
-  SVector s(v);
-  f << s;
+  std::ios::fmtflags oldflags = f.flags();
+  std::streamsize oldprec = f.precision();
+  f << std::scientific << std::setprecision(sizeof(VFloat)==4 ? 7 : 16);
+  for (int i=0; i<v.size(); i++)
+    {
+      f << " " << i << ":";
+      VFloat x = v[i];
+      short ix = (int)x;
+      if (x == (VFloat)ix)
+        f << ix;
+      else
+        f << x;
+    }
+  f << std::endl;
+  f.precision(oldprec);
+  f.flags(oldflags);
   return f;
 }
 
@@ -322,10 +334,41 @@ operator<<(std::ostream &f, const FVector &v)
 std::istream& 
 operator>>(std::istream &f, FVector &v)
 {
-  SVector s;
-  f >> s;
-  if (f.good())
-    v = s;
+  int sz = 0;
+  int msz = 1024;
+  v.clear();
+  v.resize(msz);
+  for(;;)
+    {
+      int c = f.get();
+      if (!f.good() || (c=='\n' || c=='\r'))
+        break;
+      if (::isspace(c))
+        continue;
+      int i;
+      f.unget();
+      f >> std::skipws >> i >> std::ws;
+      if (f.get() != ':')
+        {
+          f.unget();
+          f.setstate(std::ios::badbit);
+          break;
+        }
+      double x;
+      f >> std::skipws >> x;
+      if (!f.good())
+        break;
+      if (i >= sz)
+        sz = i + 1;
+      if (i >= msz)
+        {
+          while(i >= msz)
+            msz += msz;
+          v.resize(msz);
+        }
+      v.set(i,x);
+    }
+  v.resize(sz);
   return f;
 }
 

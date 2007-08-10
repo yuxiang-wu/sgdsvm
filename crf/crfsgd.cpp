@@ -1195,7 +1195,7 @@ main(int argc, char **argv)
   double t = 1 / (lambda * eta0);
 
   Timer tm;
-  for (int epoch=0; epoch<20; epoch++)
+  for (int epoch=0; epoch<40; epoch++)
     {
       tm.start();
       for (unsigned int i=0; i<train.size(); i++)
@@ -1213,6 +1213,8 @@ main(int argc, char **argv)
            << " Total training time: " << tm.elapsed() << " seconds." << endl
            << " Norm: " << wnorm
            << " WScale: " << wscale << endl;
+
+      if (epoch%5==4)
       {
         double obj = 0.5*wnorm*lambda*train.size();
         opstream f("./conlleval -q");    
@@ -1224,6 +1226,7 @@ main(int argc, char **argv)
           }
         cout << "Training perf:  obj=" << obj << endl;
       }
+      if (epoch%5==4)
       {
         cout << "Testing perf: " << endl;
         opstream f("./conlleval -q");    
@@ -1232,6 +1235,13 @@ main(int argc, char **argv)
             Scorer scorer(test[i], dict, w, wscale);
             scorer.test(f);
           }
+      }
+
+      {
+        ofstream f("model");
+        f << dict << endl;
+        f << wscale << endl;
+        f << w;
       }
     }
   return 0;
