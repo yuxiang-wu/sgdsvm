@@ -92,7 +92,8 @@ skipSpace(istream &f)
 inline double
 expmx(double x)
 {
-#ifdef EXACT_EXPONENTIAL
+#define EXACT_EXPONENTIAL 0
+#if EXACT_EXPONENTIAL
   return exp(-x);
 #else
   // fast approximation of exp(-x) for x positive
@@ -980,7 +981,8 @@ Scorer::gradForward(double g)
   int nout = d.nOutputs();
   int pos;
 
-#ifdef USE_FORWARD_BACKWARD
+#define USE_FORWARD_BACKWARD 0
+#if USE_FORWARD_BACKWARD
   
   FMatrix alpha(npos,nout);
   FMatrix beta(npos,nout);
