@@ -447,7 +447,10 @@ SVector::Rep::qset(int i, double v)
 {
   assert(i >= size);
   if (npairs >= mpairs)
-    resize(npairs + min(16, mpairs));
+    {
+      resize(max(16, mpairs+mpairs));
+      assert(npairs < mpairs);
+    }
   Pair *p = &pairs[npairs++];
   size = i + 1;
   p->i = i;
@@ -527,7 +530,10 @@ SVector::set(int i, double v)
       if (p)
         return p->v = v;
       if (r->npairs >= r->mpairs)
-        r->resize(r->npairs + min(16, max(r->mpairs, 4096)));
+        {
+          r->resize(max(16, r->mpairs + min(r->mpairs, 4096)));
+          assert(r->npairs < r->mpairs);
+        }
       SVector::Pair *s = r->pairs;
       p = s + r->npairs;
       r->npairs += 1;

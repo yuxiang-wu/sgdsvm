@@ -822,11 +822,12 @@ public:
   const Dictionary &d;
   VFloat *w;
   double &wscale;
-  
+  bool scoresOk;
   vector<FVector> uScores;
   vector<FMatrix> bScores;
 
-  Scorer(const Sentence &s, const Dictionary &d, FVector &w, double &c);
+  Scorer(const Sentence &s_, const Dictionary &d_, FVector &w_, double &c_);
+  void computeScores();
   virtual ~Scorer() {}
   virtual void uGradients(const VFloat *g, int pos, int fy, int ny) {}
   virtual void bGradients(const VFloat *g, int pos, int fy, int ny, int y) {}
@@ -840,56 +841,66 @@ public:
 };
 
 
-Scorer::Scorer(const Sentence &s, const Dictionary &d, FVector &w, double &c)
-  : s(s), d(d), w(w), wscale(c) 
+Scorer::Scorer(const Sentence &s_, const Dictionary &d_, FVector &w_, double &c_)
+  : s(s_), d(d_), w(w_), wscale(c_), scoresOk(false)
 {
-  assert(w.size() == d.nParams());
-  int nout = d.nOutputs();
-  int npos = s.size();
-  int pos;
-  // compute uScores
-  uScores.resize(npos);
-  for (pos=0; pos<npos; pos++)
+  assert(w_.size() == d.nParams());
+}
+
+void
+Scorer::computeScores()
+{
+  if (! scoresOk)
     {
-      FVector &c = uScores[pos];
-      c.resize(nout);
-      SVector x = s.u(pos);
-      for (const SVector::Pair *p = x; p->i >= 0; p++)
-        for (int j=0; j<nout; j++)
-          c[j] += w[p->i + j] * p->v;
-      for (int j=0; j<nout; j++)
-        c[j] *= wscale;
-    }
-  // compute bScores
-  bScores.resize(npos-1);
-  for (pos=0; pos<npos-1; pos++)
-    {
-      FMatrix &b = bScores[pos];
-      b.resize(nout,nout);
-      SVector x = s.b(pos);
-      for (const SVector::Pair *p = x; p->i >= 0; p++)
-        { 
-          int k = 0;
-          for (int i=0; i<nout; i++)
+      int nout = d.nOutputs();
+      int npos = s.size();
+      int pos;
+      // compute uScores
+      uScores.resize(npos);
+      for (pos=0; pos<npos; pos++)
+        {
+          FVector &u = uScores[pos];
+          u.resize(nout);
+          SVector x = s.u(pos);
+          for (const SVector::Pair *p = x; p->i >= 0; p++)
+            for (int j=0; j<nout; j++)
+              u[j] += w[p->i + j] * p->v;
+          for (int j=0; j<nout; j++)
+            u[j] *= wscale;
+        }
+      // compute bScores
+      bScores.resize(npos-1);
+      for (pos=0; pos<npos-1; pos++)
+        {
+          FMatrix &b = bScores[pos];
+          b.resize(nout,nout);
+          SVector x = s.b(pos);
+          for (const SVector::Pair *p = x; p->i >= 0; p++)
+            { 
+              int k = 0;
+              for (int i=0; i<nout; i++)
+                {
+                  FVector &bi = b[i];
+                  for (int j=0; j<nout; j++, k++)
+                    bi[j] += w[p->i + k] * p->v;
+                }
+            }
+          for (int i=0; i<nout; i++) 
             {
-              FVector &c = b[i];
-              for (int j=0; j<nout; j++, k++)
-                c[j] += w[p->i + k] * p->v;
+              FVector &bi = b[i];
+              for (int j=0; j<nout; j++)
+                bi[j] *= wscale;
             }
         }
-      for (int i=0; i<nout; i++) 
-        {
-          FVector &c = b[i];
-          for (int j=0; j<nout; j++)
-            c[j] *= wscale;
-        }
     }
+  scoresOk = true;
 }
 
 
 double 
 Scorer::viterbi(ints_t &path)
 {
+  computeScores();
   int npos = s.size();
   int nout = d.nOutputs();
   int pos, i, j;
@@ -956,6 +967,7 @@ Scorer::test(ostream &f)
 double 
 Scorer::scoreCorrect()
 {
+  computeScores();
   int npos = s.size();
   int y = s.y(0);
   double sum = uScores[0][y];
@@ -973,6 +985,7 @@ Scorer::scoreCorrect()
 double
 Scorer::gradCorrect(double g)
 {
+  computeScores();
   int npos = s.size();
   int y = s.y(0);
   VFloat vf = g;
@@ -994,6 +1007,7 @@ Scorer::gradCorrect(double g)
 double 
 Scorer::scoreForward()
 {
+  computeScores();
   int npos = s.size();
   int nout = d.nOutputs();
   int pos, i;
@@ -1018,6 +1032,7 @@ Scorer::scoreForward()
 double 
 Scorer::gradForward(double g)
 {
+  computeScores();
   int npos = s.size();
   int nout = d.nOutputs();
   int pos;
@@ -1140,7 +1155,7 @@ class GScorer : public Scorer
 private:
   SVector grad;
 public:
-  GScorer(const Sentence &s,const Dictionary &d,FVector &w,double &c);
+  GScorer(const Sentence &s_, const Dictionary &d_, FVector &w_, double &c_);
   void clear() { grad.clear(); }
   SVector gradient() { return grad; }
   virtual void uGradients(const VFloat *g, int pos, int fy, int ny);
@@ -1148,8 +1163,9 @@ public:
 };
 
 
-GScorer::GScorer(const Sentence &s,const Dictionary &d,FVector &w,double &c)
-  : Scorer(s,d,w,c)
+GScorer::GScorer(const Sentence &s_,const Dictionary &d_, 
+                 FVector &w_, double &c_)
+  : Scorer(s_, d_, w_, c_)
 {
 }
 
@@ -1199,16 +1215,16 @@ class TScorer : public Scorer
 private:
   double eta;
 public:
-  TScorer(const Sentence &s, const Dictionary &d,
-          FVector &w, double &c, double eta);
+  TScorer(const Sentence &s_, const Dictionary &d_,
+          FVector &w_, double &c_, double eta_);
   virtual void uGradients(const VFloat *g, int pos, int fy, int ny);
   virtual void bGradients(const VFloat *g, int pos, int fy, int ny, int y);
 };
 
 
-TScorer::TScorer(const Sentence &s, const Dictionary &d,
-                 FVector &w, double &c, double eta )
-  : Scorer(s,d,w,c), eta(eta)
+TScorer::TScorer(const Sentence &s_, const Dictionary &d_,
+                 FVector &w_, double &c_, double eta_ )
+  : Scorer(s_,d_,w_,c_), eta(eta_)
 {
 }
 
