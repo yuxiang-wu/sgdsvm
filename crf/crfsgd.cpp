@@ -1346,7 +1346,7 @@ main(int argc, char **argv)
     }
 #endif
 
-  double eta0 = 0.2;
+  double eta0 = 0.1;
   double C = 4;
   double lambda = 1 / (C * train.size());
   double t = 1 / (lambda * eta0);
@@ -1358,7 +1358,7 @@ main(int argc, char **argv)
       for (unsigned int i=0; i<train.size(); i++)
         {
           double eta = 1/(lambda*t);
-          double bf = 0.2;
+          double bf = 0.3;
           // train
           TScorer scorer(train[i], dict, w, wscale, eta, bf);
           scorer.gradCorrect(+1);
