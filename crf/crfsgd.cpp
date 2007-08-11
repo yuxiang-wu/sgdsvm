@@ -373,6 +373,7 @@ private:
   strings_t outputnames;
   mutable dict_t internedStrings;
   int index;
+  int biasIndex;
 
 public:
   Dictionary() : index(0) { }
@@ -530,6 +531,18 @@ operator>>(istream &f, Dictionary &d)
 }
 
 
+
+typedef pair<string,int> sipair_t;
+typedef vector<sipair_t> sivector_t;
+
+struct SIPairCompare {
+  bool operator() (const sipair_t &p1, const sipair_t &p2) {
+    if (p1.second > p2.second) return true;
+    else if (p1.second < p2.second) return false;
+    else return (p1.first < p2.first);
+  }
+} siPairCompare;
+
 void
 Dictionary::initFromData(const char *tFile, const char *dFile, int cutoff)
 {
@@ -608,22 +621,50 @@ Dictionary::initFromData(const char *tFile, const char *dFile, int cutoff)
   cerr << "  sentences: " << sentences 
        << "  outputs: " << oindex << endl;
   
-  // allocating parameters
-  strings_t keys;
+  // sorting in frequency order
+  sivector_t keys;
   for (hash_t::iterator hi = fcount.begin(); hi != fcount.end(); hi++)
     if (hi->second >= cutoff)
-      keys.push_back(hi->first);
-  sort(keys.begin(), keys.end());
-  for (strings_t::iterator si = keys.begin(); si != keys.end(); si++)
+      keys.push_back(*hi);
+  if (keys.size() <= 0)
     {
-      string k = *si;
-      int size = (k[0] == 'B') ? oindex * oindex : oindex;
+      cerr << "ERROR (building dictionary): "
+           << "No features satisfy the cutoff frequency" << endl;
+      exit(10);
+    }
+  sort(keys.begin(), keys.end(), siPairCompare);
+
+  // determine number of features that warrant a special learning rate
+  unsigned int biasFeatures = 0;
+  int maxBiasFeatures = max((int)10, (int)keys.size()); // hardcoded
+  double biasFactor = 0;
+  for (int i=1; i<maxBiasFeatures; i++) {
+    double factor = (double) keys[i-1].second / keys[i].second;
+    if (factor >= biasFactor) {
+      biasFactor = factor; 
+      biasFeatures = i; 
+    }
+  }
+  if (biasFactor <= 3.0)
+    biasFeatures = 0;
+  
+  // allocating parameters
+  biasIndex = 0;
+  for (unsigned int j=0; j<keys.size(); j++)
+    {
+      string k = keys[j].first;
+      if (j == biasFeatures)
+        biasIndex = index;
       features[k] = index;
-      index += size;
+      if (k[0] == 'B')
+        index += oindex * oindex;
+      else
+        index += oindex;
     }
   cerr << "  cutoff: " << cutoff 
        << "  features: " << features.size() 
        << "  parameters: " << index << endl
+       << "  bias parameters: " << biasIndex 
        << "  duration: " << timer.elapsed() << " seconds." << endl;
 }
 
