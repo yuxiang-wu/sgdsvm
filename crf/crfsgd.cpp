@@ -376,12 +376,13 @@ private:
   int biasIndex;
 
 public:
-  Dictionary() : index(0) { }
+  Dictionary() : index(0), biasIndex(0) { }
 
   int nOutputs() const { return outputs.size(); }
   int nFeatures() const { return features.size(); }
   int nTemplates() const { return templates.size(); }
   int nParams() const { return index; }
+  int nBiasParams() const { return biasIndex; }
   
   int output(string s) const { 
     dict_t::const_iterator it = outputs.find(s);
@@ -439,6 +440,7 @@ operator<<(ostream &f, const Dictionary &d)
     rev[di->second] = di->first;
   for (ri=rev.begin(); ri!=rev.end(); ri++)
     f << "X" << ri->second << endl;
+  f << "B" << d.biasIndex << endl;
   return f;
 }
 
@@ -450,6 +452,7 @@ operator>>(istream &f, Dictionary &d)
   d.features.clear();
   d.templates.clear();
   d.index = 0;
+  d.biasIndex = 0;
   int findex = 0;
   int oindex = 0;
   while (f.good())
@@ -508,6 +511,16 @@ operator>>(istream &f, Dictionary &d)
             }
           d.features[v] = findex;
           findex = nindex;
+        }
+      else if (c == 'B')
+        {
+          f >> d.biasIndex;
+          if (d.biasIndex > findex)
+            {
+              cerr << "ERROR (reading dictionary): " 
+                   << "Invalid biasIndex: " << d.biasIndex << endl;
+              exit(10);
+            }
         }
       else
         {
