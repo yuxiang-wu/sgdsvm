@@ -1227,17 +1227,18 @@ class TScorer : public Scorer
 {
 private:
   double eta;
+  double biasFactor;
 public:
   TScorer(const Sentence &s_, const Dictionary &d_,
-          FVector &w_, double &c_, double eta_);
+          FVector &w_, double &c_, double eta_, double bf_=1.0);
   virtual void uGradients(const VFloat *g, int pos, int fy, int ny);
   virtual void bGradients(const VFloat *g, int pos, int fy, int ny, int y);
 };
 
 
 TScorer::TScorer(const Sentence &s_, const Dictionary &d_,
-                 FVector &w_, double &c_, double eta_ )
-  : Scorer(s_,d_,w_,c_), eta(eta_)
+                 FVector &w_, double &c_, double eta_, double bf_ )
+  : Scorer(s_,d_,w_,c_), eta(eta_), biasFactor(bf_)
 {
 }
 
@@ -1246,6 +1247,7 @@ void
 TScorer::uGradients(const VFloat *g, int pos, int fy, int ny)
 {
   int n = d.nOutputs();
+  int bp = d.nBiasParams();
   assert(pos>=0 && pos<s.size());
   assert(fy>=0 && fy<n);
   assert(fy+ny>0 && fy+ny<=n);
@@ -1253,8 +1255,11 @@ TScorer::uGradients(const VFloat *g, int pos, int fy, int ny)
   SVector x = s.u(pos);
   double gain = eta / wscale;
   for (const SVector::Pair *p = x; p->i>=0; p++)
-    for (int j=0; j<ny; j++)
-      w[p->i + off + j] += g[j] * p->v * gain;
+    {
+      double xgain = (p->i < bp) ? gain * biasFactor : gain;
+      for (int j=0; j<ny; j++)
+        w[p->i + off + j] += g[j] * p->v * xgain;
+    }
 }
 
 
@@ -1262,6 +1267,7 @@ void
 TScorer::bGradients(const VFloat *g, int pos, int fy, int ny, int y)
 {
   int n = d.nOutputs();
+  int bp = d.nBiasParams();
   assert(pos>=0 && pos<s.size());
   assert(y>=0 && y<n);
   assert(fy>=0 && fy<n);
@@ -1271,8 +1277,11 @@ TScorer::bGradients(const VFloat *g, int pos, int fy, int ny, int y)
   SVector a;
   double gain = eta / wscale;
   for (const SVector::Pair *p = x; p->i>=0; p++)
-    for (int j=0; j<ny; j++)
-      w[p->i + off + j] += g[j] * p->v * gain;
+    {
+      double xgain = (p->i < bp) ? gain * biasFactor : gain;
+      for (int j=0; j<ny; j++)
+        w[p->i + off + j] += g[j] * p->v * xgain;
+    }
 }
 
 
@@ -1337,7 +1346,7 @@ main(int argc, char **argv)
     }
 #endif
 
-  double eta0 = 0.1;
+  double eta0 = 0.2;
   double C = 4;
   double lambda = 1 / (C * train.size());
   double t = 1 / (lambda * eta0);
@@ -1349,10 +1358,20 @@ main(int argc, char **argv)
       for (unsigned int i=0; i<train.size(); i++)
         {
           double eta = 1/(lambda*t);
-          TScorer scorer(train[i], dict, w, wscale, eta);
+          double bf = 0.2;
+          // train
+          TScorer scorer(train[i], dict, w, wscale, eta, bf);
           scorer.gradCorrect(+1);
           scorer.gradForward(-1);
+          // weight decay
           wscale *= (1 - eta*lambda);
+          if (bf != 1.0)
+            {
+              double biasAdjust = (1 - eta * lambda * bf) / (1 - eta * lambda);
+              for (int j=0; j<dict.nBiasParams(); j++)
+                w[j] *= biasAdjust;
+            }
+          // time index
           t += 1;
         }
       tm.stop();
@@ -1362,7 +1381,7 @@ main(int argc, char **argv)
            << " Norm: " << wnorm
            << " WScale: " << wscale << endl;
 
-      if (epoch%5==4)
+      if (epoch%5 == 4)
       {
         double obj = 0.5*wnorm*lambda*train.size();
         opstream f("./conlleval -q");    
@@ -1374,7 +1393,7 @@ main(int argc, char **argv)
           }
         cout << "Training perf:  obj=" << obj << endl;
       }
-      if (epoch%5==4)
+      if (epoch%5 == 4)
       {
         cout << "Testing perf: " << endl;
         opstream f("./conlleval -q");    
