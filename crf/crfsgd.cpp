@@ -1346,13 +1346,14 @@ main(int argc, char **argv)
     }
 #endif
 
-  double eta0 = 0.1;
+  double eta0 = 0.15;
   double C = 4;
   double lambda = 1 / (C * train.size());
   double t = 1 / (lambda * eta0);
 
   Timer tm;
-  for (int epoch=0; epoch<40; epoch++)
+  random_shuffle(train.begin(), train.end());
+  for (int epoch=0; epoch<60; epoch++)
     {
       tm.start();
       for (unsigned int i=0; i<train.size(); i++)
@@ -1376,7 +1377,7 @@ main(int argc, char **argv)
         }
       tm.stop();
       double wnorm = dot(w,w)*wscale*wscale;
-      cerr << "[" << epoch << "] ---------------------" << endl
+      cerr << "[epoch" << epoch+1 << "] ---------------------" << endl
            << " Total training time: " << tm.elapsed() << " seconds." << endl
            << " Norm: " << wnorm
            << " WScale: " << wscale << endl;

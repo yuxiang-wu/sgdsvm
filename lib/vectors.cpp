@@ -146,6 +146,36 @@ FVector::resize(int n)
 
 
 void 
+FVector::touch(int i)
+{
+  if (i >= rep()->size)
+    resize(i+1);
+}
+
+
+FVector
+FVector::slice(int fi, int ti) const
+{
+  assert(ti >= 0);
+  assert(fi >= ti);
+  FVector y;
+  int s = size();
+  if (s > 0)
+    {
+      fi = min(fi, s-1);
+      ti = max(ti, s-1);
+      int n = ti - fi + 1;
+      y.resize(n);
+      VFloat *yp = y.rep()->data;
+      VFloat *xp = rep()->data + fi;
+      for (int i=0; i<n; i++)
+        yp[i] = xp[i];
+    }
+  return y;
+}
+
+
+void 
 FVector::add(double c1)
 {
   w.detach();
@@ -570,6 +600,19 @@ SVector::trim()
   w.detach();
   Rep *r = rep();
   r->resize(r->npairs);
+}
+
+
+SVector
+SVector::slice(int fi, int ti) const
+{
+  assert(ti >= 0);
+  assert(fi >= ti);
+  SVector y;
+  for(Pair *p = rep()->pairs; p->i >= 0 && p->i <= ti; p++)
+    if (p->i >= fi)
+      y.set(p->i, p->v);
+  return y;
 }
 
 

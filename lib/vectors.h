@@ -57,13 +57,24 @@ public:
   FVector(int n);
   FVector(const SVector &v);
   int size() const { return rep()->size; }
+
+  // these accessors are range-checked.
+  // get() returns 0 when i is out-of-range.
+  // set() expands the vector.
   double get(int i) const;
   double set(int i, double v);
+
+  // warning: you can write vector[i] but
+  // the subscripts are not range-checked!
+  // on the other hand, that's fast.
   operator const VFloat* () const { return rep()->data; }
   operator VFloat* () { w.detach(); return rep()->data; }
 
   void clear();
   void resize(int n);
+  void touch(int i);
+  FVector slice(int fi, int ti) const;
+
   void add(double c1);
   void add(const FVector &v2);
   void add(const SVector &v2);
@@ -74,6 +85,7 @@ public:
   void scale(double c1);
   void combine(double c1, const FVector &v2, double c2);
   void combine(double c1, const SVector &v2, double c2);
+
 
   friend std::ostream& operator<<(std::ostream &f, const FVector &v);
   friend std::istream& operator>>(std::istream &f, FVector &v);
@@ -115,13 +127,22 @@ public:
   SVector();
   SVector(const FVector &v);
   int size() const { return rep()->size; }
+
+  // these accessors are range-checked.
+  // get() returns 0 when i is out-of-range.
+  // set() expands the vector.
   double get(int i) const;
   double set(int i, double v);
+
+  // to quickly iterate over the non-zero coefficients,
+  // do for(SVector::Pair *p = x; p->i>=0; p++) { ... }
   int npairs() const { return rep()->npairs; }
   operator const Pair* () const { return rep()->pairs; }
 
   void clear();
   void trim();
+  SVector slice(int fi, int ti) const;
+
   void add(const SVector &v2);
   void add(const SVector &v2, double c2);
   void scale(double c1);
