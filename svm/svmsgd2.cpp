@@ -167,7 +167,7 @@ void
 SvmSgd::measure(int imin, int imax, 
                 const xvec_t &xp, const yvec_t &yp)
 {
-  cerr << "# Estimating sparsity and bscale." << endl;
+  cout << "# Estimating sparsity and bscale." << endl;
   int j;
 
   // compute average gradient size
@@ -195,8 +195,8 @@ SvmSgd::measure(int imin, int imax,
 
   // compute weight decay skip
   skip = (int) ((8 * n * w.size()) / r);
-  cerr << "#  using " << n << " examples." << endl;
-  cerr << "#  skip: " << skip 
+  cout << "#  using " << n << " examples." << endl;
+  cout << "#  skip: " << skip 
        << " bscale: " << setprecision(6) << bscale << endl;
 }
 
@@ -206,7 +206,7 @@ SvmSgd::train(int imin, int imax,
               const xvec_t &xp, const yvec_t &yp,
               const char *prefix)
 {
-  cerr << prefix << "Training on [" << imin << ", " << imax << "]." << endl;
+  cout << prefix << "Training on [" << imin << ", " << imax << "]." << endl;
   assert(imin <= imax);
   count = skip;
   for (int i=imin; i<=imax; i++)
@@ -239,7 +239,7 @@ SvmSgd::train(int imin, int imax,
         }
       t += 1;
     }
-  cerr << prefix << setprecision(6) 
+  cout << prefix << setprecision(6) 
        << "Norm: " << dot(w,w) << ", Bias: " << bias << endl;
 }
 
@@ -250,7 +250,7 @@ SvmSgd::test(int imin, int imax,
              const char *prefix)
 
 {
-  cerr << prefix << "Testing on [" << imin << ", " << imax << "]." << endl;
+  cout << prefix << "Testing on [" << imin << ", " << imax << "]." << endl;
   assert(imin <= imax);
   int nerr = 0;
   double cost = 0;
@@ -269,9 +269,9 @@ SvmSgd::test(int imin, int imax,
     }
   int n = imax - imin + 1;
   cost = cost / n + 0.5 * lambda * dot(w,w);
-  cerr << prefix << setprecision(4)
+  cout << prefix << setprecision(4)
        << "Misclassification: " << (double)nerr * 100.0 / n << "%." << endl;
-  cerr << prefix << setprecision(12) 
+  cout << prefix << setprecision(12) 
        << "Cost: " << cost << "." << endl;
 }
 
@@ -320,13 +320,13 @@ parse(int argc, const char **argv)
           if (opt == "lambda" && i+1<argc)
             {
               lambda = atof(argv[++i]);
-              cerr << "# Using lambda=" << lambda << "." << endl;
+              cout << "# Using lambda=" << lambda << "." << endl;
               assert(lambda>0 && lambda<1e4);
             }
           else if (opt == "epochs" && i+1<argc)
             {
               epochs = atoi(argv[++i]);
-              cerr << "# Going for " << epochs << " epochs." << endl;
+              cout << "# Going for " << epochs << " epochs." << endl;
               assert(epochs>0 && epochs<1e6);
             }
           else if (opt == "maxtrain" && i+1<argc)
@@ -354,7 +354,7 @@ yvec_t ytest;
 void
 load(const char *fname, xvec_t &xp, yvec_t &yp)
 {
-  cerr << "# Loading " << fname << "." << endl;
+  cout << "# Loading " << fname << "." << endl;
   
   igzstream f;
   f.open(fname);
@@ -406,7 +406,7 @@ load(const char *fname, xvec_t &xp, yvec_t &yp)
             dim = x.size();
         }
     }
-  cerr << "# Read " << pcount << "+" << ncount 
+  cout << "# Read " << pcount << "+" << ncount 
        << "=" << pcount + ncount << " examples." << endl;
 }
 
@@ -420,7 +420,7 @@ main(int argc, const char **argv)
 
   // load training set
   load(trainfile.c_str(), xtrain, ytrain);
-  cerr << "# Number of features " << dim << "." << endl;
+  cout << "# Number of features " << dim << "." << endl;
   int imin = 0;
   int imax = xtrain.size() - 1;
   if (maxtrain > 0 && imax >= maxtrain)
@@ -439,11 +439,11 @@ main(int argc, const char **argv)
   for(int i=0; i<epochs; i++)
     {
       
-      cerr << "# --------- Epoch " << i+1 << "." << endl;
+      cout << "# --------- Epoch " << i+1 << "." << endl;
       timer.start();
       svm.train(imin, imax, xtrain, ytrain);
       timer.stop();
-      cerr << "# Total training time " << setprecision(6) 
+      cout << "# Total training time " << setprecision(6) 
            << timer.elapsed() << " secs." << endl;
       svm.test(imin, imax, xtrain, ytrain, "# train: ");
       if (tmax >= tmin)
