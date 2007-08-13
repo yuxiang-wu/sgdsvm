@@ -373,16 +373,14 @@ private:
   strings_t outputnames;
   mutable dict_t internedStrings;
   int index;
-  int biasIndex;
 
 public:
-  Dictionary() : index(0), biasIndex(0) { }
+  Dictionary() : index(0) { }
 
   int nOutputs() const { return outputs.size(); }
   int nFeatures() const { return features.size(); }
   int nTemplates() const { return templates.size(); }
   int nParams() const { return index; }
-  int nBiasParams() const { return biasIndex; }
   
   int output(string s) const { 
     dict_t::const_iterator it = outputs.find(s);
@@ -399,7 +397,7 @@ public:
 
   string internString(string s) const;
   
-  void initFromData(const char *tFile, const char *dFile, int cutoff=1);
+  int initFromData(const char *tFile, const char *dFile, int cutoff=1);
 
   friend istream& operator>> ( istream &f, Dictionary &d );
   friend ostream& operator<< ( ostream &f, const Dictionary &d );
@@ -440,7 +438,6 @@ operator<<(ostream &f, const Dictionary &d)
     rev[di->second] = di->first;
   for (ri=rev.begin(); ri!=rev.end(); ri++)
     f << "X" << ri->second << endl;
-  f << "B" << d.biasIndex << endl;
   return f;
 }
 
@@ -452,7 +449,6 @@ operator>>(istream &f, Dictionary &d)
   d.features.clear();
   d.templates.clear();
   d.index = 0;
-  d.biasIndex = 0;
   int findex = 0;
   int oindex = 0;
   while (f.good())
@@ -512,16 +508,6 @@ operator>>(istream &f, Dictionary &d)
           d.features[v] = findex;
           findex = nindex;
         }
-      else if (c == 'B')
-        {
-          f >> d.biasIndex;
-          if (d.biasIndex > findex)
-            {
-              cerr << "ERROR (reading dictionary): " 
-                   << "Invalid biasIndex: " << d.biasIndex << endl;
-              exit(10);
-            }
-        }
       else
         {
           f.unget();
@@ -556,7 +542,7 @@ struct SIPairCompare {
   }
 } siPairCompare;
 
-void
+int
 Dictionary::initFromData(const char *tFile, const char *dFile, int cutoff)
 {
   // clear all
@@ -566,7 +552,7 @@ Dictionary::initFromData(const char *tFile, const char *dFile, int cutoff)
   index = 0;
   
   // read templates
-  cerr << "Reading template file " << tFile << "." << endl;
+  cout << "Reading template file " << tFile << "." << endl;
   readTemplateFile(tFile, templates);
   int nu = 0;
   int nb = 0;
@@ -575,7 +561,7 @@ Dictionary::initFromData(const char *tFile, const char *dFile, int cutoff)
       nu += 1;
     else if (templates[t][0]=='B')
       nb += 1;
-  cerr << "  u-templates: " << nu 
+  cout << "  u-templates: " << nu 
        << "  b-templates: " << nb << endl;
   if (nu + nb != (int)templates.size())
     {
@@ -631,7 +617,7 @@ Dictionary::initFromData(const char *tFile, const char *dFile, int cutoff)
   outputnames.resize(oindex);
   for (dict_t::const_iterator it=outputs.begin(); it!=outputs.end(); it++)
     outputnames[it->second] = it->first;
-  cerr << "  sentences: " << sentences 
+  cout << "  sentences: " << sentences 
        << "  outputs: " << oindex << endl;
   
   // sorting in frequency order
@@ -647,38 +633,22 @@ Dictionary::initFromData(const char *tFile, const char *dFile, int cutoff)
     }
   sort(keys.begin(), keys.end(), siPairCompare);
 
-  // determine number of features that warrant a special learning rate
-  unsigned int biasFeatures = 0;
-  int maxBiasFeatures = max((int)10, (int)keys.size()); // hardcoded
-  double biasFactor = 0;
-  for (int i=1; i<maxBiasFeatures; i++) {
-    double factor = (double) keys[i-1].second / keys[i].second;
-    if (factor >= biasFactor) {
-      biasFactor = factor; 
-      biasFeatures = i; 
-    }
-  }
-  if (biasFactor <= 3.0)
-    biasFeatures = 0;
-  
   // allocating parameters
-  biasIndex = 0;
   for (unsigned int j=0; j<keys.size(); j++)
     {
       string k = keys[j].first;
-      if (j == biasFeatures)
-        biasIndex = index;
       features[k] = index;
       if (k[0] == 'B')
         index += oindex * oindex;
       else
         index += oindex;
     }
-  cerr << "  cutoff: " << cutoff 
+  cout << "  cutoff: " << cutoff 
        << "  features: " << features.size() 
        << "  parameters: " << index << endl
-       << "  bias parameters: " << biasIndex 
        << "  duration: " << timer.elapsed() << " seconds." << endl;
+
+  return sentences;
 }
 
 
@@ -803,7 +773,7 @@ typedef vector<Sentence> dataset_t;
 void
 loadSentences(const char *fname, const Dictionary &dict, dataset_t &data)
 {
-  cerr << "Reading and preprocessing " << fname << "." << endl;
+  cout << "Reading and preprocessing " << fname << "." << endl;
   Timer timer;
   int sentences = 0;
   int columns = 0;
@@ -817,7 +787,7 @@ loadSentences(const char *fname, const Dictionary &dict, dataset_t &data)
       data.push_back(ps);
       sentences += 1;
     }
-  cerr << "  processed: " << sentences << " sentences." << endl
+  cout << "  processed: " << sentences << " sentences." << endl
        << "  duration: " << timer.elapsed() << " seconds." << endl;
 }
 
@@ -988,8 +958,10 @@ Scorer::scoreCorrect()
     {
       int fy = y;
       y = s.y(pos);
-      sum += bScores[pos-1][y][fy];
-      sum += uScores[pos][y];
+      if (y>=0 && fy>=0)
+        sum += bScores[pos-1][y][fy];
+      if (y>=0)
+        sum += uScores[pos][y];
     }
   return sum;
 }
@@ -1008,9 +980,13 @@ Scorer::gradCorrect(double g)
     {
       int fy = y;
       y = s.y(pos);
-      sum += bScores[pos-1][y][fy];
-      sum += uScores[pos][y];
-      bGradients(&vf, pos-1, fy, 1, y);
+      if (y>=0 && fy>=0)
+        sum += bScores[pos-1][y][fy];
+      if (y>=0)
+        sum += uScores[pos][y];
+      if (y>=0 && fy>=0)
+        bGradients(&vf, pos-1, fy, 1, y);
+      if (y>=0)
       uGradients(&vf, pos, y, 1);
     }
   return sum;
@@ -1227,18 +1203,17 @@ class TScorer : public Scorer
 {
 private:
   double eta;
-  double biasFactor;
 public:
   TScorer(const Sentence &s_, const Dictionary &d_,
-          FVector &w_, double &c_, double eta_, double bf_=1.0);
+          FVector &w_, double &c_, double eta_);
   virtual void uGradients(const VFloat *g, int pos, int fy, int ny);
   virtual void bGradients(const VFloat *g, int pos, int fy, int ny, int y);
 };
 
 
 TScorer::TScorer(const Sentence &s_, const Dictionary &d_,
-                 FVector &w_, double &c_, double eta_, double bf_ )
-  : Scorer(s_,d_,w_,c_), eta(eta_), biasFactor(bf_)
+                 FVector &w_, double &c_, double eta_ )
+  : Scorer(s_,d_,w_,c_), eta(eta_)
 {
 }
 
@@ -1247,7 +1222,6 @@ void
 TScorer::uGradients(const VFloat *g, int pos, int fy, int ny)
 {
   int n = d.nOutputs();
-  int bp = d.nBiasParams();
   assert(pos>=0 && pos<s.size());
   assert(fy>=0 && fy<n);
   assert(fy+ny>0 && fy+ny<=n);
@@ -1255,11 +1229,8 @@ TScorer::uGradients(const VFloat *g, int pos, int fy, int ny)
   SVector x = s.u(pos);
   double gain = eta / wscale;
   for (const SVector::Pair *p = x; p->i>=0; p++)
-    {
-      double xgain = (p->i < bp) ? gain * biasFactor : gain;
-      for (int j=0; j<ny; j++)
-        w[p->i + off + j] += g[j] * p->v * xgain;
-    }
+    for (int j=0; j<ny; j++)
+      w[p->i + off + j] += g[j] * p->v * gain;
 }
 
 
@@ -1267,7 +1238,6 @@ void
 TScorer::bGradients(const VFloat *g, int pos, int fy, int ny, int y)
 {
   int n = d.nOutputs();
-  int bp = d.nBiasParams();
   assert(pos>=0 && pos<s.size());
   assert(y>=0 && y<n);
   assert(fy>=0 && fy<n);
@@ -1277,12 +1247,396 @@ TScorer::bGradients(const VFloat *g, int pos, int fy, int ny, int y)
   SVector a;
   double gain = eta / wscale;
   for (const SVector::Pair *p = x; p->i>=0; p++)
+    for (int j=0; j<ny; j++)
+      w[p->i + off + j] += g[j] * p->v * gain;
+}
+
+
+
+
+// ============================================================
+// Main class CrfSgd
+
+
+string conlleval = "./conlleval";
+
+
+class CrfSgd
+{
+  Dictionary dict;
+  double wscale;
+  FVector w;
+  double lambda;
+  double wnorm;
+  double t;
+  int epoch;
+
+  void load(istream &f);
+  void save(ostream &f) const;
+  void rescale();
+  
+  double findObjBySampling(const dataset_t &data, const ivec_t &sample);
+  double tryEtaBySampling(const dataset_t &data, const ivec_t &sample, 
+                          double eta);
+  
+public:
+  
+  CrfSgd();
+  
+  int getEpoch() const { return epoch; }
+
+  const Dictionary& getDict() const { return dict; }
+
+  void initialize(const char *templatefile, 
+                  const char *datafile, 
+                  double c = 4,
+                  int cutoff = 3);
+  
+  void calibrate(const dataset_t &data, int sample=500, Timer *tm=0);
+
+  void train(const dataset_t &data, int epochs=1, Timer *tm=0);
+
+  void test(const dataset_t &data, int runConlleval=1);
+  
+  friend istream& operator>> ( istream &f, CrfSgd &d );
+  friend ostream& operator<< ( ostream &f, const CrfSgd &d );
+};
+
+
+CrfSgd::CrfSgd()
+  : wscale(1), lambda(0), wnorm(0), t(0), epoch(0)
+{
+}
+
+void
+CrfSgd::load(istream &f)
+{
+  f >> dict;
+  t = 0;
+  epoch = 0;
+  wscale = 0;
+  w.clear();
+  
+  while (f.good())
     {
-      double xgain = (p->i < bp) ? gain * biasFactor : gain;
-      for (int j=0; j<ny; j++)
-        w[p->i + off + j] += g[j] * p->v * xgain;
+      skipSpace(f);
+      int c = f.get();
+      if (c == 'T')
+        {
+          t = -1;
+          f >> t;
+          if (!f.good() || t <= 0)
+            {
+              cerr << "ERROR (reading model): "
+                   << "Invalid iteration number: " << t << endl;
+              exit(10);
+            }
+        }
+      else if (c == 'E')
+        {
+          epoch = -1;
+          f >> epoch;
+          if (!f.good() || epoch < 0)
+            {
+              cerr << "ERROR (reading model): "
+                   << "Invalid epoch number: " << epoch << endl;
+              exit(10);
+            }
+        }
+      else if (c == 'W')
+        {
+          w.clear();
+          f >> w;
+          if (! f.good() || w.size() != dict.nParams())
+            {
+              cerr << "ERROR (reading model): "
+                   << "Invalid weight vector size: " << w.size() << endl;
+              exit(10);
+            }
+          wnorm = dot(w,w);
+          wscale = 1.0;
+        }
+      else if (c == 'L')
+        {
+          lambda = -1;
+          f >> lambda;
+          if (! f.good() || lambda<=0)
+            {
+              cerr << "ERROR (reading model): "
+                   << "Invalid lambda: " << lambda << endl;
+              exit(10);
+            }
+        }
+      else
+        {
+          cerr << "ERROR (reading model): "
+               << "Unrecognized line: '" << c << "'" << endl;
+          exit(10);
+        }
+    }
+  if (! wscale)
+    {
+      cerr << "ERROR (reading model): "
+           << "This model file does not contain weights. " << endl;
+      exit(10);
+      
     }
 }
+
+
+istream& 
+operator>> (istream &f, CrfSgd &d )
+{
+  d.load(f);
+  return f;
+}
+
+
+void
+CrfSgd::rescale()
+{
+  if (wscale != 1.0)
+    {
+      w.scale(wscale);
+      wscale = 1;
+    }
+}
+
+
+void
+CrfSgd::save(ostream &f) const
+{
+  // rescale weights according to wscale
+  if (wscale != 1.0)
+    const_cast<CrfSgd*>(this)->rescale();
+  // save stuff
+  f << dict;
+  f << "T" << t << endl;
+  f << "E" << epoch << endl;
+  f << "L" << lambda << endl;
+  f << "W" << w << endl;
+}
+
+
+ostream& 
+operator<<(ostream &f, const CrfSgd &d)
+{
+  d.save(f);
+  return f;
+}
+
+
+void 
+CrfSgd::initialize(const char *tfname, const char *dfname, 
+                   double c, int cutoff)
+{
+  t = 0;
+  epoch = 0;
+  int n = dict.initFromData(tfname, dfname, cutoff);
+  lambda = 1 / (c * n);
+  w.clear();
+  w.resize(dict.nParams());
+  wscale = 1.0;
+  wnorm = 0;
+}
+
+
+double 
+CrfSgd::findObjBySampling(const dataset_t &data, const ivec_t &sample)
+{
+  double loss = 0;
+  int n = sample.size();
+  for (int i=0; i<n; i++)
+    {
+      int j = sample[i];
+      Scorer scorer(data[j], dict, w, wscale);
+      loss += scorer.scoreForward() - scorer.scoreCorrect();
+    }
+  return loss + 0.5 * wnorm * lambda * n;
+}
+
+
+double
+CrfSgd::tryEtaBySampling(const dataset_t &data, const ivec_t &sample,
+                         double eta)
+{
+  FVector savedW = w;
+  double savedWScale = wscale;
+  w.clear();
+  w.resize(dict.nParams());
+  wscale = 1;
+  int i, n = sample.size();
+  for (i=0; i<n; i++)
+    {
+      int j = sample[i];
+      TScorer scorer(data[j], dict, w, wscale, eta);
+      scorer.gradCorrect(+1);
+      scorer.gradForward(-1);
+    }
+  double obj = findObjBySampling(data, sample);
+  w = savedW;
+  wscale = savedWScale;
+  return obj;
+}
+
+
+void 
+CrfSgd::calibrate(const dataset_t &data, int samples, Timer *tm)
+{
+  ivec_t sample;
+  cout << "----------- calibration (" << samples << " samples.)" << endl;
+  assert(samples > 0);
+  assert(dict.nOutputs() > 0);
+  if  (tm)
+    tm->start();
+  // choose sample
+  int datasize = data.size();
+  if (samples < datasize)
+    for (int i=0; i<samples; i++)
+      sample.push_back((int)((double)rand()*datasize/RAND_MAX));
+  else
+    for (int i=0; i<datasize; i++)
+      sample.push_back(i);
+  // initial obj
+  double sobj = findObjBySampling(data, sample);
+  cout << "  initial objective: " << sobj << endl;
+  // empirically find eta that works best
+  double besteta = 1;
+  double bestobj = sobj;
+  double seta = 1;
+  double eta = seta;
+  int totest = 7;
+  double factor = 2;
+  bool phase2 = false;
+  while (totest > 0 || !phase2)
+    {
+      double obj = tryEtaBySampling(data, sample, eta);
+      bool okay = (obj < sobj);
+      cout << "  tried eta=" << eta << "  obj=" << obj;
+      if (okay)
+        cout << " (possible)" << endl;
+      else
+        cout << " (too large)" << endl;
+      if (okay)
+        {
+          totest -= 1;
+          if (obj < bestobj) {
+            bestobj = obj;
+            besteta = eta;
+          }
+        }
+      if (! phase2)
+        {
+          if (okay)
+            eta = eta * factor;
+          else {
+            phase2 = true;
+            eta = seta;
+          }
+        }
+      if (phase2)
+        eta = eta / factor;
+    }
+  // determine t
+  t = 1 / (besteta * lambda);
+  cout << "  taking eta=" << besteta << "  t0=" << t;
+  // finalize
+  if  (tm)
+    tm->stop();
+  if  (tm)
+    cout << "  duration: " << tm->elapsed() << " seconds.";
+  cout << endl;
+}
+
+
+void 
+CrfSgd::train(const dataset_t &data, int epochs, Timer *tm)
+{
+  if (t <= 0)
+    {
+      cerr << "ERROR (train): "
+           << "Must call calibrate() before train()." << endl;
+      exit(10);
+    }
+  for (int i=0; i<epochs; i++)
+    {
+      // start timer
+      epoch += 1;
+      cout << "----------- epoch " << epoch << endl;
+      if (tm) 
+        tm->start();
+      // perform epoch
+      for (unsigned int i=0; i<data.size(); i++)
+        {
+          double eta = 1/(lambda*t);
+          // train
+          TScorer scorer(data[i], dict, w, wscale, eta);
+          scorer.gradCorrect(+1);
+          scorer.gradForward(-1);
+          // weight decay
+          wscale *= (1 - eta * lambda);
+          // iteration done
+          t += 1;
+        }
+      // epoch done
+      if (wscale < 1e-6)
+        rescale();
+      // stop timer
+      if (tm)
+        tm->stop();
+      wnorm = dot(w,w) * wscale * wscale;
+      cout << "  wnorm: " << wnorm << "  wscale: " << wscale;
+      if (tm)
+        cout << "  training time: " << tm->elapsed();
+      cout << endl;
+    }
+  // this never hurts
+  rescale();
+}
+
+
+void 
+CrfSgd::test(const dataset_t &data, int runConlleval)
+{
+   if (dict.nOutputs() <= 0)
+    {
+      cerr << "ERROR (test): "
+           << "Must call load() or initialize() before test()." << endl;
+      exit(10);
+    }
+
+   opstream f;
+   string evalcommand;
+   if (runConlleval == 1)
+     evalcommand = conlleval + " -q";
+   else if (runConlleval >= 2)
+     evalcommand = conlleval;
+   if (! evalcommand.empty())
+     f.open(evalcommand.c_str());
+   
+   cout << "  sentences: " << data.size();
+   double obj = 0;
+   for (unsigned int i=0; i<data.size(); i++)
+     {
+       Scorer scorer(data[i], dict, w, wscale);
+       obj += scorer.scoreForward() - scorer.scoreCorrect();
+       if (! evalcommand.empty())
+         scorer.test(f);
+     }
+   cout << "  loss: " << obj;
+   obj += 0.5 * wnorm * lambda * data.size();
+   cout << "  objective: " << obj << endl;
+}
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1298,6 +1652,7 @@ string testFile = "../data/conll2000/test.txt.gz";
 //string trainFile = "small.gz";
 //string testFile = "small.gz";
 
+double c = 4;
 int cutoff = 3;
 dataset_t train;
 dataset_t test;
@@ -1306,114 +1661,28 @@ dataset_t test;
 int 
 main(int argc, char **argv)
 {
-#if 1
-  Dictionary dict;  
-  dict.initFromData(templateFile.c_str(), trainFile.c_str(), cutoff);
-  loadSentences(trainFile.c_str(), dict, train);
-  loadSentences(testFile.c_str(), dict, test);
-  double wscale = 1;
-  FVector w(dict.nParams());
-#else
-  Dictionary dict;
-  double wscale;
-  FVector w;
-  {
-    ifstream f("model");
-    f >> dict;
-    f >> wscale;
-    cerr << "Wscale: " << wscale << endl;
-    f >> w;
-    assert(w.size() == dict.nParams());
-  }
-  loadSentences(trainFile.c_str(), dict, train);
-  loadSentences(testFile.c_str(), dict, test);
-#endif 
-  
-#if 0
-  for (int i=0; i<10; i++)
-    {
-      GScorer scorer(train[i], dict, w, wscale);
-      cout << "[" << i << "]" << "  size: " << train[i].size()
-           << "  forward: " << scorer.scoreForward()
-           << "  correct: " << scorer.scoreCorrect() 
-           << endl;
-      
-      scorer.gradCorrect(+1);
-      scorer.gradForward(-1);
-      SVector grad = scorer.gradient();
-      cout << " gradient norm: " << dot(grad,grad) 
-           << " pairs: " << grad.npairs() << endl;
-    }
-#endif
+  CrfSgd crf;
 
-  double eta0 = 0.15;
-  double C = 4;
-  double lambda = 1 / (C * train.size());
-  double t = 1 / (lambda * eta0);
+
+  crf.initialize(templateFile.c_str(), trainFile.c_str(), c, cutoff);
+
+  loadSentences(trainFile.c_str(), crf.getDict(), train);
+  loadSentences(testFile.c_str(), crf.getDict(), test);
+  random_shuffle(train.begin(), train.end());
 
   Timer tm;
-  random_shuffle(train.begin(), train.end());
-  for (int epoch=0; epoch<60; epoch++)
+  crf.calibrate(train, 1000, &tm);
+  while (crf.getEpoch() < 50)
     {
-      tm.start();
-      for (unsigned int i=0; i<train.size(); i++)
-        {
-          double eta = 1/(lambda*t);
-          double bf = 0.3;
-          // train
-          TScorer scorer(train[i], dict, w, wscale, eta, bf);
-          scorer.gradCorrect(+1);
-          scorer.gradForward(-1);
-          // weight decay
-          wscale *= (1 - eta*lambda);
-          if (bf != 1.0)
-            {
-              double biasAdjust = (1 - eta * lambda * bf) / (1 - eta * lambda);
-              for (int j=0; j<dict.nBiasParams(); j++)
-                w[j] *= biasAdjust;
-            }
-          // time index
-          t += 1;
-        }
-      tm.stop();
-      double wnorm = dot(w,w)*wscale*wscale;
-      cerr << "[epoch" << epoch+1 << "] ---------------------" << endl
-           << " Total training time: " << tm.elapsed() << " seconds." << endl
-           << " Norm: " << wnorm
-           << " WScale: " << wscale << endl;
-
-      if (epoch%5 == 4)
-      {
-        double obj = 0.5*wnorm*lambda*train.size();
-        opstream f("./conlleval -q");    
-        for (unsigned int i=0; i<train.size(); i++)
-          {
-            Scorer scorer(train[i], dict, w, wscale);
-            scorer.test(f);
-            obj += scorer.scoreForward() - scorer.scoreCorrect();
-          }
-        cout << "Training perf:  obj=" << obj << endl;
-      }
-      if (epoch%5 == 4)
-      {
-        cout << "Testing perf: " << endl;
-        opstream f("./conlleval -q");    
-        for (unsigned int i=0; i<test.size(); i++)
-          {
-            Scorer scorer(test[i], dict, w, wscale);
-            scorer.test(f);
-          }
-      }
-
-#if 0
-      {
-        ofstream f("model");
-        f << dict << endl;
-        f << wscale << endl;
-        f << w;
-      }
-#endif
+      crf.train(train, 5, &tm);
+      cout << "Training perf:";
+      crf.test(train);
+      cout << "Testing perf:";
+      crf.test(test);
     }
+
+
+
   return 0;
 }
 

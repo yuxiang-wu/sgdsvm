@@ -128,7 +128,7 @@ class SvmSgd
 public:
   SvmSgd(int dim, double lambda);
   
-  void measure(int imin, int imax, 
+  void calibrate(int imin, int imax, 
                const xvec_t &x, const yvec_t &y);
   
   void train(int imin, int imax, 
@@ -164,7 +164,7 @@ SvmSgd::SvmSgd(int dim, double l)
 
 
 void 
-SvmSgd::measure(int imin, int imax, 
+SvmSgd::calibrate(int imin, int imax, 
                 const xvec_t &xp, const yvec_t &yp)
 {
   cout << "Estimating sparsity and bscale." << endl;
@@ -435,7 +435,7 @@ main(int argc, const char **argv)
   int tmin = 0;
   int tmax = xtest.size() - 1;
 
-  svm.measure(imin, imax, xtrain, ytrain);
+  svm.calibrate(imin, imax, xtrain, ytrain);
   for(int i=0; i<epochs; i++)
     {
       

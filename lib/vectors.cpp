@@ -157,7 +157,7 @@ FVector
 FVector::slice(int fi, int ti) const
 {
   assert(ti >= 0);
-  assert(fi >= ti);
+  assert(ti >= fi);
   FVector y;
   int s = size();
   if (s > 0)
@@ -345,15 +345,16 @@ operator<<(std::ostream &f, const FVector &v)
   std::streamsize oldprec = f.precision();
   f << std::scientific << std::setprecision(sizeof(VFloat)==4 ? 7 : 16);
   for (int i=0; i<v.size(); i++)
-    {
-      f << " " << i << ":";
-      VFloat x = v[i];
-      short ix = (int)x;
-      if (x == (VFloat)ix)
-        f << ix;
-      else
-        f << x;
-    }
+    if (v[i] || (i+1 == v.size()))
+      {
+        f << " " << i << ":";
+        VFloat x = v[i];
+        short ix = (int)x;
+        if (x == (VFloat)ix)
+          f << ix;
+        else
+          f << x;
+      }
   f << std::endl;
   f.precision(oldprec);
   f.flags(oldflags);
@@ -607,7 +608,7 @@ SVector
 SVector::slice(int fi, int ti) const
 {
   assert(ti >= 0);
-  assert(fi >= ti);
+  assert(ti >= fi);
   SVector y;
   for(Pair *p = rep()->pairs; p->i >= 0 && p->i <= ti; p++)
     if (p->i >= fi)
