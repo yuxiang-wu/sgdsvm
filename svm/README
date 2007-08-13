@@ -65,61 +65,61 @@ Learning rate decays in eta/(t+T).
 
 
 $ ./svmsgd  train.bin.gz test.bin.gz
-# Loading train.bin.gz.
-# Read 370541+410724=781265 examples.
-# Number of features 47153.
-# Loading test.bin.gz.
-# Read 10786+12363=23149 examples.
-# --------- Epoch 1.
-# Training on [0, 781264].
-# Norm: 1146.34, Bias: 0.0754758
-# Total training time 0.27 secs.
-# train: Testing on [0, 781264].
-# train: Misclassification: 5.667%.
-# train: Cost: 0.227906058174.
-# test:  Testing on [0, 23148].
-# test:  Misclassification: 6.018%.
-# test:  Cost: 0.244483424047.
-# --------- Epoch 2.
-# Training on [0, 781264].
-# Norm: 1142.38, Bias: 0.074262
-# Total training time 0.54 secs.
-# train: Testing on [0, 781264].
-# train: Misclassification: 5.657%.
-# train: Cost: 0.22764602896.
-# test:  Testing on [0, 23148].
-# test:  Misclassification: 6.048%.
-# test:  Cost: 0.244279760606.
-# --------- Epoch 3.
-# Training on [0, 781264].
-# Norm: 1141.45, Bias: 0.0730978
-# Total training time 0.82 secs.
-# train: Testing on [0, 781264].
-# train: Misclassification: 5.661%.
-# train: Cost: 0.227574673535.
-# test:  Testing on [0, 23148].
-# test:  Misclassification: 6.022%.
-# test:  Cost: 0.24421958331.
-# --------- Epoch 4.
-# Training on [0, 781264].
-# Norm: 1140.93, Bias: 0.072295
-# Total training time 1.09 secs.
-# train: Testing on [0, 781264].
-# train: Misclassification: 5.659%.
-# train: Cost: 0.227546160154.
-# test:  Testing on [0, 23148].
-# test:  Misclassification: 6.026%.
-# test:  Cost: 0.244189190475.
-# --------- Epoch 5.
-# Training on [0, 781264].
-# Norm: 1140.59, Bias: 0.0720765
-# Total training time 1.37 secs.
-# train: Testing on [0, 781264].
-# train: Misclassification: 5.66%.
-# train: Cost: 0.22753220232.
-# test:  Testing on [0, 23148].
-# test:  Misclassification: 6.018%.
-# test:  Cost: 0.24417622593.
+Loading train.bin.gz.
+Read 370541+410724=781265 examples.
+Number of features 47153.
+Loading test.bin.gz.
+Read 10786+12363=23149 examples.
+--------- Epoch 1.
+Training on [0, 781264].
+Norm: 1146.34, Bias: 0.0754758
+Total training time 0.27 secs.
+train: Testing on [0, 781264].
+train: Misclassification: 5.667%.
+train: Cost: 0.227906058174.
+test:  Testing on [0, 23148].
+test:  Misclassification: 6.018%.
+test:  Cost: 0.244483424047.
+--------- Epoch 2.
+Training on [0, 781264].
+Norm: 1142.38, Bias: 0.074262
+Total training time 0.54 secs.
+train: Testing on [0, 781264].
+train: Misclassification: 5.657%.
+train: Cost: 0.22764602896.
+test:  Testing on [0, 23148].
+test:  Misclassification: 6.048%.
+test:  Cost: 0.244279760606.
+--------- Epoch 3.
+Training on [0, 781264].
+Norm: 1141.45, Bias: 0.0730978
+Total training time 0.82 secs.
+train: Testing on [0, 781264].
+train: Misclassification: 5.661%.
+train: Cost: 0.227574673535.
+test:  Testing on [0, 23148].
+test:  Misclassification: 6.022%.
+test:  Cost: 0.24421958331.
+--------- Epoch 4.
+Training on [0, 781264].
+Norm: 1140.93, Bias: 0.072295
+Total training time 1.09 secs.
+train: Testing on [0, 781264].
+train: Misclassification: 5.659%.
+train: Cost: 0.227546160154.
+test:  Testing on [0, 23148].
+test:  Misclassification: 6.026%.
+test:  Cost: 0.244189190475.
+--------- Epoch 5.
+Training on [0, 781264].
+Norm: 1140.59, Bias: 0.0720765
+Total training time 1.37 secs.
+train: Testing on [0, 781264].
+train: Misclassification: 5.66%.
+train: Cost: 0.22753220232.
+test:  Testing on [0, 23148].
+test:  Misclassification: 6.018%.
+test:  Cost: 0.24417622593.
 
 
 
@@ -144,64 +144,64 @@ Performances remain very similar.
 
 
 $ ./svmsgd2 train.bin.gz test.bin.gz
-# Loading train.bin.gz.
-# Read 370541+410724=781265 examples.
-# Number of features 47153.
-# Loading test.bin.gz.
-# Read 10786+12363=23149 examples.
-# Estimating sparsity and bscale.
-#  using 113238 examples.
-#  skip: 9935 bscale: 0.00883119
-# --------- Epoch 1.
-# Training on [0, 781264].
-# Norm: 1144.38, Bias: 0.0752543
-# Total training time 0.28 secs.
-# train: Testing on [0, 781264].
-# train: Misclassification: 5.678%.
-# train: Cost: 0.227905071874.
-# test:  Testing on [0, 23148].
-# test:  Misclassification: 6.043%.
-# test:  Cost: 0.244446173009.
-# --------- Epoch 2.
-# Training on [0, 781264].
-# Norm: 1142.51, Bias: 0.0741492
-# Total training time 0.56 secs.
-# train: Testing on [0, 781264].
-# train: Misclassification: 5.662%.
-# train: Cost: 0.227645850653.
-# test:  Testing on [0, 23148].
-# test:  Misclassification: 6.048%.
-# test:  Cost: 0.244283259785.
-# --------- Epoch 3.
-# Training on [0, 781264].
-# Norm: 1142.67, Bias: 0.0731008
-# Total training time 0.84 secs.
-# train: Testing on [0, 781264].
-# train: Misclassification: 5.66%.
-# train: Cost: 0.227574266887.
-# test:  Testing on [0, 23148].
-# test:  Misclassification: 6.026%.
-# test:  Cost: 0.244221688441.
-# --------- Epoch 4.
-# Training on [0, 781264].
-# Norm: 1142.91, Bias: 0.0726038
-# Total training time 1.12 secs.
-# train: Testing on [0, 781264].
-# train: Misclassification: 5.659%.
-# train: Cost: 0.227545309033.
-# test:  Testing on [0, 23148].
-# test:  Misclassification: 6.026%.
-# test:  Cost: 0.24418875129.
-# --------- Epoch 5.
-# Training on [0, 781264].
-# Norm: 1143.18, Bias: 0.0723312
-# Total training time 1.4 secs.
-# train: Testing on [0, 781264].
-# train: Misclassification: 5.659%.
-# train: Cost: 0.227531493724.
-# test:  Testing on [0, 23148].
-# test:  Misclassification: 6.013%.
-# test:  Cost: 0.244169344973.
+Loading train.bin.gz.
+Read 370541+410724=781265 examples.
+Number of features 47153.
+Loading test.bin.gz.
+Read 10786+12363=23149 examples.
+Estimating sparsity and bscale.
+ using 113238 examples.
+ skip: 9935 bscale: 0.00883119
+--------- Epoch 1.
+Training on [0, 781264].
+Norm: 1144.38, Bias: 0.0752543
+Total training time 0.28 secs.
+train: Testing on [0, 781264].
+train: Misclassification: 5.678%.
+train: Cost: 0.227905071874.
+test:  Testing on [0, 23148].
+test:  Misclassification: 6.043%.
+test:  Cost: 0.244446173009.
+--------- Epoch 2.
+Training on [0, 781264].
+Norm: 1142.51, Bias: 0.0741492
+Total training time 0.56 secs.
+train: Testing on [0, 781264].
+train: Misclassification: 5.662%.
+train: Cost: 0.227645850653.
+test:  Testing on [0, 23148].
+test:  Misclassification: 6.048%.
+test:  Cost: 0.244283259785.
+--------- Epoch 3.
+Training on [0, 781264].
+Norm: 1142.67, Bias: 0.0731008
+Total training time 0.84 secs.
+train: Testing on [0, 781264].
+train: Misclassification: 5.66%.
+train: Cost: 0.227574266887.
+test:  Testing on [0, 23148].
+test:  Misclassification: 6.026%.
+test:  Cost: 0.244221688441.
+--------- Epoch 4.
+Training on [0, 781264].
+Norm: 1142.91, Bias: 0.0726038
+Total training time 1.12 secs.
+train: Testing on [0, 781264].
+train: Misclassification: 5.659%.
+train: Cost: 0.227545309033.
+test:  Testing on [0, 23148].
+test:  Misclassification: 6.026%.
+test:  Cost: 0.24418875129.
+--------- Epoch 5.
+Training on [0, 781264].
+Norm: 1143.18, Bias: 0.0723312
+Total training time 1.4 secs.
+train: Testing on [0, 781264].
+train: Misclassification: 5.659%.
+train: Cost: 0.227531493724.
+test:  Testing on [0, 23148].
+test:  Misclassification: 6.013%.
+test:  Cost: 0.244169344973.
 
 
 
@@ -249,65 +249,65 @@ Perform the following changes in svmsgd2.cpp:
 Then
 
 $ ./svmsgd2 -lambda 1e-5 train.bin.gz test.bin.gz
-# Using lambda=1e-05.
-# Loading train.bin.gz.
-# Read 370541+410724=781265 examples.
-# Number of features 47153.
-# Loading test.bin.gz.
-# Read 10786+12363=23149 examples.
-# Estimating sparsity and bscale.
-#  using 113238 examples.
-#  skip: 9935 bscale: 0.00883119
-# --------- Epoch 1.
-# Training on [0, 781264].
-# Norm: 7007.13, Bias: 0.375569
-# Total training time 0.45 secs.
-# train: Testing on [0, 781264].
-# train: Misclassification: 5.272%.
-# train: Cost: 0.189377951369.
-# test:  Testing on [0, 23148].
-# test:  Misclassification: 5.685%.
-# test:  Cost: 0.204603236683.
-# --------- Epoch 2.
-# Training on [0, 781264].
-# Norm: 6980.74, Bias: 0.371231
-# Total training time 0.9 secs.
-# train: Testing on [0, 781264].
-# train: Misclassification: 5.249%.
-# train: Cost: 0.189048685873.
-# test:  Testing on [0, 23148].
-# test:  Misclassification: 5.642%.
-# test:  Cost: 0.204320840707.
-# --------- Epoch 3.
-# Training on [0, 781264].
-# Norm: 6976.05, Bias: 0.369876
-# Total training time 1.35 secs.
-# train: Testing on [0, 781264].
-# train: Misclassification: 5.239%.
-# train: Cost: 0.188976793009.
-# test:  Testing on [0, 23148].
-# test:  Misclassification: 5.655%.
-# test:  Cost: 0.204237939247.
-# --------- Epoch 4.
-# Training on [0, 781264].
-# Norm: 6974.18, Bias: 0.369154
-# Total training time 1.8 secs.
-# train: Testing on [0, 781264].
-# train: Misclassification: 5.236%.
-# train: Cost: 0.188948950338.
-# test:  Testing on [0, 23148].
-# test:  Misclassification: 5.663%.
-# test:  Cost: 0.20419488614.
-# --------- Epoch 5.
-# Training on [0, 781264].
-# Norm: 6973.2, Bias: 0.368694
-# Total training time 2.25 secs.
-# train: Testing on [0, 781264].
-# train: Misclassification: 5.231%.
-# train: Cost: 0.188935079584.
-# test:  Testing on [0, 23148].
-# test:  Misclassification: 5.663%.
-# test:  Cost: 0.204166718203.
+Using lambda=1e-05.
+Loading train.bin.gz.
+Read 370541+410724=781265 examples.
+Number of features 47153.
+Loading test.bin.gz.
+Read 10786+12363=23149 examples.
+Estimating sparsity and bscale.
+ using 113238 examples.
+ skip: 9935 bscale: 0.00883119
+--------- Epoch 1.
+Training on [0, 781264].
+Norm: 7007.13, Bias: 0.375569
+Total training time 0.45 secs.
+train: Testing on [0, 781264].
+train: Misclassification: 5.272%.
+train: Cost: 0.189377951369.
+test:  Testing on [0, 23148].
+test:  Misclassification: 5.685%.
+test:  Cost: 0.204603236683.
+--------- Epoch 2.
+Training on [0, 781264].
+Norm: 6980.74, Bias: 0.371231
+Total training time 0.9 secs.
+train: Testing on [0, 781264].
+train: Misclassification: 5.249%.
+train: Cost: 0.189048685873.
+test:  Testing on [0, 23148].
+test:  Misclassification: 5.642%.
+test:  Cost: 0.204320840707.
+--------- Epoch 3.
+Training on [0, 781264].
+Norm: 6976.05, Bias: 0.369876
+Total training time 1.35 secs.
+train: Testing on [0, 781264].
+train: Misclassification: 5.239%.
+train: Cost: 0.188976793009.
+test:  Testing on [0, 23148].
+test:  Misclassification: 5.655%.
+test:  Cost: 0.204237939247.
+--------- Epoch 4.
+Training on [0, 781264].
+Norm: 6974.18, Bias: 0.369154
+Total training time 1.8 secs.
+train: Testing on [0, 781264].
+train: Misclassification: 5.236%.
+train: Cost: 0.188948950338.
+test:  Testing on [0, 23148].
+test:  Misclassification: 5.663%.
+test:  Cost: 0.20419488614.
+--------- Epoch 5.
+Training on [0, 781264].
+Norm: 6973.2, Bias: 0.368694
+Total training time 2.25 secs.
+train: Testing on [0, 781264].
+train: Misclassification: 5.231%.
+train: Cost: 0.188935079584.
+test:  Testing on [0, 23148].
+test:  Misclassification: 5.663%.
+test:  Cost: 0.204166718203.
 
 
 Comparative experiments using liblinear

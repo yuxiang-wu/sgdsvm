@@ -133,10 +133,10 @@ public:
   
   void train(int imin, int imax, 
              const xvec_t &x, const yvec_t &y,
-             const char *prefix = "# ");
+             const char *prefix = "");
   void test(int imin, int imax, 
             const xvec_t &x, const yvec_t &y, 
-            const char *prefix = "# ");
+            const char *prefix = "");
 private:
   double  t;
   double  lambda;
@@ -167,7 +167,7 @@ void
 SvmSgd::measure(int imin, int imax, 
                 const xvec_t &xp, const yvec_t &yp)
 {
-  cout << "# Estimating sparsity and bscale." << endl;
+  cout << "Estimating sparsity and bscale." << endl;
   int j;
 
   // compute average gradient size
@@ -195,8 +195,8 @@ SvmSgd::measure(int imin, int imax,
 
   // compute weight decay skip
   skip = (int) ((8 * n * w.size()) / r);
-  cout << "#  using " << n << " examples." << endl;
-  cout << "#  skip: " << skip 
+  cout << " using " << n << " examples." << endl;
+  cout << " skip: " << skip 
        << " bscale: " << setprecision(6) << bscale << endl;
 }
 
@@ -320,13 +320,13 @@ parse(int argc, const char **argv)
           if (opt == "lambda" && i+1<argc)
             {
               lambda = atof(argv[++i]);
-              cout << "# Using lambda=" << lambda << "." << endl;
+              cout << "Using lambda=" << lambda << "." << endl;
               assert(lambda>0 && lambda<1e4);
             }
           else if (opt == "epochs" && i+1<argc)
             {
               epochs = atoi(argv[++i]);
-              cout << "# Going for " << epochs << " epochs." << endl;
+              cout << "Going for " << epochs << " epochs." << endl;
               assert(epochs>0 && epochs<1e6);
             }
           else if (opt == "maxtrain" && i+1<argc)
@@ -354,7 +354,7 @@ yvec_t ytest;
 void
 load(const char *fname, xvec_t &xp, yvec_t &yp)
 {
-  cout << "# Loading " << fname << "." << endl;
+  cout << "Loading " << fname << "." << endl;
   
   igzstream f;
   f.open(fname);
@@ -406,7 +406,7 @@ load(const char *fname, xvec_t &xp, yvec_t &yp)
             dim = x.size();
         }
     }
-  cout << "# Read " << pcount << "+" << ncount 
+  cout << "Read " << pcount << "+" << ncount 
        << "=" << pcount + ncount << " examples." << endl;
 }
 
@@ -420,7 +420,7 @@ main(int argc, const char **argv)
 
   // load training set
   load(trainfile.c_str(), xtrain, ytrain);
-  cout << "# Number of features " << dim << "." << endl;
+  cout << "Number of features " << dim << "." << endl;
   int imin = 0;
   int imax = xtrain.size() - 1;
   if (maxtrain > 0 && imax >= maxtrain)
@@ -439,14 +439,14 @@ main(int argc, const char **argv)
   for(int i=0; i<epochs; i++)
     {
       
-      cout << "# --------- Epoch " << i+1 << "." << endl;
+      cout << "--------- Epoch " << i+1 << "." << endl;
       timer.start();
       svm.train(imin, imax, xtrain, ytrain);
       timer.stop();
-      cout << "# Total training time " << setprecision(6) 
+      cout << "Total training time " << setprecision(6) 
            << timer.elapsed() << " secs." << endl;
-      svm.test(imin, imax, xtrain, ytrain, "# train: ");
+      svm.test(imin, imax, xtrain, ytrain, "train: ");
       if (tmax >= tmin)
-        svm.test(tmin, tmax, xtest, ytest, "# test:  ");
+        svm.test(tmin, tmax, xtest, ytest, "test:  ");
     }
 }
