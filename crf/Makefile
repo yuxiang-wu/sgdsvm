@@ -34,6 +34,7 @@ clean:
 	-rm *.o 2>/dev/null
 
 crfsgd: ${OBJS}
+	-rm $@ 2>/dev/null
 	${CXX} ${CXXFLAGS} -o $@ ${OBJS} ${LIBS}
 
 crfsgd.o: crfsgd.cpp $L/vectors.h  $L/gzstream.h $L/timer.h

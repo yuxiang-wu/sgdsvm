@@ -133,8 +133,8 @@ This version has two small differences.
   Its higher computational cost is
   therefore amortized on more iterations.
 
-- a preliminary procedure estimates the
-  sparsity of the data and the average
+- a preliminary calibration procedure estimates 
+  the sparsity of the data and the average
   gradient. This is used to decide how
   often to perform the -lambda.w part 
   of the update, and also to adjust the 

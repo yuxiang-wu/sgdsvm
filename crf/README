@@ -2,6 +2,15 @@
 
 
 
+TRAINING THE CRF ON THE CONLL CHUNKING TASK
+
+$ ./crfsgd -c 4.0 -f 3 model template \
+        ../data/conll2000/train.txt.gz \
+        ../data/conll2000/test.txt.gz
+
+
+
+
 
 
 

@@ -1258,7 +1258,6 @@ TScorer::bGradients(const VFloat *g, int pos, int fy, int ny, int y)
 // Main class CrfSgd
 
 
-string conlleval = "./conlleval";
 
 
 class CrfSgd
@@ -1284,19 +1283,23 @@ public:
   CrfSgd();
   
   int getEpoch() const { return epoch; }
-
   const Dictionary& getDict() const { return dict; }
+  double getLambda() const { return lambda; }
+  double getEta() const { return 1/(t*lambda); }
+  FVector getW() const { const_cast<CrfSgd*>(this)->rescale(); return w; }
+  
 
   void initialize(const char *templatefile, 
                   const char *datafile, 
                   double c = 4,
                   int cutoff = 3);
   
-  void calibrate(const dataset_t &data, int sample=500, Timer *tm=0);
+  void calibrate(const dataset_t &data, int sample=500, 
+                 double seta=1, Timer *tm=0);
 
   void train(const dataset_t &data, int epochs=1, Timer *tm=0);
 
-  void test(const dataset_t &data, int runConlleval=1);
+  void test(const dataset_t &data, const char *colnneval="");
   
   friend istream& operator>> ( istream &f, CrfSgd &d );
   friend ostream& operator<< ( ostream &f, const CrfSgd &d );
@@ -1462,9 +1465,7 @@ CrfSgd::tryEtaBySampling(const dataset_t &data, const ivec_t &sample,
 {
   FVector savedW = w;
   double savedWScale = wscale;
-  w.clear();
-  w.resize(dict.nParams());
-  wscale = 1;
+  double savedWNorm = wnorm;
   int i, n = sample.size();
   for (i=0; i<n; i++)
     {
@@ -1473,18 +1474,21 @@ CrfSgd::tryEtaBySampling(const dataset_t &data, const ivec_t &sample,
       scorer.gradCorrect(+1);
       scorer.gradForward(-1);
     }
+  wnorm = dot(w,w) * wscale * wscale;
   double obj = findObjBySampling(data, sample);
   w = savedW;
   wscale = savedWScale;
+  wnorm = savedWNorm;
   return obj;
 }
 
 
 void 
-CrfSgd::calibrate(const dataset_t &data, int samples, Timer *tm)
+CrfSgd::calibrate(const dataset_t &data, int samples, 
+                  double seta, Timer *tm)
 {
   ivec_t sample;
-  cout << "----------- calibration (" << samples << " samples.)" << endl;
+  cout << "[Calibrating] --  " << samples << " samples" << endl;
   assert(samples > 0);
   assert(dict.nOutputs() > 0);
   if  (tm)
@@ -1503,7 +1507,6 @@ CrfSgd::calibrate(const dataset_t &data, int samples, Timer *tm)
   // empirically find eta that works best
   double besteta = 1;
   double bestobj = sobj;
-  double seta = 1;
   double eta = seta;
   int totest = 7;
   double factor = 2;
@@ -1512,7 +1515,7 @@ CrfSgd::calibrate(const dataset_t &data, int samples, Timer *tm)
     {
       double obj = tryEtaBySampling(data, sample, eta);
       bool okay = (obj < sobj);
-      cout << "  tried eta=" << eta << "  obj=" << obj;
+      cout << "  trying eta=" << eta << "  obj=" << obj;
       if (okay)
         cout << " (possible)" << endl;
       else
@@ -1544,7 +1547,7 @@ CrfSgd::calibrate(const dataset_t &data, int samples, Timer *tm)
   if  (tm)
     tm->stop();
   if  (tm)
-    cout << "  duration: " << tm->elapsed() << " seconds.";
+    cout << "  training time: " << tm->elapsed() << " seconds";
   cout << endl;
 }
 
@@ -1562,7 +1565,8 @@ CrfSgd::train(const dataset_t &data, int epochs, Timer *tm)
     {
       // start timer
       epoch += 1;
-      cout << "----------- epoch " << epoch << endl;
+      cout << "[Epoch " << epoch << "] --";
+      cout.flush();
       if (tm) 
         tm->start();
       // perform epoch
@@ -1585,9 +1589,9 @@ CrfSgd::train(const dataset_t &data, int epochs, Timer *tm)
       if (tm)
         tm->stop();
       wnorm = dot(w,w) * wscale * wscale;
-      cout << "  wnorm: " << wnorm << "  wscale: " << wscale;
+      cout << "  wnorm: " << wnorm;
       if (tm)
-        cout << "  training time: " << tm->elapsed();
+        cout << "  training time: " << tm->elapsed() << " seconds";
       cout << endl;
     }
   // this never hurts
@@ -1596,7 +1600,7 @@ CrfSgd::train(const dataset_t &data, int epochs, Timer *tm)
 
 
 void 
-CrfSgd::test(const dataset_t &data, int runConlleval)
+CrfSgd::test(const dataset_t &data, const char *colnneval)
 {
    if (dict.nOutputs() <= 0)
     {
@@ -1604,87 +1608,229 @@ CrfSgd::test(const dataset_t &data, int runConlleval)
            << "Must call load() or initialize() before test()." << endl;
       exit(10);
     }
-
    opstream f;
    string evalcommand;
-   if (runConlleval == 1)
-     evalcommand = conlleval + " -q";
-   else if (runConlleval >= 2)
-     evalcommand = conlleval;
-   if (! evalcommand.empty())
-     f.open(evalcommand.c_str());
-   
-   cout << "  sentences: " << data.size();
+   if (colnneval && colnneval[0])
+     f.open(colnneval);
+   if (colnneval)
+     cout << "  sentences: " << data.size();
    double obj = 0;
    for (unsigned int i=0; i<data.size(); i++)
      {
        Scorer scorer(data[i], dict, w, wscale);
        obj += scorer.scoreForward() - scorer.scoreCorrect();
-       if (! evalcommand.empty())
+       if (colnneval && colnneval[0])
          scorer.test(f);
+       else if (! colnneval)
+         scorer.test(cout);
      }
-   cout << "  loss: " << obj;
+   if (colnneval)
+     cout << "  loss: " << obj;
    obj += 0.5 * wnorm * lambda * data.size();
-   cout << "  objective: " << obj << endl;
+   if (colnneval)
+     cout << "  objective*n: " << obj << endl;
 }
-
-
-
-
-
-
-
-
-
 
 
 
 
 // ============================================================
-// Main function
+// Main
 
 
+string modelFile;
+string templateFile;
+string trainFile;
+string testFile;
 
-string templateFile = "template";
-string trainFile = "../data/conll2000/train.txt.gz";
-string testFile = "../data/conll2000/test.txt.gz";
-
-//string trainFile = "small.gz";
-//string testFile = "small.gz";
+const char *conlleval = "./conlleval -q";
 
 double c = 4;
 int cutoff = 3;
+int epochs = 100;
+int cepochs = 10;
+bool tag = false;
+
 dataset_t train;
 dataset_t test;
+
+
+void 
+usage()
+{
+  cerr 
+    << "Usage (training): "
+    << "crfsgd [options] model template traindata [devdata]" << endl
+    << "Usage (tagging):  "
+    << "crfsgd -t model testdata" << endl
+    << "Options for training:" << endl
+    << " -c <num> : capacity control parameter (4)" << endl
+    << " -f <num> : threshold on the occurences of each feature (3)" << endl
+    << " -r <num> : total number of epochs (100)" << endl
+    << " -h <num> : epochs between each testing phase (10)" << endl
+    << " -e <cmd> : performance evaluation command (conlleval -q)" << endl;
+  exit(10);
+}
+
+void 
+parseCmdLine(int argc, char **argv)
+{
+  for (int i=1; i<argc; i++)
+    {
+      const char *s = argv[i];
+      if (s[0]=='-')
+        {
+          while (s[0] == '-')
+            s++;
+          if (tag || s[1])
+            usage();
+          if (s[0] == 't')
+            {
+              if (i == 1)
+                tag = true;
+              else
+                usage();
+            }
+          else if (++i >= argc)
+            usage();
+          else if (s[0 ] == 'c')
+            {
+              c = atof(argv[i]);
+              if (c <= 0)
+                {
+                  cerr << "ERROR: "
+                       << "Illegal C value: " << c << endl;
+                  exit(10);
+                }
+              cout << "Using c=" << c << endl;
+            }
+          else if (s[0] == 'f')
+            {
+              cutoff = atoi(argv[i]);
+              if (cutoff <= 0 || cutoff > 1000)
+                {
+                  cerr << "ERROR: " 
+                       << "Illegal cutoff value: " << cutoff << endl;
+                  exit(10);
+                }
+              cout << "Using cutoff=" << cutoff << endl;
+            }
+          else if (s[0] == 'r')
+            {
+              epochs = atoi(argv[i]);
+              if (epochs <= 0)
+                {
+                   cerr << "ERROR: " 
+                        << "Illegal number of epochs: " << epochs << endl;
+                   exit(10);
+                }
+            }
+          else if (s[0] == 'h')
+            {
+              cepochs = atoi(argv[i]);
+              if (cepochs <= 0)
+                {
+                   cerr << "ERROR: " 
+                        << "Illegal number of epochs: " << cepochs << endl;
+                   exit(10);
+                }
+            }
+          else if (s[0] == 'e')
+            {
+              conlleval = argv[i];
+              if (!conlleval[0])
+                conlleval = 0;
+            }
+          else
+            {
+                  cerr << "ERROR: " 
+                       << "Unrecognized option: " << argv[i-1] << endl;
+                  exit(10);
+            }
+        }
+      else if (tag)
+        {
+          if (modelFile.empty())
+            modelFile = argv[i];
+          else if (testFile.empty())
+            testFile = argv[i];
+          else 
+            usage();
+        }
+      else
+        {
+          if (modelFile.empty())
+            modelFile = argv[i];
+          else if (templateFile.empty())
+            templateFile = argv[i];
+          else if (trainFile.empty())
+            trainFile = argv[i];
+          else if (testFile.empty())
+            testFile = argv[i];
+          else 
+            usage();
+        }
+    }
+  if (tag)
+    {
+      if (modelFile.empty() || 
+          testFile.empty())
+        usage();
+    }
+  else
+    {
+      if (modelFile.empty() || 
+          templateFile.empty() ||
+          trainFile.empty())
+        usage();
+    }
+}
 
 
 int 
 main(int argc, char **argv)
 {
+  // parse args
+  parseCmdLine(argc, argv);
+  // initialize crf
   CrfSgd crf;
-
-
-  crf.initialize(templateFile.c_str(), trainFile.c_str(), c, cutoff);
-
-  loadSentences(trainFile.c_str(), crf.getDict(), train);
-  loadSentences(testFile.c_str(), crf.getDict(), test);
-  random_shuffle(train.begin(), train.end());
-
-  Timer tm;
-  crf.calibrate(train, 1000, &tm);
-  while (crf.getEpoch() < 50)
+  if (tag) 
+    { ifstream f(modelFile.c_str()); f >> crf; }
+  else 
+    crf.initialize(templateFile.c_str(), trainFile.c_str(), c, cutoff);
+  // load data
+  if (! trainFile.empty())
+    loadSentences(trainFile.c_str(), crf.getDict(), train);
+  if (! testFile.empty())
+    loadSentences(testFile.c_str(), crf.getDict(), test);
+  // proceed
+  if (tag)
     {
-      crf.train(train, 5, &tm);
-      cout << "Training perf:";
-      crf.test(train);
-      cout << "Testing perf:";
-      crf.test(test);
+      // tagging
+      crf.test(test, 0);
     }
-
-
-
+  else
+    {
+      Timer tm;
+      crf.calibrate(train, 1000, 0.1, &tm);
+      while (crf.getEpoch() < epochs)
+        {
+          crf.train(train, cepochs, &tm);
+          cout << "Training perf:";
+          crf.test(train, conlleval);
+          if (test.size())
+            {
+              cout << "Testing perf:";
+              crf.test(test, conlleval);
+            }
+        }
+      cout << "Saving model file " << modelFile << "." << endl;
+      { ofstream f(modelFile.c_str()); f << crf; }
+      cout << "Done." << endl;
+    }
   return 0;
 }
+
 
 
 /* -------------------------------------------------------------
