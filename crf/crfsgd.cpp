@@ -1685,7 +1685,7 @@ usage()
     << "Usage (tagging):  "
     << "crfsgd -t model testdata" << endl
     << "Options for training:" << endl
-    << " -c <num> : capacity control parameter (4)" << endl
+    << " -c <num> : capacity control parameter (4.0)" << endl
     << " -f <num> : threshold on the occurences of each feature (3)" << endl
     << " -r <num> : total number of epochs (100)" << endl
     << " -h <num> : epochs between each testing phase (10)" << endl
@@ -1818,7 +1818,7 @@ main(int argc, char **argv)
   // initialize crf
   CrfSgd crf;
   if (tag) 
-    { ifstream f(modelFile.c_str()); f >> crf;}
+    { igzstream f(modelFile.c_str()); f >> crf;}
   else 
     crf.initialize(templateFile.c_str(), trainFile.c_str(), c, cutoff);
   // load data
@@ -1849,7 +1849,7 @@ main(int argc, char **argv)
             }
         }
       cout << "Saving model file " << modelFile << "." << endl;
-      { ofstream f(modelFile.c_str()); f << crf; }
+      { ogzstream f(modelFile.c_str()); f << crf; }
       cout << "Done." << endl;
     }
   return 0;
