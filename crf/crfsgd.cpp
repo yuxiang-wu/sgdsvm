@@ -61,6 +61,7 @@ namespace __gnu_cxx {
 typedef vector<string> strings_t;
 typedef vector<int> ints_t;
 
+bool verbose = true;
 
 
 // ============================================================
@@ -552,7 +553,8 @@ Dictionary::initFromData(const char *tFile, const char *dFile, int cutoff)
   index = 0;
   
   // read templates
-  cout << "Reading template file " << tFile << "." << endl;
+  if (verbose)
+    cout << "Reading template file " << tFile << "." << endl;
   readTemplateFile(tFile, templates);
   int nu = 0;
   int nb = 0;
@@ -561,8 +563,9 @@ Dictionary::initFromData(const char *tFile, const char *dFile, int cutoff)
       nu += 1;
     else if (templates[t][0]=='B')
       nb += 1;
-  cout << "  u-templates: " << nu 
-       << "  b-templates: " << nb << endl;
+  if (verbose)
+    cout << "  u-templates: " << nu 
+         << "  b-templates: " << nb << endl;
   if (nu + nb != (int)templates.size())
     {
       cerr << "ERROR (building dictionary): "
@@ -571,7 +574,8 @@ Dictionary::initFromData(const char *tFile, const char *dFile, int cutoff)
     }
   
   // process compressed datafile
-  cerr << "Scanning " << dFile << " to build dictionary." << endl;
+  if (verbose)
+    cerr << "Scanning " << dFile << " to build dictionary." << endl;
   typedef hash_map<string,int> hash_t;
   hash_t fcount;
   int columns = 0;
@@ -617,8 +621,9 @@ Dictionary::initFromData(const char *tFile, const char *dFile, int cutoff)
   outputnames.resize(oindex);
   for (dict_t::const_iterator it=outputs.begin(); it!=outputs.end(); it++)
     outputnames[it->second] = it->first;
-  cout << "  sentences: " << sentences 
-       << "  outputs: " << oindex << endl;
+  if (verbose)
+    cout << "  sentences: " << sentences 
+         << "  outputs: " << oindex << endl;
   
   // sorting in frequency order
   sivector_t keys;
@@ -643,10 +648,11 @@ Dictionary::initFromData(const char *tFile, const char *dFile, int cutoff)
       else
         index += oindex;
     }
-  cout << "  cutoff: " << cutoff 
-       << "  features: " << features.size() 
-       << "  parameters: " << index << endl
-       << "  duration: " << timer.elapsed() << " seconds." << endl;
+  if (verbose)
+    cout << "  cutoff: " << cutoff 
+         << "  features: " << features.size() 
+         << "  parameters: " << index << endl
+         << "  duration: " << timer.elapsed() << " seconds." << endl;
 
   return sentences;
 }
@@ -773,7 +779,8 @@ typedef vector<Sentence> dataset_t;
 void
 loadSentences(const char *fname, const Dictionary &dict, dataset_t &data)
 {
-  cout << "Reading and preprocessing " << fname << "." << endl;
+  if (verbose)
+    cout << "Reading and preprocessing " << fname << "." << endl;
   Timer timer;
   int sentences = 0;
   int columns = 0;
@@ -787,8 +794,9 @@ loadSentences(const char *fname, const Dictionary &dict, dataset_t &data)
       data.push_back(ps);
       sentences += 1;
     }
-  cout << "  processed: " << sentences << " sentences." << endl
-       << "  duration: " << timer.elapsed() << " seconds." << endl;
+  if (verbose)
+    cout << "  processed: " << sentences << " sentences." << endl
+         << "  duration: " << timer.elapsed() << " seconds." << endl;
 }
 
 
@@ -1324,6 +1332,8 @@ CrfSgd::load(istream &f)
     {
       skipSpace(f);
       int c = f.get();
+      if (f.eof())
+        break;
       if (c == 'T')
         {
           t = -1;
@@ -1414,9 +1424,9 @@ CrfSgd::save(ostream &f) const
     const_cast<CrfSgd*>(this)->rescale();
   // save stuff
   f << dict;
+  f << "L" << lambda << endl;
   f << "T" << t << endl;
   f << "E" << epoch << endl;
-  f << "L" << lambda << endl;
   f << "W" << w << endl;
 }
 
@@ -1437,6 +1447,8 @@ CrfSgd::initialize(const char *tfname, const char *dfname,
   epoch = 0;
   int n = dict.initFromData(tfname, dfname, cutoff);
   lambda = 1 / (c * n);
+  if (verbose)
+    cout << "Using c=" << c << ", i.e. lambda=" << lambda << endl;
   w.clear();
   w.resize(dict.nParams());
   wscale = 1.0;
@@ -1488,7 +1500,8 @@ CrfSgd::calibrate(const dataset_t &data, int samples,
                   double seta, Timer *tm)
 {
   ivec_t sample;
-  cout << "[Calibrating] --  " << samples << " samples" << endl;
+  if (verbose)
+    cout << "[Calibrating] --  " << samples << " samples" << endl;
   assert(samples > 0);
   assert(dict.nOutputs() > 0);
   if  (tm)
@@ -1515,11 +1528,14 @@ CrfSgd::calibrate(const dataset_t &data, int samples,
     {
       double obj = tryEtaBySampling(data, sample, eta);
       bool okay = (obj < sobj);
-      cout << "  trying eta=" << eta << "  obj=" << obj;
-      if (okay)
-        cout << " (possible)" << endl;
-      else
-        cout << " (too large)" << endl;
+      if (verbose)
+        {
+          cout << "  trying eta=" << eta << "  obj=" << obj;
+          if (okay)
+            cout << " (possible)" << endl;
+          else
+            cout << " (too large)" << endl;
+        }
       if (okay)
         {
           totest -= 1;
@@ -1542,13 +1558,15 @@ CrfSgd::calibrate(const dataset_t &data, int samples,
     }
   // determine t
   t = 1 / (besteta * lambda);
-  cout << "  taking eta=" << besteta << "  t0=" << t;
+  if (verbose)
+    cout << "  taking eta=" << besteta << "  t0=" << t;
   // finalize
   if  (tm)
     tm->stop();
-  if  (tm)
+  if  (tm && verbose)
     cout << "  training time: " << tm->elapsed() << " seconds";
-  cout << endl;
+  if (verbose)
+    cout << endl;
 }
 
 
@@ -1565,8 +1583,10 @@ CrfSgd::train(const dataset_t &data, int epochs, Timer *tm)
     {
       // start timer
       epoch += 1;
-      cout << "[Epoch " << epoch << "] --";
-      cout.flush();
+      if (verbose)
+        cout << "[Epoch " << epoch << "] --";
+      if (verbose)
+        cout.flush();
       if (tm) 
         tm->start();
       // perform epoch
@@ -1590,9 +1610,10 @@ CrfSgd::train(const dataset_t &data, int epochs, Timer *tm)
         tm->stop();
       wnorm = dot(w,w) * wscale * wscale;
       cout << "  wnorm: " << wnorm;
-      if (tm)
+      if (tm && verbose)
         cout << "  training time: " << tm->elapsed() << " seconds";
-      cout << endl;
+      if (verbose)
+        cout << endl;
     }
   // this never hurts
   rescale();
@@ -1612,7 +1633,7 @@ CrfSgd::test(const dataset_t &data, const char *colnneval)
    string evalcommand;
    if (colnneval && colnneval[0])
      f.open(colnneval);
-   if (colnneval)
+   if (colnneval && verbose)
      cout << "  sentences: " << data.size();
    double obj = 0;
    for (unsigned int i=0; i<data.size(); i++)
@@ -1624,10 +1645,10 @@ CrfSgd::test(const dataset_t &data, const char *colnneval)
        else if (! colnneval)
          scorer.test(cout);
      }
-   if (colnneval)
+   if (colnneval && verbose)
      cout << "  loss: " << obj;
    obj += 0.5 * wnorm * lambda * data.size();
-   if (colnneval)
+   if (colnneval && verbose)
      cout << "  objective*n: " << obj << endl;
 }
 
@@ -1668,7 +1689,8 @@ usage()
     << " -f <num> : threshold on the occurences of each feature (3)" << endl
     << " -r <num> : total number of epochs (100)" << endl
     << " -h <num> : epochs between each testing phase (10)" << endl
-    << " -e <cmd> : performance evaluation command (conlleval -q)" << endl;
+    << " -e <cmd> : performance evaluation command (conlleval -q)" << endl
+    << " -q       : silent mode" << endl;
   exit(10);
 }
 
@@ -1691,6 +1713,8 @@ parseCmdLine(int argc, char **argv)
               else
                 usage();
             }
+          else if (s[0] == 'q')
+            verbose = false;
           else if (++i >= argc)
             usage();
           else if (s[0 ] == 'c')
@@ -1702,7 +1726,6 @@ parseCmdLine(int argc, char **argv)
                        << "Illegal C value: " << c << endl;
                   exit(10);
                 }
-              cout << "Using c=" << c << endl;
             }
           else if (s[0] == 'f')
             {
@@ -1713,7 +1736,6 @@ parseCmdLine(int argc, char **argv)
                        << "Illegal cutoff value: " << cutoff << endl;
                   exit(10);
                 }
-              cout << "Using cutoff=" << cutoff << endl;
             }
           else if (s[0] == 'r')
             {
@@ -1773,6 +1795,7 @@ parseCmdLine(int argc, char **argv)
     }
   if (tag)
     {
+      verbose = false;
       if (modelFile.empty() || 
           testFile.empty())
         usage();
@@ -1795,7 +1818,7 @@ main(int argc, char **argv)
   // initialize crf
   CrfSgd crf;
   if (tag) 
-    { ifstream f(modelFile.c_str()); f >> crf; }
+    { ifstream f(modelFile.c_str()); f >> crf;}
   else 
     crf.initialize(templateFile.c_str(), trainFile.c_str(), c, cutoff);
   // load data
@@ -1812,6 +1835,7 @@ main(int argc, char **argv)
   else
     {
       Timer tm;
+      random_shuffle(train.begin(), train.end());
       crf.calibrate(train, 1000, 0.1, &tm);
       while (crf.getEpoch() < epochs)
         {
