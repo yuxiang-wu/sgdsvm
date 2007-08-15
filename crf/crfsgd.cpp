@@ -1485,6 +1485,7 @@ CrfSgd::tryEtaBySampling(const dataset_t &data, const ivec_t &sample,
       TScorer scorer(data[j], dict, w, wscale, eta);
       scorer.gradCorrect(+1);
       scorer.gradForward(-1);
+      wscale *= (1 - eta * lambda);
     }
   wnorm = dot(w,w) * wscale * wscale;
   double obj = findObjBySampling(data, sample);
