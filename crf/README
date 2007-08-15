@@ -2,31 +2,110 @@
 
 
 
-TRAINING THE CRF ON THE CONLL CHUNKING TASK
+RUNNING THE STOCHASTIC GRADIENT CRF ON THE CONLL CHUNKING TASK
 
-$ ./crfsgd -c 4.0 -f 3 model template \
+The program "crfsgd" uses the same formats as CRF++ for 
+template files and data files. These formats are explained
+on the CRF++ page http://crfpp.sourceforge.net.
+However, the program "crfsgd" wants gzipped data files
+instead of plain text files. 
+
+
+-- Usage.
+
+$ ./crfsgd
+Usage (training): crfsgd [options] model template traindata [devdata]
+Usage (tagging):  crfsgd -t model testdata
+Options for training:
+ -c <num> : capacity control parameter (4.0)
+ -f <num> : threshold on the occurences of each feature (3)
+ -r <num> : total number of epochs (100)
+ -h <num> : epochs between each testing phase (10)
+ -e <cmd> : performance evaluation command (conlleval -q)
+ -q       : silent mode
+
+
+
+-- Training the model:
+   Performance is evaluated on both sets every 10 epochs.
+   This is convenient to see how fast the testing performance improves.
+
+$ ./crfsgd -c 4.0 -f 3 -r 100 model.gz template \ 
         ../data/conll2000/train.txt.gz \
         ../data/conll2000/test.txt.gz
+Reading template file template.
+  u-templates: 19  b-templates: 1
+  sentences: 8936  outputs: 22
+  cutoff: 3  features: 76329  parameters: 1679700
+  duration: 3.7 seconds.
+Using c=4, i.e. lambda=2.79767e-05
+Reading and preprocessing ../data/conll2000/train.txt.gz.
+  processed: 8936 sentences.
+  duration: 4 seconds.
+Reading and preprocessing ../data/conll2000/test.txt.gz.
+  processed: 2012 sentences.
+  duration: 0.88 seconds.
+<...>
+[Calibrating] --  1000 samples
+<...>
+[Epoch 10] --  wnorm: 22982.4  training time: 106.84 seconds
+Training perf:  sentences: 8936  loss: 2737.67  objective*n: 5610.47
+accuracy:  99.60%; precision:  99.37%; recall:  99.28%; FB1:  99.32
+Testing perf:  sentences: 2012  loss: 5451.61  objective*n: 6098.43
+accuracy:  95.72%; precision:  93.36%; recall:  93.07%; FB1:  93.22
+<...>
+[Epoch 40] --  wnorm: 21744.9  training time: 397 seconds
+Training perf:  sentences: 8936  loss: 1779.2  objective*n: 4497.32
+accuracy:  99.91%; precision:  99.86%; recall:  99.85%; FB1:  99.85
+Testing perf:  sentences: 2012  loss: 5050.17  objective*n: 5662.17
+accuracy:  95.87%; precision:  93.62%; recall:  93.38%; FB1:  93.50
+<...>
+[Epoch 100] --  wnorm: 20777.4  training time: 992.14 seconds
+Training perf:  sentences: 8936  loss: 1659.98  objective*n: 4257.15
+accuracy:  99.95%; precision:  99.91%; recall:  99.91%; FB1:  99.91
+Testing perf:  sentences: 2012  loss: 4920.29  objective*n: 5505.06
+accuracy:  95.92%; precision:  93.72%; recall:  93.48%; FB1:  93.60
+Saving model file model.gz.
+Done!  992.14 seconds.
 
 
+We can also run the program longer
+
+$  ./crfsgd -c 4.0 -f 3 -r 150 model150.gz ....
+<...>
 
 
+-- Testing the final model (100 and 150 epochs):
 
+$ ./crfsgd model100.gz ../data/conll2000/test.txt.gz | ./conlleval
+processed 47377 tokens with 23852 phrases; found: 23790 phrases; correct: 22297.
+accuracy:  95.92%; precision:  93.72%; recall:  93.48%; FB1:  93.60
+             ADJP: precision:  81.30%; recall:  74.43%; FB1:  77.71  401
+             ADVP: precision:  83.11%; recall:  80.14%; FB1:  81.60  835
+            CONJP: precision:  50.00%; recall:  55.56%; FB1:  52.63  10
+             INTJ: precision:  50.00%; recall:  50.00%; FB1:  50.00  2
+              LST: precision:   0.00%; recall:   0.00%; FB1:   0.00  0
+               NP: precision:  94.05%; recall:  93.84%; FB1:  93.94  12395
+               PP: precision:  97.00%; recall:  97.57%; FB1:  97.28  4839
+              PRT: precision:  76.32%; recall:  82.08%; FB1:  79.09  114
+             SBAR: precision:  86.55%; recall:  85.42%; FB1:  85.98  528
+               VP: precision:  93.78%; recall:  93.95%; FB1:  93.87  4666
 
+$ ./crfsgd model150.gz ../data/conll2000/test.txt.gz | ./conlleval
 
 
 
 
 COMPARATIVE EXPERIMENTS WITH CRF++
 
-$../../crf_learn -c 4.0 -f 3 template train.txt model
+$ crf_learn -c 4.0 -f 3 template train.txt model
 Number of sentences: 8936
 Number of features:  1679700
-...
+ <...skipping...>
 iter=199 terr=0.00038 serr=0.00638 act=1679700 obj=4138.23633 diff=0.00009
 Done! 6071.06 seconds.
 
-$ ../../crf_test -m model test.txt | tr '	' ' ' | ../../../conlleval 
+$ crf_test -m model test.txt | tr '	' ' ' | ../../../conlleval 
 processed 47377 tokens with 23852 phrases; found: 23809 phrases; correct: 22323
 accuracy:  95.95%; precision:  93.76%; recall:  93.59%; FB1:  93.67
              ADJP: precision:  80.24%; recall:  75.11%; FB1:  77.59  410
