@@ -1631,24 +1631,24 @@ CrfSgd::test(const dataset_t &data, const char *colnneval)
     }
    opstream f;
    string evalcommand;
-   if (colnneval && colnneval[0])
+   if (colnneval && colnneval[0] && verbose)
      f.open(colnneval);
-   if (colnneval && verbose)
+   if (verbose)
      cout << "  sentences: " << data.size();
    double obj = 0;
    for (unsigned int i=0; i<data.size(); i++)
      {
        Scorer scorer(data[i], dict, w, wscale);
        obj += scorer.scoreForward() - scorer.scoreCorrect();
-       if (colnneval && colnneval[0])
+       if (colnneval && colnneval[0] && verbose)
          scorer.test(f);
        else if (! colnneval)
          scorer.test(cout);
      }
-   if (colnneval && verbose)
+   if (verbose)
      cout << "  loss: " << obj;
    obj += 0.5 * wnorm * lambda * data.size();
-   if (colnneval && verbose)
+   if (verbose)
      cout << "  objective*n: " << obj << endl;
 }
 
@@ -1817,9 +1817,10 @@ main(int argc, char **argv)
   parseCmdLine(argc, argv);
   // initialize crf
   CrfSgd crf;
-  if (tag) 
-    { igzstream f(modelFile.c_str()); f >> crf;}
-  else 
+  if (tag) {
+    igzstream f(modelFile.c_str()); 
+    f >> crf;
+  } else 
     crf.initialize(templateFile.c_str(), trainFile.c_str(), c, cutoff);
   // load data
   if (! trainFile.empty())
@@ -1840,17 +1841,22 @@ main(int argc, char **argv)
       while (crf.getEpoch() < epochs)
         {
           crf.train(train, cepochs, &tm);
-          cout << "Training perf:";
+          if (verbose)
+            cout << "Training perf:";
           crf.test(train, conlleval);
           if (test.size())
             {
-              cout << "Testing perf:";
+              if (verbose)
+                cout << "Testing perf:";
               crf.test(test, conlleval);
             }
         }
-      cout << "Saving model file " << modelFile << "." << endl;
-      { ogzstream f(modelFile.c_str()); f << crf; }
-      cout << "Done." << endl;
+      if (verbose)
+        cout << "Saving model file " << modelFile << "." << endl;
+      ogzstream f(modelFile.c_str()); 
+      f << crf; 
+      if (verbose)
+        cout << "Done!  " << tm.elapsed() << " seconds." << endl;
     }
   return 0;
 }
