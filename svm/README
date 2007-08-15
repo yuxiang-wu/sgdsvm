@@ -7,7 +7,7 @@
 ** PREPROCESSING THE DATA.
 
 You must first run the program <preprocess>
-to reads the RCV1-V2 files stored directory ../data/rcv1/
+to reads the RCV1-V2 files from directory ../data/rcv1/
 The four official test files become the training set.
 The official training file becomes the testing set.
 All the TF/IDF things are recomputed accordingly.

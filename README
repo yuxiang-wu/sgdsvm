@@ -13,22 +13,26 @@ the main cause of the efficiency of stochastic
 gradient descent.
 
 
+
+
+
 1) SVM DOCUMENT CLASSIFICATION (RCV1-V2)
+
 
 The directory "svm" contains programs to optimize
 the SVM primal objective function on the
 classification of RCV1-V2 documents.
 
-The file "svm/README" explains how to download
+The file "data/README" explains how to download
 the datafiles from the RCV1-V2 web site
 <http://jmlr.csail.mit.edu/papers/volume5/lewis04a/lyrl2004_rcv1v2_README.htm>.
 In order to make this a large-scale learning problem,
 we use the official testing set (781,265 documents) as the training set
 and the official training set (23,149 documents) as the testing set.
-A preprocessing program "svm/preprocess" recomputes the TF/IDF
-features given the new partition.  Two stochastic implementations
-are provided. Simple definitions in the source code allow for
-changing the loss functions, etc.
+The file "svm/README" then explains how to preprocess the
+datafiles to recompute the TF/IDF features given the new partition.  
+Two stochastic implementations are provided. Simple definitions 
+in the source code allow for changing the loss functions, etc.
 
 
 Timings:
