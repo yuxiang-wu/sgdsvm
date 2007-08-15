@@ -1521,7 +1521,7 @@ CrfSgd::calibrate(const dataset_t &data, int samples,
   double besteta = 1;
   double bestobj = sobj;
   double eta = seta;
-  int totest = 7;
+  int totest = 10;
   double factor = 2;
   bool phase2 = false;
   while (totest > 0 || !phase2)
@@ -1556,6 +1556,8 @@ CrfSgd::calibrate(const dataset_t &data, int samples,
       if (phase2)
         eta = eta / factor;
     }
+  // take it on the safe side (implicit regularization)
+  besteta /= factor * factor;
   // determine t
   t = 1 / (besteta * lambda);
   if (verbose)
@@ -1668,7 +1670,7 @@ const char *conlleval = "./conlleval -q";
 
 double c = 4;
 int cutoff = 3;
-int epochs = 100;
+int epochs = 50;
 int cepochs = 10;
 bool tag = false;
 
@@ -1687,7 +1689,7 @@ usage()
     << "Options for training:" << endl
     << " -c <num> : capacity control parameter (4.0)" << endl
     << " -f <num> : threshold on the occurences of each feature (3)" << endl
-    << " -r <num> : total number of epochs (100)" << endl
+    << " -r <num> : total number of epochs (50)" << endl
     << " -h <num> : epochs between each testing phase (10)" << endl
     << " -e <cmd> : performance evaluation command (conlleval -q)" << endl
     << " -q       : silent mode" << endl;
