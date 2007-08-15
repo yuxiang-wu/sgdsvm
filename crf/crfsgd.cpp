@@ -1307,7 +1307,7 @@ public:
 
   void train(const dataset_t &data, int epochs=1, Timer *tm=0);
 
-  void test(const dataset_t &data, const char *colnneval="");
+  double test(const dataset_t &data, const char *colnneval="");
   
   friend istream& operator>> ( istream &f, CrfSgd &d );
   friend ostream& operator<< ( ostream &f, const CrfSgd &d );
@@ -1623,7 +1623,7 @@ CrfSgd::train(const dataset_t &data, int epochs, Timer *tm)
 }
 
 
-void 
+double
 CrfSgd::test(const dataset_t &data, const char *colnneval)
 {
    if (dict.nOutputs() <= 0)
@@ -1653,6 +1653,7 @@ CrfSgd::test(const dataset_t &data, const char *colnneval)
    obj += 0.5 * wnorm * lambda * data.size();
    if (verbose)
      cout << "  objective*n: " << obj << endl;
+   return obj;
 }
 
 
