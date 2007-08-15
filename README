@@ -1,0 +1,76 @@
+
+The goal of this package is to illustrate the 
+efficiency of stochastic gradient descent for
+large-scale learning tasks.
+
+Two stochastic gradient implementations are
+provided for well known learning problems.
+These simple implementation do not exploit complicated 
+tricks to control gains (e.g. Schraudolph's SMD) or 
+projecting weights (e.g. Shalev-Schwartz et al's Pegasos).
+These tricks can be useful, but they are not
+the main cause of the efficiency of stochastic
+gradient descent.
+
+
+1) SVM DOCUMENT CLASSIFICATION (RCV1-V2)
+
+The directory "svm" contains programs to optimize
+the SVM primal objective function on the
+classification of RCV1-V2 documents.
+
+The file "svm/README" explains how to download
+the datafiles from the RCV1-V2 web site
+<http://jmlr.csail.mit.edu/papers/volume5/lewis04a/lyrl2004_rcv1v2_README.htm>.
+In order to make this a large-scale learning problem,
+we use the official testing set (781,265 documents) as the training set
+and the official training set (23,149 documents) as the testing set.
+A preprocessing program "svm/preprocess" recomputes the TF/IDF
+features given the new partition.  Two stochastic implementations
+are provided. Simple definitions in the source code allow for
+changing the loss functions, etc.
+
+
+Timings:
+
+- stochastic gradient:  less than 2 seconds
+- svmlight:             23642 seconds
+- svmperf:              66 seconds
+- svmlin (log loss):    30 seconds.
+
+
+
+
+
+2) CRF FOR THE CONLL2000 CHUNKING TASK
+
+
+The directory "crf" contains a program for 
+learning the CONLL2000 chunking task
+<http://www.cnts.ua.ac.be/conll2000/chunking>.
+This program takes data files and template files
+and produces tagging files similar to those of 
+Taku Kudo's CRF++ program described at
+<http://crfpp.sourceforge.net/>.
+However it takes gzipped data files 
+instead of plain files.
+
+The file "crf/README" explains the program usage
+and provides a comparison with the LBFGS optimizer
+implemented by the CRF++ package.
+
+
+Timings:
+
+stochastic gradient:    460 seconds.
+crf++ (lbfgs):          4335 seconds.
+
+Note that crf++ implements faster algorithms (mira)
+that are related to the stochastic gradient descent.
+However these algorithms optimize a different 
+objective function.
+
+
+
+
+
