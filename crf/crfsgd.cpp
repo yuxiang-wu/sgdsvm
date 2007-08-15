@@ -1307,7 +1307,7 @@ public:
 
   void train(const dataset_t &data, int epochs=1, Timer *tm=0);
 
-  double test(const dataset_t &data, const char *colnneval="");
+  void test(const dataset_t &data, const char *colnneval="");
   
   friend istream& operator>> ( istream &f, CrfSgd &d );
   friend ostream& operator<< ( ostream &f, const CrfSgd &d );
@@ -1623,7 +1623,7 @@ CrfSgd::train(const dataset_t &data, int epochs, Timer *tm)
 }
 
 
-double
+void
 CrfSgd::test(const dataset_t &data, const char *colnneval)
 {
    if (dict.nOutputs() <= 0)
@@ -1653,7 +1653,6 @@ CrfSgd::test(const dataset_t &data, const char *colnneval)
    obj += 0.5 * wnorm * lambda * data.size();
    if (verbose)
      cout << "  objective*n: " << obj << endl;
-   return obj;
 }
 
 
@@ -1821,24 +1820,21 @@ main(int argc, char **argv)
   parseCmdLine(argc, argv);
   // initialize crf
   CrfSgd crf;
-  if (tag) {
-    igzstream f(modelFile.c_str()); 
-    f >> crf;
-  } else 
-    crf.initialize(templateFile.c_str(), trainFile.c_str(), c, cutoff);
-  // load data
-  if (! trainFile.empty())
-    loadSentences(trainFile.c_str(), crf.getDict(), train);
-  if (! testFile.empty())
-    loadSentences(testFile.c_str(), crf.getDict(), test);
-  // proceed
-  if (tag)
+  if (tag) 
     {
+      igzstream f(modelFile.c_str()); 
+      f >> crf;
+      loadSentences(testFile.c_str(), crf.getDict(), test);
       // tagging
       crf.test(test, 0);
-    }
-  else
+    } 
+  else 
     {
+      crf.initialize(templateFile.c_str(), trainFile.c_str(), c, cutoff);
+      loadSentences(trainFile.c_str(), crf.getDict(), train);
+      if (! testFile.empty())
+        loadSentences(testFile.c_str(), crf.getDict(), test);
+      // training
       Timer tm;
       random_shuffle(train.begin(), train.end());
       crf.calibrate(train, 1000, 0.1, &tm);
@@ -1846,12 +1842,13 @@ main(int argc, char **argv)
         {
           crf.train(train, cepochs, &tm);
           if (verbose)
-            cout << "Training perf:";
-          crf.test(train, conlleval);
-          if (test.size())
             {
-              if (verbose)
-                cout << "Testing perf:";
+              cout << "Training perf:";
+              crf.test(train, conlleval);
+            }
+          if (verbose && test.size())
+            {
+              cout << "Testing perf:";
               crf.test(test, conlleval);
             }
         }
