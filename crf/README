@@ -2,7 +2,7 @@
 
 
 
-RUNNING THE STOCHASTIC GRADIENT CRF ON THE CONLL CHUNKING TASK
+** RUNNING THE STOCHASTIC GRADIENT CRF ON THE CONLL CHUNKING TASK
 
 The program "crfsgd" uses the same formats as CRF++ for 
 template files and data files. These formats are explained
@@ -28,98 +28,89 @@ Options for training:
 
 -- Training the model:
    Performance is evaluated on both sets every 10 epochs.
-   This is convenient to see the how testing performance.
-   See how the objective function is still decreasing on
-   the training set but increasing on the testing set.
-   We are already overfitting.  But the F1 scores
-   evolve differently because they are not the same
-   as the crf objective function. Reweighting examples
-   according to their contribution to the F1 score
-   would be a smart thing to do...
+   This is convenient to see the how testing performance improves.
 
-$ ./crfsgd -c 4.0 model.gz template \ 
+$ ./crfsgd -c 1.0 model.gz template \ 
         ../data/conll2000/train.txt.gz \
         ../data/conll2000/test.txt.gz
-Reading template file template.
 <...>
   sentences: 8936  outputs: 22
   cutoff: 3  features: 76329  parameters: 1679700
-  duration: 3.7 seconds.
 <...>
-[Epoch 10] --  wnorm: 9565.97  training time: 127.93 seconds
-Training perf:  sentences: 8936  loss: 5304.27  objective*n: 6500.02
-accuracy:  99.21%; precision:  98.66%; recall:  98.57%; FB1:  98.62
-Testing perf:  sentences: 2012  loss: 4588.06  objective*n: 4857.29
-accuracy:  95.88%; precision:  93.61%; recall:  93.48%; FB1:  93.55
+[Epoch 10] --  wnorm: 9040.78  training time: 128.63 seconds
+Training perf:  sentences: 8936  losses: 5565.29  objective*n: 10085.7
+accuracy:  99.18%; precision:  98.62%; recall:  98.55%; FB1:  98.58
+Testing perf:  sentences: 2012  losses: 4594.2  objective*n: 5611.99
+accuracy:  95.91%; precision:  93.62%; recall:  93.49%; FB1:  93.56
 <...>
-[Epoch 20] --  wnorm: 13700.6  training time: 230.92 seconds
-Training perf:  sentences: 8936  loss: 3309.36  objective*n: 5021.94
-accuracy:  99.70%; precision:  99.48%; recall:  99.41%; FB1:  99.44
-Testing perf:  sentences: 2012  loss: 4705.34  objective*n: 5090.94
-accuracy:  95.94%; precision:  93.74%; recall:  93.53%; FB1:  93.63
+[Epoch 20] --  wnorm: 9665.89  training time: 238.74 seconds
+Training perf:  sentences: 8936  losses: 4702.81  objective*n: 9535.75
+accuracy:  99.49%; precision:  99.15%; recall:  99.04%; FB1:  99.10
+Testing perf:  sentences: 2012  losses: 4517.71  objective*n: 5605.88
+accuracy:  95.96%; precision:  93.75%; recall:  93.54%; FB1:  93.64
 <...>
-[Epoch 30] --  wnorm: 15932.9  training time: 330.99 seconds
-Training perf:  sentences: 8936  loss: 2612.54  objective*n: 4604.15
-accuracy:  99.83%; precision:  99.70%; recall:  99.66%; FB1:  99.68
-Testing perf:  sentences: 2012  loss: 4782.24  objective*n: 5230.66
-accuracy:  95.91%; precision:  93.72%; recall:  93.48%; FB1:  93.60
+[Epoch 30] --  wnorm: 9763.05  training time: 349.09 seconds
+Training perf:  sentences: 8936  losses: 4471.12  objective*n: 9352.65
+accuracy:  99.59%; precision:  99.29%; recall:  99.18%; FB1:  99.23
+Testing perf:  sentences: 2012  losses: 4484.38  objective*n: 5583.49
+accuracy:  95.97%; precision:  93.76%; recall:  93.57%; FB1:  93.66
 <...>
-[Epoch 40] --  wnorm: 17250.8  training time: 429.8 seconds
-Training perf:  sentences: 8936  loss: 2278.76  objective*n: 4435.12
-accuracy:  99.88%; precision:  99.78%; recall:  99.76%; FB1:  99.77
-Testing perf:  sentences: 2012  loss: 4826.23  objective*n: 5311.75
-accuracy:  95.92%; precision:  93.73%; recall:  93.47%; FB1:  93.60
-<...>
-[Epoch 50] --  wnorm: 18081.9  training time: 528.17 seconds
-Training perf:  sentences: 8936  loss: 2090.28  objective*n: 4350.52
-accuracy:  99.90%; precision:  99.83%; recall:  99.81%; FB1:  99.82
-Testing perf:  sentences: 2012  loss: 4851.57  objective*n: 5360.48
-accuracy:  95.93%; precision:  93.74%; recall:  93.51%; FB1:  93.62
+[Epoch 40] --  wnorm: 9768.18  training time: 459.57 seconds
+Training perf:  sentences: 8936  losses: 4377.81  objective*n: 9261.9
+accuracy:  99.63%; precision:  99.35%; recall:  99.23%; FB1:  99.29
+Testing perf:  sentences: 2012  losses: 4465.48  objective*n: 5565.17
+accuracy:  96.00%; precision:  93.83%; recall:  93.63%; FB1:  93.73
 Saving model file model.gz.
-Done!  528.17 seconds.
+Done!  459.57 seconds.
 
 
 -- Testing the final model:
 
-$ ./crfsgd model.gz ../data/conll2000/test.txt.gz | ./conlleval
-processed 47377 tokens with 23852 phrases; found: 23793 phrases; correct: 22303.
-accuracy:  95.93%; precision:  93.74%; recall:  93.51%; FB1:  93.62
-             ADJP: precision:  80.75%; recall:  73.74%; FB1:  77.09  400
-             ADVP: precision:  82.66%; recall:  80.37%; FB1:  81.50  842
-            CONJP: precision:  50.00%; recall:  55.56%; FB1:  52.63  10
-             INTJ: precision:  50.00%; recall:  50.00%; FB1:  50.00  2
+$ ./crfsgd -t model.gz ../data/conll2000/test.txt.gz | ./conlleval
+processed 47377 tokens with 23852 phrases; found: 23801 phrases; correct: 22333.
+accuracy:  96.00%; precision:  93.83%; recall:  93.63%; FB1:  93.73
+             ADJP: precision:  80.10%; recall:  73.52%; FB1:  76.67  402
+             ADVP: precision:  83.55%; recall:  80.95%; FB1:  82.23  839
+            CONJP: precision:  55.56%; recall:  55.56%; FB1:  55.56  9
+             INTJ: precision: 100.00%; recall:  50.00%; FB1:  66.67  1
               LST: precision:   0.00%; recall:   0.00%; FB1:   0.00  0
-               NP: precision:  94.19%; recall:  93.96%; FB1:  94.08  12392
-               PP: precision:  97.00%; recall:  97.46%; FB1:  97.23  4834
-              PRT: precision:  74.56%; recall:  80.19%; FB1:  77.27  114
-             SBAR: precision:  86.42%; recall:  85.61%; FB1:  86.01  530
-               VP: precision:  93.68%; recall:  93.90%; FB1:  93.79  4669
+               NP: precision:  94.22%; recall:  94.08%; FB1:  94.15  12403
+               PP: precision:  96.98%; recall:  97.57%; FB1:  97.27  4840
+              PRT: precision:  75.89%; recall:  80.19%; FB1:  77.98  112
+             SBAR: precision:  87.31%; recall:  86.17%; FB1:  86.74  528
+               VP: precision:  93.81%; recall:  93.99%; FB1:  93.90  4667
 
 
+** COMPARATIVE EXPERIMENTS WITH CRF++
 
 
-
-COMPARATIVE EXPERIMENTS WITH CRF++
-
-$ crf_learn -c 4.0 -f 3 template train.txt model
+$ crf_learn -c 1.0 -f 3 template train.txt model
+<...>
 Number of sentences: 8936
 Number of features:  1679700
- <...skipping...>
-iter=199 terr=0.00038 serr=0.00638 act=1679700 obj=4138.23633 diff=0.00009
-Done! 6071.06 seconds.
+<...>
+iter=18 terr=0.04522 serr=0.45636 act=1679700 obj=24917.57905 diff=0.02882
+<...>
+iter=36 terr=0.02188 serr=0.27775 act=1679700 obj=13697.78077 diff=0.01717
+<...>
+iter=71 terr=0.00518 serr=0.09109 act=1679700 obj=9654.43394 diff=0.00167
+<...>
+iter=142 terr=0.00340 serr=0.06256 act=1679700 obj=9042.07254 diff=0.00007
+Done!4335.34 s
+
 
 $ crf_test -m model test.txt | tr '	' ' ' | ../../../conlleval 
-processed 47377 tokens with 23852 phrases; found: 23809 phrases; correct: 22323
-accuracy:  95.95%; precision:  93.76%; recall:  93.59%; FB1:  93.67
-             ADJP: precision:  80.24%; recall:  75.11%; FB1:  77.59  410
-             ADVP: precision:  83.73%; recall:  80.25%; FB1:  81.96  830
+processed 47377 tokens with 23852 phrases; found: 23799 phrases; correct: 22334.
+accuracy:  96.02%; precision:  93.84%; recall:  93.64%; FB1:  93.74
+             ADJP: precision:  79.71%; recall:  74.43%; FB1:  76.98  409
+             ADVP: precision:  83.18%; recall:  81.06%; FB1:  82.11  844
             CONJP: precision:  55.56%; recall:  55.56%; FB1:  55.56  9
-             INTJ: precision:  50.00%; recall:  50.00%; FB1:  50.00  2
+             INTJ: precision: 100.00%; recall:  50.00%; FB1:  66.67  1
               LST: precision:   0.00%; recall:   0.00%; FB1:   0.00  0
-               NP: precision:  94.11%; recall:  93.96%; FB1:  94.03  12403
-               PP: precision:  96.79%; recall:  97.82%; FB1:  97.30  4862
-              PRT: precision:  79.25%; recall:  79.25%; FB1:  79.25  106
-             SBAR: precision:  87.84%; recall:  85.05%; FB1:  86.42  518
-               VP: precision:  93.72%; recall:  93.95%; FB1:  93.84  4669
+               NP: precision:  94.36%; recall:  94.03%; FB1:  94.19  12378
+               PP: precision:  96.71%; recall:  97.82%; FB1:  97.26  4866
+              PRT: precision:  79.05%; recall:  78.30%; FB1:  78.67  105
+             SBAR: precision:  88.65%; recall:  84.67%; FB1:  86.62  511
+               VP: precision:  93.63%; recall:  93.99%; FB1:  93.81  4676
 
 

@@ -1557,7 +1557,7 @@ CrfSgd::calibrate(const dataset_t &data, int samples,
         eta = eta / factor;
     }
   // take it on the safe side (implicit regularization)
-  besteta /= factor * factor;
+  besteta /= factor;
   // determine t
   t = 1 / (besteta * lambda);
   if (verbose)
@@ -1648,7 +1648,7 @@ CrfSgd::test(const dataset_t &data, const char *colnneval)
          scorer.test(cout);
      }
    if (verbose)
-     cout << "  loss: " << obj;
+     cout << "  losses: " << obj;
    obj += 0.5 * wnorm * lambda * data.size();
    if (verbose)
      cout << "  objective*n: " << obj << endl;
@@ -1668,9 +1668,9 @@ string testFile;
 
 const char *conlleval = "./conlleval -q";
 
-double c = 4;
+double c = 1;
 int cutoff = 3;
-int epochs = 50;
+int epochs = 40;
 int cepochs = 10;
 bool tag = false;
 
@@ -1687,7 +1687,7 @@ usage()
     << "Usage (tagging):  "
     << "crfsgd -t model testdata" << endl
     << "Options for training:" << endl
-    << " -c <num> : capacity control parameter (4.0)" << endl
+    << " -c <num> : capacity control parameter (1.0)" << endl
     << " -f <num> : threshold on the occurences of each feature (3)" << endl
     << " -r <num> : total number of epochs (50)" << endl
     << " -h <num> : epochs between each testing phase (10)" << endl
