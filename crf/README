@@ -10,9 +10,13 @@ on the CRF++ page http://crfpp.sourceforge.net.
 However, the program "crfsgd" wants gzipped data files
 instead of plain text files. 
 
-The stochastic gradient implemnentation 
-This program shuffles the training example before each epoch,
-which is known to produce an faster but more noisy convergence.
+The stochastic gradient implemnentation is quite straightforward.
+The learning rate has the usual form 1/lambda(t+t0).
+The constant t0 is automatically chosen by a calibration 
+routine that tries various learning rates on a subset of the data.
+Training examples are shuffled before each epoch.
+This produces an faster but more chaotic convergence.
+
 
 
 -- Usage.
