@@ -69,7 +69,7 @@ Timings:
 stochastic gradient:    460 seconds.
 crf++ (lbfgs):          4335 seconds.
 
-Note that crf++ implements faster algorithms (mira)
+Note that crf++ implements alternate algorithms (mira)
 that are related to the stochastic gradient descent.
 However these algorithms optimize a different 
 objective function.
