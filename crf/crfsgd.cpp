@@ -1307,7 +1307,7 @@ public:
 
   void train(const dataset_t &data, int epochs=1, Timer *tm=0);
 
-  void test(const dataset_t &data, const char *colnneval="");
+  void test(const dataset_t &data, const char *colnneval="", Timer *tm=0);
   
   friend istream& operator>> ( istream &f, CrfSgd &d );
   friend ostream& operator<< ( ostream &f, const CrfSgd &d );
@@ -1505,8 +1505,6 @@ CrfSgd::calibrate(const dataset_t &data, int samples,
     cout << "[Calibrating] --  " << samples << " samples" << endl;
   assert(samples > 0);
   assert(dict.nOutputs() > 0);
-  if  (tm)
-    tm->start();
   // choose sample
   int datasize = data.size();
   if (samples < datasize)
@@ -1564,10 +1562,8 @@ CrfSgd::calibrate(const dataset_t &data, int samples,
   if (verbose)
     cout << "  taking eta=" << besteta << "  t0=" << t;
   // finalize
-  if  (tm)
-    tm->stop();
   if  (tm && verbose)
-    cout << "  training time: " << tm->elapsed() << " seconds";
+    cout << "  total time: " << tm->elapsed() << " seconds";
   if (verbose)
     cout << endl;
 }
@@ -1582,22 +1578,24 @@ CrfSgd::train(const dataset_t &data, int epochs, Timer *tm)
            << "Must call calibrate() before train()." << endl;
       exit(10);
     }
-  for (int i=0; i<epochs; i++)
+  ivec_t shuffle;
+  for (unsigned int i=0; i<data.size(); i++)
+    shuffle.push_back(i);
+  for (int j=0; j<epochs; j++)
     {
-      // start timer
       epoch += 1;
+      // shuffle examples
+      random_shuffle(shuffle.begin(), shuffle.end());
       if (verbose)
         cout << "[Epoch " << epoch << "] --";
       if (verbose)
         cout.flush();
-      if (tm) 
-        tm->start();
       // perform epoch
       for (unsigned int i=0; i<data.size(); i++)
         {
           double eta = 1/(lambda*t);
           // train
-          TScorer scorer(data[i], dict, w, wscale, eta);
+          TScorer scorer(data[shuffle[i]], dict, w, wscale, eta);
           scorer.gradCorrect(+1);
           scorer.gradForward(-1);
           // weight decay
@@ -1608,13 +1606,10 @@ CrfSgd::train(const dataset_t &data, int epochs, Timer *tm)
       // epoch done
       if (wscale < 1e-6)
         rescale();
-      // stop timer
-      if (tm)
-        tm->stop();
       wnorm = dot(w,w) * wscale * wscale;
       cout << "  wnorm: " << wnorm;
       if (tm && verbose)
-        cout << "  training time: " << tm->elapsed() << " seconds";
+        cout << "  total time: " << tm->elapsed() << " seconds";
       if (verbose)
         cout << endl;
     }
@@ -1624,7 +1619,7 @@ CrfSgd::train(const dataset_t &data, int epochs, Timer *tm)
 
 
 void
-CrfSgd::test(const dataset_t &data, const char *colnneval)
+CrfSgd::test(const dataset_t &data, const char *colnneval, Timer *tm)
 {
    if (dict.nOutputs() <= 0)
     {
@@ -1652,7 +1647,11 @@ CrfSgd::test(const dataset_t &data, const char *colnneval)
      cout << "  losses: " << obj;
    obj += 0.5 * wnorm * lambda * data.size();
    if (verbose)
-     cout << "  objective*n: " << obj << endl;
+     cout << "  objective*n: " << obj;
+   if (tm && verbose)
+     cout << "  total time: " << tm->elapsed() << " seconds";
+   if (verbose)
+     cout << endl;
 }
 
 
@@ -1671,7 +1670,7 @@ const char *conlleval = "./conlleval -q";
 
 double c = 1;
 int cutoff = 3;
-int epochs = 40;
+int epochs = 50;
 int cepochs = 10;
 bool tag = false;
 
@@ -1836,11 +1835,14 @@ main(int argc, char **argv)
         loadSentences(testFile.c_str(), crf.getDict(), test);
       // training
       Timer tm;
-      random_shuffle(train.begin(), train.end());
+      tm.start();
       crf.calibrate(train, 1000, 0.1, &tm);
+      tm.stop();
       while (crf.getEpoch() < epochs)
         {
+          tm.start();
           crf.train(train, cepochs, &tm);
+          tm.stop();
           if (verbose)
             {
               cout << "Training perf:";

@@ -37,10 +37,10 @@ in the source code allow for changing the loss functions, etc.
 
 Timings:
 
-- stochastic gradient:  less than 2 seconds
-- svmlight:             23642 seconds
-- svmperf:              66 seconds
-- svmlin (log loss):    30 seconds.
+- stochastic gradient:     ~2 seconds.
+- svmlight:             23642 seconds.
+- svmperf:                 66 seconds.
+- svmlin (log loss):       30 seconds.
 
 
 
@@ -66,7 +66,7 @@ implemented by the CRF++ package.
 
 Timings:
 
-stochastic gradient:    460 seconds.
+stochastic gradient:     568 seconds.
 crf++ (lbfgs):          4335 seconds.
 
 Note that crf++ implements alternate algorithms (mira)

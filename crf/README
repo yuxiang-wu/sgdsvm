@@ -10,6 +10,10 @@ on the CRF++ page http://crfpp.sourceforge.net.
 However, the program "crfsgd" wants gzipped data files
 instead of plain text files. 
 
+The stochastic gradient implemnentation 
+This program shuffles the training example before each epoch,
+which is known to produce an faster but more noisy convergence.
+
 
 -- Usage.
 
@@ -19,7 +23,7 @@ Usage (tagging):  crfsgd -t model testdata
 Options for training:
  -c <num> : capacity control parameter (4.0)
  -f <num> : threshold on the occurences of each feature (3)
- -r <num> : total number of epochs (100)
+ -r <num> : total number of epochs (50)
  -h <num> : epochs between each testing phase (10)
  -e <cmd> : performance evaluation command (conlleval -q)
  -q       : silent mode
@@ -29,6 +33,7 @@ Options for training:
 -- Training the model:
    Performance is evaluated on both sets every 10 epochs.
    This is convenient to see the how testing performance improves.
+   Note that the F1 scores are a bit unstable.
 
 $ ./crfsgd -c 1.0 model.gz template \ 
         ../data/conll2000/train.txt.gz \
@@ -37,48 +42,53 @@ $ ./crfsgd -c 1.0 model.gz template \
   sentences: 8936  outputs: 22
   cutoff: 3  features: 76329  parameters: 1679700
 <...>
-[Epoch 10] --  wnorm: 9040.78  training time: 128.63 seconds
-Training perf:  sentences: 8936  losses: 5565.29  objective*n: 10085.7
-accuracy:  99.18%; precision:  98.62%; recall:  98.55%; FB1:  98.58
-Testing perf:  sentences: 2012  losses: 4594.2  objective*n: 5611.99
-accuracy:  95.91%; precision:  93.62%; recall:  93.49%; FB1:  93.56
+[Epoch 10] --  wnorm: 8859.84  total time: 127.55 seconds
+Training perf:  sentences: 8936  losses: 5212.97  objective*n: 9642.89
+accuracy:  99.31%; precision:  98.82%; recall:  98.64%; FB1:  98.73
+Testing perf:  sentences: 2012  losses: 4553.57  objective*n: 5551
+accuracy:  95.86%; precision:  93.63%; recall:  93.35%; FB1:  93.49
 <...>
-[Epoch 20] --  wnorm: 9665.89  training time: 238.74 seconds
-Training perf:  sentences: 8936  losses: 4702.81  objective*n: 9535.75
-accuracy:  99.49%; precision:  99.15%; recall:  99.04%; FB1:  99.10
-Testing perf:  sentences: 2012  losses: 4517.71  objective*n: 5605.88
-accuracy:  95.96%; precision:  93.75%; recall:  93.54%; FB1:  93.64
+[Epoch 20] --  wnorm: 9515.74  total time: 237.38 seconds
+Training perf:  sentences: 8936  losses: 4594.29  objective*n: 9352.16
+accuracy:  99.58%; precision:  99.24%; recall:  99.15%; FB1:  99.20
+Testing perf:  sentences: 2012  losses: 4482.49  objective*n: 5553.76
+accuracy:  95.95%; precision:  93.69%; recall:  93.57%; FB1:  93.63
 <...>
-[Epoch 30] --  wnorm: 9763.05  training time: 349.09 seconds
-Training perf:  sentences: 8936  losses: 4471.12  objective*n: 9352.65
-accuracy:  99.59%; precision:  99.29%; recall:  99.18%; FB1:  99.23
-Testing perf:  sentences: 2012  losses: 4484.38  objective*n: 5583.49
-accuracy:  95.97%; precision:  93.76%; recall:  93.57%; FB1:  93.66
+[Epoch 30] --  wnorm: 9645.09  total time: 347.32 seconds
+Training perf:  sentences: 8936  losses: 4338.68  objective*n: 9161.22
+accuracy:  99.65%; precision:  99.35%; recall:  99.22%; FB1:  99.28
+Testing perf:  sentences: 2012  losses: 4444.16  objective*n: 5529.99
+accuracy:  95.96%; precision:  93.76%; recall:  93.56%; FB1:  93.66
 <...>
-[Epoch 40] --  wnorm: 9768.18  training time: 459.57 seconds
-Training perf:  sentences: 8936  losses: 4377.81  objective*n: 9261.9
-accuracy:  99.63%; precision:  99.35%; recall:  99.23%; FB1:  99.29
-Testing perf:  sentences: 2012  losses: 4465.48  objective*n: 5565.17
-accuracy:  96.00%; precision:  93.83%; recall:  93.63%; FB1:  93.73
-Saving model file model.gz.
-Done!  459.57 seconds.
+[Epoch 40] --  wnorm: 9672.71  total time: 457.48 seconds
+Training perf:  sentences: 8936  losses: 4297.14  objective*n: 9133.49
+accuracy:  99.65%; precision:  99.36%; recall:  99.28%; FB1:  99.32
+Testing perf:  sentences: 2012  losses: 4463.01  objective*n: 5551.95
+accuracy:  95.97%; precision:  93.76%; recall:  93.59%; FB1:  93.68
+<...>
+[Epoch 50] --  wnorm: 9673.7  total time: 567.79 seconds
+Training perf:  sentences: 8936  losses: 4261.25  objective*n: 9098.1
+accuracy:  99.66%; precision:  99.39%; recall:  99.25%; FB1:  99.32
+Testing perf:  sentences: 2012  losses: 4442.86  objective*n: 5531.91
+accuracy:  96.04%; precision:  93.86%; recall:  93.64%; FB1:  93.75
+
 
 
 -- Testing the final model:
 
 $ ./crfsgd -t model.gz ../data/conll2000/test.txt.gz | ./conlleval
-processed 47377 tokens with 23852 phrases; found: 23801 phrases; correct: 22333.
-accuracy:  96.00%; precision:  93.83%; recall:  93.63%; FB1:  93.73
-             ADJP: precision:  80.10%; recall:  73.52%; FB1:  76.67  402
-             ADVP: precision:  83.55%; recall:  80.95%; FB1:  82.23  839
+processed 47377 tokens with 23852 phrases; found: 23797 phrases; correct: 22335.
+accuracy:  96.04%; precision:  93.86%; recall:  93.64%; FB1:  93.75
+             ADJP: precision:  80.29%; recall:  75.34%; FB1:  77.74  411
+             ADVP: precision:  83.10%; recall:  81.18%; FB1:  82.13  846
             CONJP: precision:  55.56%; recall:  55.56%; FB1:  55.56  9
              INTJ: precision: 100.00%; recall:  50.00%; FB1:  66.67  1
               LST: precision:   0.00%; recall:   0.00%; FB1:   0.00  0
-               NP: precision:  94.22%; recall:  94.08%; FB1:  94.15  12403
-               PP: precision:  96.98%; recall:  97.57%; FB1:  97.27  4840
-              PRT: precision:  75.89%; recall:  80.19%; FB1:  77.98  112
-             SBAR: precision:  87.31%; recall:  86.17%; FB1:  86.74  528
-               VP: precision:  93.81%; recall:  93.99%; FB1:  93.90  4667
+               NP: precision:  94.33%; recall:  94.00%; FB1:  94.17  12379
+               PP: precision:  96.73%; recall:  97.82%; FB1:  97.27  4865
+              PRT: precision:  80.58%; recall:  78.30%; FB1:  79.43  103
+             SBAR: precision:  89.13%; recall:  84.30%; FB1:  86.65  506
+               VP: precision:  93.63%; recall:  94.01%; FB1:  93.82  4677
 
 
 ** COMPARATIVE EXPERIMENTS WITH CRF++
