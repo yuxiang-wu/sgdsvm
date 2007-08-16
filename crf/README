@@ -25,7 +25,7 @@ $ ./crfsgd
 Usage (training): crfsgd [options] model template traindata [devdata]
 Usage (tagging):  crfsgd -t model testdata
 Options for training:
- -c <num> : capacity control parameter (4.0)
+ -c <num> : capacity control parameter (1.0)
  -f <num> : threshold on the occurences of each feature (3)
  -r <num> : total number of epochs (50)
  -h <num> : epochs between each testing phase (10)
