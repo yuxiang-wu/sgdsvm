@@ -29,6 +29,7 @@ the datafiles from the RCV1-V2 web site
 In order to make this a large-scale learning problem,
 we use the official testing set (781,265 documents) as the training set
 and the official training set (23,149 documents) as the testing set.
+
 The file "svm/README" then explains how to preprocess the
 datafiles to recompute the TF/IDF features given the new partition.  
 Two stochastic implementations are provided. Simple definitions 
@@ -58,6 +59,10 @@ Taku Kudo's CRF++ program described at
 <http://crfpp.sourceforge.net/>.
 However it takes gzipped data files 
 instead of plain files.
+
+The file "data/README" explains how to download
+the datafiles from the CONLL2000 Chunking web site
+<http://www.cnts.ua.ac.be/conll2000/chunking>.
 
 The file "crf/README" explains the program usage
 and provides a comparison with the LBFGS optimizer
