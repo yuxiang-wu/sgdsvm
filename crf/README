@@ -39,7 +39,7 @@ Options for training:
    This is convenient to see the how testing performance improves.
    Note that the F1 scores are a bit unstable.
 
-$ ./crfsgd -c 1.0 -f 3 model.gz template \ 
+$ ./crfsgd -c 1.0 -f 3 model.gz template \
         ../data/conll2000/train.txt.gz \
         ../data/conll2000/test.txt.gz
 <...>

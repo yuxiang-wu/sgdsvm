@@ -217,7 +217,7 @@ well known svm software packages.
   optimizer for linear svms based on the
   cutting plane algorithm [Joachims,2006]
 
-The lambda=10e-4 default of the svmsgd
+The lambda=1e-4 default of the svmsgd
 code translates into different settings
 for these programs:
 
