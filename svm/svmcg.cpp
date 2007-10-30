@@ -26,7 +26,6 @@
 #include "timer.h"
 #include <iostream>
 #include <iomanip>
-#include <algorithm>
 #include <string>
 #include <map>
 #include <vector>
@@ -51,27 +50,26 @@ typedef vector<double> yvec_t;
 // Select loss
 #define LOSS LOGLOSS
 
-// Zero when no bias
-// One when bias term
-#define BIAS 1
 
-// One when bias is regularized
-#define REGULARIZEBIAS 1
+// Add bias at index zero during load.
+#define REGULARIZEDBIAS 1
 
 
 inline 
 double loss(double z)
 {
 #if LOSS == LOGLOSS
-  if (z >= 0)
-    return log(1+exp(-z));
-  else
-    return -z + log(1+exp(z));
+  if (z > 18)
+    return exp(-z);
+  if (z < -18)
+    return -z;
+  return log(1+exp(-z));
 #elif LOSS == LOGLOSSMARGIN
-  if (z >= 1)
-    return log(1+exp(1-z));
-  else
-    return 1-z + log(1+exp(z-1));
+  if (z > 18)
+    return exp(1-z);
+  if (z < -18)
+    return 1-z;
+  return log(1+exp(1-z));
 #elif LOSS == SMOOTHHINGELOSS
   if (z < 0)
     return 0.5 - z;
@@ -91,19 +89,22 @@ double loss(double z)
 #endif
 }
 
+
 inline 
 double dloss(double z)
 {
 #if LOSS == LOGLOSS
-  if (z < 0)
-    return 1 / (exp(z) + 1);
-  double ez = exp(-z);
-  return ez / (ez + 1);
+  if (z > 18)
+    return exp(-z);
+  if (z < -18)
+    return 1;
+  return 1 / (exp(z) + 1);
 #elif LOSS == LOGLOSSMARGIN
-  if (z < 1)
-    return 1 / (exp(z-1) + 1);
-  double ez = exp(1-z);
-  return ez / (ez + 1);
+  if (z > 18)
+    return exp(1-z);
+  if (z < -18)
+    return 1;
+  return 1 / (exp(z-1) + 1);
 #elif LOSS == SMOOTHHINGELOSS
   if (z < 0)
     return 1;
@@ -122,131 +123,206 @@ double dloss(double z)
 }
 
 
-// -- stochastic gradient
 
-class SvmSgd
+// -- conjugate gradient
+
+class SvmCg
 {
 public:
-  SvmSgd(int dim, double lambda);
-  
-  void calibrate(int imin, int imax, 
-               const xvec_t &x, const yvec_t &y);
-  
-  void train(int imin, int imax, 
-             const xvec_t &x, const yvec_t &y,
+  SvmCg(int dim, double lambda);
+  void train(int imin, int imax, const xvec_t &x, const yvec_t &y,
              const char *prefix = "");
-  void test(int imin, int imax, 
-            const xvec_t &x, const yvec_t &y, 
+  void test(int imin, int imax, const xvec_t &x, const yvec_t &y, 
             const char *prefix = "");
 private:
-  double  t;
   double  lambda;
   FVector w;
-  double  bias;
-  double  bscale;
-  int skip;
-  int count;
+  FVector g;
+  FVector u;
+
+  int n;
+  FVector ywx;
+  FVector yux;
+  double ww;
+  double wu;
+  double uu;
+
+  double search(double tol=1e-9);
+  double f(double t);
 };
 
 
 
-SvmSgd::SvmSgd(int dim, double l)
-  : lambda(l), w(dim), bias(0),
-    bscale(1), skip(1000)
+SvmCg::SvmCg(int dim, double l)
+  : lambda(l), w(dim)
 {
-  // Shift t in order to have a 
-  // reasonable initial learning rate.
-  // This assumes |x| \approx 1.
-  double maxw = 1.0 / sqrt(lambda);
-  double typw = sqrt(maxw);
-  double eta0 = typw / max(1.0,dloss(-typw));
-  t = 1 / (eta0 * lambda);
 }
 
 
-void 
-SvmSgd::calibrate(int imin, int imax, 
-                const xvec_t &xp, const yvec_t &yp)
+double 
+SvmCg::f(double t)
 {
-  cout << "Estimating sparsity and bscale." << endl;
-  int j;
+  double cost = 0;
+  for (int i=0; i<n; i++)
+    cost += loss( ywx[i] + t * yux[i] );
+  double norm = ww + 2 * t * wu + t * t * uu;
+  return 0.5 * lambda * norm + cost / n;
+}
 
-  // compute average gradient size
-  double n = 0;
-  double m = 0;
-  double r = 0;
-  FVector c(w.size());
-  for (j=imin; j<=imax && m<=1000; j++,n++)
+
+double 
+SvmCg::search(double tol)
+{
+  double a = 0;
+  double fa = f(a);
+  double b = 1;
+  double fb = f(b);
+  double c = b;
+  double fc = fb;
+
+  while (fb >= fa)
     {
-      const SVector &x = xp.at(j);
-      n += 1;
-      r += x.npairs();
-      const SVector::Pair *p = x;
-      while (p->i >= 0 && p->i < c.size())
+      c = b; fc = fb;
+      b = b / 2;
+      assert(b >= 1e-80);
+      fb = f(b);
+    }
+  while (fc <= fb)
+    {
+      c = c * 2;
+      assert(c <= 1e+80);
+      fc = f(c);
+    }
+  double e = min(b-a,c-b);
+  double d = e;
+  while (c - a > 2 * tol)
+    {
+      double x;
+      double olde = e;
+      e = d / 2;
+      double ba = b-a;
+      double bc = b-c;
+      double hba = ba * (fb - fc);
+      double hbc = bc * (fb - fa);
+      double num = ba * hba - bc * hbc;
+      bool ok = false;
+      if (hba != hbc)
         {
-          double z = c.get(p->i) + fabs(p->v);
-          c.set(p->i, z);
-          m = max(m, z);
-          p += 1;
+          d = -0.5 * num / ( hba - hbc );
+          x = b + d;
+          if (x > a && x < c && fabs(d) < fabs(olde))
+            ok = true;
+        }
+      else if (num == 0)
+        {
+          if (c - b > b - a)
+            d = tol;
+          else
+            d = -tol;
+          x = b + d;
+          ok = true;
+        }
+      if (! ok)
+        {
+          const double gold = 0.3819660;
+          if (c - b > b - a)
+            d = gold * (c - b);
+          else
+            d = gold * (a - b);
+          x = b + d;
+        }
+      double fx;
+      fx = f(x);
+      if (fx < fb)
+        {
+          if  (x < b)
+            { fc=fb; c=b; fb=fx; b=x; }
+          else
+            { fa=fb; a=b; fb=fx; b=x; }
+        }
+      else
+        {
+          if (x < b)
+            { fa=fx; a=x; }
+          else
+            { fc=fx; c=x; }
         }
     }
-
-  // bias update scaling
-  bscale = m/n;
-
-  // compute weight decay skip
-  skip = (int) ((8 * n * w.size()) / r);
-  cout << " using " << n << " examples." << endl;
-  cout << " skip: " << skip 
-       << " bscale: " << setprecision(6) << bscale << endl;
+  return b;
 }
 
 
+
 void 
-SvmSgd::train(int imin, int imax, 
+SvmCg::train(int imin, int imax, 
               const xvec_t &xp, const yvec_t &yp,
               const char *prefix)
 {
   cout << prefix << "Training on [" << imin << ", " << imax << "]." << endl;
   assert(imin <= imax);
-  count = skip;
+
+  n = imax - imin + 1;
+  ywx.resize(n);
+  yux.resize(n);
+
+  FVector oldg = g;
+  g.clear();
+  g.add(w, -lambda);
+  double cost = 0;
   for (int i=imin; i<=imax; i++)
     {
       const SVector &x = xp.at(i);
       double y = yp.at(i);
       double wx = dot(w,x);
-      double z = y * (wx + bias);
-      double eta = 1.0 / (lambda * t);
+      double z = y * wx;
+      ywx[i-imin] = z;
 #if LOSS < LOGLOSS
       if (z < 1)
 #endif
         {
-          double etd = eta * dloss(z);
-          w.add(x, etd * y);
-#if BIAS
-#if REGULARIZEBIAS
-          bias *= 1 - eta * lambda * bscale;
-#endif
-          bias += etd * y * bscale;
-#endif
+          cost += loss(z);
+          g.add(x, dloss(z) * y);
         }
-      if (--count <= 0)
-        {
-          double r = 1 - eta * lambda * skip;
-          if (r < 0.8)
-            r = pow(1 - eta * lambda, skip);
-          w.scale(r);
-          count = skip;
-        }
-      t += 1;
+    }
+  ww= dot(w,w);
+  cost = 0.5 * lambda * ww + cost / n;
+
+#if 1
+  if (u.size() && oldg.size())
+    {
+      // conjugate gradient
+      oldg.add(g, -1);
+      double beta = - dot(g, oldg) / dot(u, oldg);
+      u.combine(beta, g, 1);
+    }
+  else
+#endif
+    {
+      // first iteration
+      u = g;
+    }
+  // line search and step
+  wu = dot(w,u);
+  uu = dot(u,u);
+  for (int i=imin; i<=imax; i++)
+    {
+      const SVector &x = xp.at(i);
+      double y = yp.at(i);
+      yux[i-imin] = y * dot(u,x);
     }
   cout << prefix << setprecision(6) 
-       << "Norm: " << dot(w,w) << ", Bias: " << bias << endl;
+       << "Before: ww=" << ww 
+       << ", uu=" << uu
+       << ", cost=" << cost << endl;
+
+
+  double eta = search();
+  w.add(u, eta);
 }
 
 
 void 
-SvmSgd::test(int imin, int imax, 
+SvmCg::test(int imin, int imax, 
              const xvec_t &xp, const yvec_t &yp, 
              const char *prefix)
 
@@ -260,7 +336,7 @@ SvmSgd::test(int imin, int imax,
       const SVector &x = xp.at(i);
       double y = yp.at(i);
       double wx = dot(w,x);
-      double z = y * (wx + bias);
+      double z = y * wx;
       if (z <= 0)
         nerr += 1;
 #if LOSS < LOGLOSS
@@ -269,7 +345,8 @@ SvmSgd::test(int imin, int imax,
         cost += loss(z);
     }
   int n = imax - imin + 1;
-  cost = cost / n + 0.5 * lambda * dot(w,w);
+  double wnorm =  dot(w,w);
+  cost = cost / n + 0.5 * lambda * wnorm;
   cout << prefix << setprecision(4)
        << "Misclassification: " << (double)nerr * 100.0 / n << "%." << endl;
   cout << prefix << setprecision(12) 
@@ -394,6 +471,9 @@ load(const char *fname, xvec_t &xp, yvec_t &yp)
         {
           f >> y >> x;
         }
+#if REGULARIZEDBIAS
+      x.set(0,1);
+#endif
       if (f.good())
         {
           assert(y == +1 || y == -1);
@@ -415,7 +495,6 @@ load(const char *fname, xvec_t &xp, yvec_t &yp)
 
 
 
-
 int 
 main(int argc, const char **argv)
 {
@@ -429,7 +508,7 @@ main(int argc, const char **argv)
   if (trainsize > 0 && imax >= trainsize)
     imax = imin + trainsize -1;
   // prepare svm
-  SvmSgd svm(dim, lambda);
+  SvmCg svm(dim, lambda);
   Timer timer;
 
   // load testing set
@@ -438,10 +517,8 @@ main(int argc, const char **argv)
   int tmin = 0;
   int tmax = xtest.size() - 1;
 
-  svm.calibrate(imin, imax, xtrain, ytrain);
   for(int i=0; i<epochs; i++)
     {
-      
       cout << "--------- Epoch " << i+1 << "." << endl;
       timer.start();
       svm.train(imin, imax, xtrain, ytrain);

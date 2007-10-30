@@ -23,7 +23,7 @@ OPTS=-g -O2
 CXXFLAGS= ${OPTS} -Wall -I$L
 LIBS = -lz -lm
 
-PROGRAMS = preprocess svmsgd svmsgd2
+PROGRAMS = preprocess svmsgd svmsgd2 svmcg
 
 all: ${PROGRAMS}
 
@@ -41,6 +41,9 @@ svmsgd: svmsgd.o vectors.o gzstream.o timer.o
 svmsgd2: svmsgd2.o vectors.o gzstream.o timer.o
 	${CXX} ${CXXFLAGS} -o $@ svmsgd2.o vectors.o gzstream.o timer.o ${LIBS}
 
+svmcg: svmcg.o vectors.o gzstream.o timer.o
+	${CXX} ${CXXFLAGS} -o $@ svmcg.o vectors.o gzstream.o timer.o ${LIBS}
+
 preprocess.o: preprocess.cpp $L/vectors.h  $L/gzstream.h
 	${CXX} ${CXXFLAGS} -c -o $@ preprocess.cpp
 
@@ -49,6 +52,9 @@ svmsgd.o: svmsgd.cpp $L/vectors.h  $L/gzstream.h $L/timer.h
 
 svmsgd2.o: svmsgd2.cpp $L/vectors.h  $L/gzstream.h $L/timer.h
 	${CXX} ${CXXFLAGS} -c -o $@ svmsgd2.cpp
+
+svmcg.o: svmcg.cpp $L/vectors.h  $L/gzstream.h $L/timer.h
+	${CXX} ${CXXFLAGS} -c -o $@ svmcg.cpp
 
 vectors.o: $L/vectors.cpp $L/vectors.h  $L/wrapper.h
 	${CXX} ${CXXFLAGS} -c -o $@ $L/vectors.cpp
