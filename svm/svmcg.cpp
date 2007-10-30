@@ -35,7 +35,6 @@
 
 using namespace std;
 
-
 typedef vector<SVector> xvec_t;
 typedef vector<double> yvec_t;
 
@@ -147,7 +146,7 @@ private:
   double wu;
   double uu;
 
-  double search(double tol=1e-9);
+  double search(double tol=1e-4);
   double f(double t);
 };
 
@@ -189,10 +188,13 @@ SvmCg::search(double tol)
     }
   while (fc <= fb)
     {
+      b = c;
+      fb = fc;
       c = c * 2;
       assert(c <= 1e+80);
       fc = f(c);
     }
+  tol *= b - a;
   double e = min(b-a,c-b);
   double d = e;
   while (c - a > 2 * tol)
@@ -281,13 +283,12 @@ SvmCg::train(int imin, int imax,
 #endif
         {
           cost += loss(z);
-          g.add(x, dloss(z) * y);
+          g.add(x, dloss(z) * y / n);
         }
     }
   ww= dot(w,w);
   cost = 0.5 * lambda * ww + cost / n;
 
-#if 1
   if (u.size() && oldg.size())
     {
       // conjugate gradient
@@ -296,7 +297,6 @@ SvmCg::train(int imin, int imax,
       u.combine(beta, g, 1);
     }
   else
-#endif
     {
       // first iteration
       u = g;
@@ -304,18 +304,16 @@ SvmCg::train(int imin, int imax,
   // line search and step
   wu = dot(w,u);
   uu = dot(u,u);
+  cout << prefix << setprecision(6) 
+       << "Before: ww=" << ww 
+       << ", uu=" << uu
+       << ", cost=" << cost << endl;
   for (int i=imin; i<=imax; i++)
     {
       const SVector &x = xp.at(i);
       double y = yp.at(i);
       yux[i-imin] = y * dot(u,x);
     }
-  cout << prefix << setprecision(6) 
-       << "Before: ww=" << ww 
-       << ", uu=" << uu
-       << ", cost=" << cost << endl;
-
-
   double eta = search();
   w.add(u, eta);
 }
@@ -510,7 +508,6 @@ main(int argc, const char **argv)
   // prepare svm
   SvmCg svm(dim, lambda);
   Timer timer;
-
   // load testing set
   if (! testfile.empty())
     load(testfile.c_str(), xtest, ytest);
