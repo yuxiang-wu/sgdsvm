@@ -128,7 +128,7 @@ double dloss(double z)
 class SvmCg
 {
 public:
-  SvmCg(int dim, double lambda);
+  SvmCg(int dim, double lambda, int trainsize);
   void train(int imin, int imax, const xvec_t &x, const yvec_t &y,
              const char *prefix = "");
   void test(int imin, int imax, const xvec_t &x, const yvec_t &y, 
@@ -155,9 +155,11 @@ private:
 
 
 
-SvmCg::SvmCg(int dim, double l)
-  : lambda(l), w(dim)
+SvmCg::SvmCg(int dim, double l, int trainsize)
+  : lambda(l), w(dim), n(trainsize)
 {
+  ywx.resize(n);
+  yux.resize(n);
 }
 
 
@@ -234,9 +236,7 @@ SvmCg::train(int imin, int imax,
 {
   cout << prefix << "Training on [" << imin << ", " << imax << "]." << endl;
   assert(imin <= imax);
-  n = imax - imin + 1;
-  ywx.resize(n);
-  yux.resize(n);
+  assert(n == imax - imin + 1);
   
   FVector oldg = g;
   g.clear();
@@ -246,9 +246,7 @@ SvmCg::train(int imin, int imax,
     {
       const SVector &x = xp.at(i);
       double y = yp.at(i);
-      double wx = dot(w,x);
-      double z = y * wx;
-      ywx[i-imin] = z;
+      double z = ywx[i-imin];
 #if LOSS < LOGLOSS
       if (z < 1)
 #endif
@@ -294,6 +292,7 @@ SvmCg::train(int imin, int imax,
   else
     {
       w.add(u, eta);
+      ywx.add(yux, eta);
     }
 }
 
@@ -485,7 +484,7 @@ main(int argc, const char **argv)
   if (trainsize > 0 && imax >= trainsize)
     imax = imin + trainsize -1;
   // prepare svm
-  SvmCg svm(dim, lambda);
+  SvmCg svm(dim, lambda, imax-imin+1);
   Timer timer;
   // load testing set
   if (! testfile.empty())
