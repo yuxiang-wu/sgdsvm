@@ -148,6 +148,9 @@ private:
 
   double search(double tol=1e-4);
   double f(double t);
+
+  double dsearch(double tol=1e-4);
+  double df(double t);
 };
 
 
@@ -170,89 +173,58 @@ SvmCg::f(double t)
 
 
 double 
-SvmCg::search(double tol)
+SvmCg::df(double t)
 {
-  double a = 0;
-  double fa = f(a);
-  double b = 1;
-  double fb = f(b);
-  double c = b;
-  double fc = fb;
-
-  while (fb >= fa)
-    {
-      c = b; fc = fb;
-      b = b / 2;
-      assert(b >= 1e-80);
-      fb = f(b);
-    }
-  while (fc <= fb)
-    {
-      b = c;
-      fb = fc;
-      c = c * 2;
-      assert(c <= 1e+80);
-      fc = f(c);
-    }
-  tol *= b - a;
-  double e = min(b-a,c-b);
-  double d = e;
-  while (c - a > 2 * tol)
-    {
-      double x;
-      double olde = e;
-      e = d / 2;
-      double ba = b-a;
-      double bc = b-c;
-      double hba = ba * (fb - fc);
-      double hbc = bc * (fb - fa);
-      double num = ba * hba - bc * hbc;
-      bool ok = false;
-      if (hba != hbc)
-        {
-          d = -0.5 * num / ( hba - hbc );
-          x = b + d;
-          if (x > a && x < c && fabs(d) < fabs(olde))
-            ok = true;
-        }
-      else if (num == 0)
-        {
-          if (c - b > b - a)
-            d = tol;
-          else
-            d = -tol;
-          x = b + d;
-          ok = true;
-        }
-      if (! ok)
-        {
-          const double gold = 0.3819660;
-          if (c - b > b - a)
-            d = gold * (c - b);
-          else
-            d = gold * (a - b);
-          x = b + d;
-        }
-      double fx;
-      fx = f(x);
-      if (fx < fb)
-        {
-          if  (x < b)
-            { fc=fb; c=b; fb=fx; b=x; }
-          else
-            { fa=fb; a=b; fb=fx; b=x; }
-        }
-      else
-        {
-          if (x < b)
-            { fa=fx; a=x; }
-          else
-            { fc=fx; c=x; }
-        }
-    }
-  return b;
+  double dcost = 0;
+  for (int i=0; i<n; i++)
+    dcost += dloss( ywx[i] + t * yux[i] ) * yux[i];
+  double dnorm = wu + t * uu;
+  return - lambda * dnorm + dcost / n;
 }
 
+
+double 
+SvmCg::dsearch(double tol)
+{
+  double a = 0;
+  double fa = df(a);
+  double b = 1;
+  double fb = df(b);
+  if (fa < 0)
+    return -1;
+  while (fb > 0)
+    {
+      double ofb = fb;
+      b = b * 2;
+      assert(b < 1e80);
+      fb = df(b);
+      if (fb > ofb)
+        break;
+    }
+  if (fb > 0)
+    return -1;
+  tol *= b - a;
+  double e = b - a;
+  double d = e;
+  while (b - a > 2 * tol && fa - fb > 0)
+    {
+      double m = (a + b) / 2;
+      double x = (fa * b - fb * a) / (fa - fb);
+      if (x > a && x < b && fabs(x - m) < fabs(e))
+        { e = d / 2; d = x - m; }
+      else
+        { x = m; }
+
+      double fx = df(x);
+      if (fx > 0)
+        { fa = fx; a = x; }
+      else if (fx < 0)
+        { fb = fx; b = x; }
+      else
+        return x;
+    }
+  return (a + b) / 2;
+}
 
 
 void 
@@ -262,11 +234,10 @@ SvmCg::train(int imin, int imax,
 {
   cout << prefix << "Training on [" << imin << ", " << imax << "]." << endl;
   assert(imin <= imax);
-
   n = imax - imin + 1;
   ywx.resize(n);
   yux.resize(n);
-
+  
   FVector oldg = g;
   g.clear();
   g.add(w, -lambda);
@@ -289,7 +260,7 @@ SvmCg::train(int imin, int imax,
   ww= dot(w,w);
   cost = 0.5 * lambda * ww + cost / n;
 
-  if (u.size() && oldg.size())
+  if (u.size())
     {
       // conjugate gradient
       oldg.add(g, -1);
@@ -314,8 +285,16 @@ SvmCg::train(int imin, int imax,
       double y = yp.at(i);
       yux[i-imin] = y * dot(u,x);
     }
-  double eta = search();
-  w.add(u, eta);
+  double eta = dsearch();
+  if (eta < 0)
+    {
+      cout << "*** Restarting CG" << endl;
+      u.clear();
+    }
+  else
+    {
+      w.add(u, eta);
+    }
 }
 
 
@@ -359,7 +338,7 @@ SvmCg::test(int imin, int imax,
 string trainfile;
 string testfile;
 double lambda = 1e-4;
-int epochs = 5;
+int epochs = 100;
 int trainsize = -1;
 
 void 
