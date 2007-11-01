@@ -269,11 +269,14 @@ SvmSgd::test(int imin, int imax,
         cost += loss(z);
     }
   int n = imax - imin + 1;
-  cost = cost / n + 0.5 * lambda * dot(w,w);
+  double loss = cost / n;
+  cost = loss + 0.5 * lambda * dot(w,w);
   cout << prefix << setprecision(4)
        << "Misclassification: " << (double)nerr * 100.0 / n << "%." << endl;
   cout << prefix << setprecision(12) 
        << "Cost: " << cost << "." << endl;
+  cout << prefix << setprecision(12) 
+       << "Loss: " << loss << "." << endl;
 }
 
 

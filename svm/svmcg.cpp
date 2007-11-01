@@ -322,11 +322,14 @@ SvmCg::test(int imin, int imax,
     }
   int n = imax - imin + 1;
   double wnorm =  dot(w,w);
-  cost = cost / n + 0.5 * lambda * wnorm;
+  double loss = cost / n;
+  cost = loss + 0.5 * lambda * wnorm;
   cout << prefix << setprecision(4)
        << "Misclassification: " << (double)nerr * 100.0 / n << "%." << endl;
   cout << prefix << setprecision(12) 
        << "Cost: " << cost << "." << endl;
+  cout << prefix << setprecision(12) 
+       << "Loss: " << loss << "." << endl;
 }
 
 
