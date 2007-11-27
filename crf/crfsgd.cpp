@@ -227,7 +227,9 @@ readDataSentence(istream &f, strings_t &s, int &expected)
   while (f.good())
     if (! readDataLine(f, s, expected))
       break;
-  return s.size() / expected;
+  if (expected)
+    return s.size() / expected;
+  return 0;
 }
 
 
