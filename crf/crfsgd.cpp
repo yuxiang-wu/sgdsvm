@@ -827,7 +827,8 @@ public:
   virtual void bGradients(const VFloat *g, int pos, int fy, int ny, int y) {}
   
   double viterbi(ints_t &path);
-  double test(ostream &f);
+  int test();
+  int test(ostream &f);
   double scoreCorrect();
   double gradCorrect(double g);
   double scoreForward();
@@ -940,21 +941,37 @@ Scorer::viterbi(ints_t &path)
 }
 
 
-double
+int
+Scorer::test()
+{
+  ints_t path;
+  int npos = s.size();
+  int errors = 0;
+  viterbi(path);
+  for (int pos=0; pos<npos; pos++)
+    if (path[pos] != s.y(pos))
+      errors += 1;
+  return errors;
+}
+
+int
 Scorer::test(ostream &f)
 {
   ints_t path;
-  double score = viterbi(path);
   int npos = s.size();
   int ncol = s.columns();
+  int errors = 0;
+  viterbi(path);
   for (int pos=0; pos<npos; pos++)
     {
+      if (path[pos] != s.y(pos))
+        errors += 1;
       for (int c=0; c<ncol; c++)
         f << s.data(pos,c) << " ";
       f << d.outputString(path[pos]) << endl;
     }
   f << endl;
-  return score;
+  return errors;
 }
 
 
@@ -1310,7 +1327,7 @@ public:
 
   void train(const dataset_t &data, int epochs=1, Timer *tm=0);
 
-  void test(const dataset_t &data, const char *colnneval="", Timer *tm=0);
+  void test(const dataset_t &data, const char *conlleval=0, Timer *tm=0);
   
   friend istream& operator>> ( istream &f, CrfSgd &d );
   friend ostream& operator<< ( ostream &f, const CrfSgd &d );
@@ -1622,7 +1639,7 @@ CrfSgd::train(const dataset_t &data, int epochs, Timer *tm)
 
 
 void
-CrfSgd::test(const dataset_t &data, const char *colnneval, Timer *tm)
+CrfSgd::test(const dataset_t &data, const char *conlleval, Timer *tm)
 {
    if (dict.nOutputs() <= 0)
     {
@@ -1632,30 +1649,38 @@ CrfSgd::test(const dataset_t &data, const char *colnneval, Timer *tm)
     }
    opstream f;
    string evalcommand;
-   if (colnneval && colnneval[0] && verbose)
-     f.open(colnneval);
+   if (conlleval && conlleval[0] && verbose)
+     f.open(conlleval);
    if (verbose)
      cout << "  sentences: " << data.size();
    double obj = 0;
+   int errors = 0;
+   int total = 0;
    for (unsigned int i=0; i<data.size(); i++)
      {
        Scorer scorer(data[i], dict, w, wscale);
        obj += scorer.scoreForward() - scorer.scoreCorrect();
-       if (colnneval && colnneval[0] && verbose)
-         scorer.test(f);
-       else if (! colnneval)
-         scorer.test(cout);
+       if (conlleval && conlleval[0] && verbose)
+         errors += scorer.test(f);
+       else if (conlleval)
+         errors += scorer.test(cout);
+       else
+         errors += scorer.test();
+       total += data.size();
      }
    if (verbose)
-     cout << "  losses: " << obj;
+     cout << "  loss: " << obj;
    obj += 0.5 * wnorm * lambda * data.size();
+   double misrate = (double)(errors*100)/(total ? total : 1);
    if (verbose)
-     cout << "  objective*n: " << obj;
+     cout << "  objective*n: " << obj
+          << "  errors: " << errors << "(" << misrate << "%)";
    if (tm && verbose)
      cout << "  total time: " << tm->elapsed() << " seconds";
    if (verbose)
      cout << endl;
 }
+
 
 
 
@@ -1815,6 +1840,7 @@ parseCmdLine(int argc, char **argv)
 }
 
 
+
 int 
 main(int argc, char **argv)
 {
@@ -1828,7 +1854,7 @@ main(int argc, char **argv)
       f >> crf;
       loadSentences(testFile.c_str(), crf.getDict(), test);
       // tagging
-      crf.test(test, 0);
+      crf.test(test, "");
     } 
   else 
     {
