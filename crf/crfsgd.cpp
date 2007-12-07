@@ -1666,7 +1666,7 @@ CrfSgd::test(const dataset_t &data, const char *conlleval, Timer *tm)
          errors += scorer.test(cout);
        else
          errors += scorer.test();
-       total += data.size();
+       total += data[i].size();
      }
    if (verbose)
      cout << "  loss: " << obj;
