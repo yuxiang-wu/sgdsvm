@@ -201,10 +201,10 @@ computeNormalizedTfIdf()
   cerr << "# Computing document frequencies" << endl;
 
   int terms = dico.size();
-  vector<double> nt(terms);
+  vector<double> nt(terms+1);
   
   double nd = trainid.size();
-  for(int i=0; i<terms; i++)
+  for(int i=0; i<terms+1; i++)
     nt[i] = 0;
   for(int i=0; i<(int)trainid.size(); i++)
     {
