@@ -28,7 +28,6 @@
 #include <cassert>
 #include <cctype>
 
-
 namespace
 {
   template <typename T> inline T min(T a, T b) {
@@ -38,7 +37,6 @@ namespace
     return (a < b) ? b  : a;
   }
 }
-
 
 
 void 
@@ -180,8 +178,26 @@ FVector::add(double c1)
   w.detach();
   Rep *r = rep();
   VFloat *d = r->data;
-  for (int i=0; i<r->size; i++)
-    d[i] += c1;
+  VFloat c = c1;
+  int m = r->size;
+#ifdef __SSE2__
+  typedef float v4sf __attribute__ ((vector_size (16)));
+  if (sizeof(VFloat) == 4 && m >= 16)
+    {
+      VFloat cc[4];
+      cc[0] = cc[1] = cc[2] = cc[3] = c;
+      v4sf cv = *(v4sf*)cc;
+      while (m >= 4)
+        {
+          v4sf dv = *(v4sf*)d;
+          *(v4sf*)d = dv + cv;
+          d += 4;
+          m += 4;
+        }
+    }
+#endif
+  while (--m >= 0)
+    (*d++) += c;
 }
 
 
@@ -195,8 +211,23 @@ FVector::add(const FVector &v2)
     r->resize(m);
   VFloat *d = r->data;
   const VFloat *s = (const VFloat*) v2;
-  for (int i=0; i<m; i++)
-    d[i] += s[i];
+#ifdef __SSE2__
+  typedef float v4sf __attribute__ ((vector_size (16)));
+  if (sizeof(VFloat) == 4 && m >= 16)
+    {
+      while (m >= 4)
+        {
+          v4sf dv = *(v4sf*)d;
+          v4sf sv = *(v4sf*)s;
+          *(v4sf*)d = dv + sv;
+          d += 4;
+          s += 4;
+          m -= 4;
+        }
+    }
+#endif
+  while (--m >= 0)
+    *(d++) += *(s++);
 }
 
 
@@ -224,11 +255,31 @@ FVector::add(const FVector &v2, double c2)
   int m = max(r->size, v2.size());
   if (m > r->size)
     r->resize(m);
+  VFloat c = c2;
   VFloat *d = r->data;
   const VFloat *s = (const VFloat*) v2;
-  for (int i=0; i<m; i++)
-    d[i] += s[i] * c2;
+#ifdef __SSE2__
+  typedef float v4sf __attribute__ ((vector_size (16)));
+  if (sizeof(VFloat) == 4 && m >= 16)
+    {
+      VFloat cc[4];
+      cc[0] = cc[1] = cc[2] = cc[3] = c;
+      v4sf cv = *(v4sf*)cc;
+      while (m >= 4)
+        {
+          v4sf dv = *(v4sf*)d;
+          v4sf sv = *(v4sf*)s;
+          *(v4sf*)d = dv + sv * cv;
+          d += 4;
+          s += 4;
+          m -= 4;
+        }
+    }
+#endif
+  while (--m >= 0)
+    (*d++) += (*s++) * c;
 }
+
 
 
 void 
@@ -257,11 +308,32 @@ FVector::add(const FVector &v2, double c2, const FVector &q2)
   m = min(m, q2.size());
   if (m > r->size)
     r->resize(m);
+  VFloat c = c2;
   VFloat *d = r->data;
   const VFloat *s = (const VFloat*) v2;
   const VFloat *q = (const VFloat*) q2;
-  for (int i=0; i<m; i++)
-    d[i] += s[i] * q[i] * c2;
+#ifdef __SSE2__
+  typedef float v4sf __attribute__ ((vector_size (16)));
+  if (sizeof(VFloat) == 4 && m >= 16)
+    {
+      VFloat cc[4];
+      cc[0] = cc[1] = cc[2] = cc[3] = c;
+      v4sf cv = *(v4sf*)cc;
+      while (m >= 4)
+        {
+          v4sf dv = *(v4sf*)d;
+          v4sf sv = *(v4sf*)s;
+          v4sf qv = *(v4sf*)q;
+          *(v4sf*)d = dv + sv * cv * qv;
+          d += 4;
+          s += 4;
+          q += 4;
+          m -= 4;
+        }
+    }
+#endif
+  while (--m >= 0)
+    (*d++) += (*s++) * (*q++) * c;
 }
 
 
@@ -290,13 +362,31 @@ FVector::scale(double c1)
   w.detach();
   Rep *r = rep();
   VFloat *d = r->data;
-  for (int i=0; i<r->size; i++)
-    d[i] *= c1;
+  VFloat c = c1;
+  int m = r->size;
+#ifdef __SSE2__
+  typedef float v4sf __attribute__ ((vector_size (16)));
+  if (sizeof(VFloat) == 4 && m >= 16)
+    {
+      VFloat cc[4];
+      cc[0] = cc[1] = cc[2] = cc[3] = c;
+      v4sf cv = *(v4sf*)cc;
+      while (m >= 4)
+        {
+          v4sf dv = *(v4sf*)d;
+          *(v4sf*)d = dv * cv;
+          d += 4;
+          m -= 4;
+        }
+    }
+#endif
+  while (--m >= 0)
+    (*d++) *= c;
 }
 
 
 void 
-FVector::combine(double c1, const FVector &v2, double c2)
+FVector::combine(double c1d, const FVector &v2, double c2d)
 {
   w.detach();
   Rep *r = rep();
@@ -305,6 +395,28 @@ FVector::combine(double c1, const FVector &v2, double c2)
     r->resize(m);
   VFloat *d = r->data;
   const VFloat *s = (const VFloat*) v2;
+  VFloat c1 = c1d;
+  VFloat c2 = c2d;
+#ifdef __SSE2__
+  typedef float v4sf __attribute__ ((vector_size (16)));
+  if (sizeof(VFloat) == 4 && m >= 16)
+    {
+      VFloat cc[4];
+      cc[0] = cc[1] = cc[2] = cc[3] = c1;
+      v4sf c1v = *(v4sf*)cc;
+      cc[0] = cc[1] = cc[2] = cc[3] = c2;
+      v4sf c2v = *(v4sf*)cc;
+      while (m >= 4)
+        {
+          v4sf sv = *(v4sf*)s;
+          v4sf dv = *(v4sf*)d;
+          *(v4sf*)d = dv * c1v + sv * c2v;
+          d += 4;
+          s += 4;
+          m -= 4;
+        }
+    }
+#endif
   for (int i=0; i<m; i++)
     d[i] = d[i] * c1 + s[i] * c2;
 }
@@ -754,9 +866,28 @@ dot(const FVector &v1, const FVector &v2)
   int m = min(v1.size(), v2.size());
   const VFloat *f1 = v1;
   const VFloat *f2 = v2;
-  double sum = 0.0;
+  VFloat sum = 0.0;
+#ifdef __SSE2_
+  typedef float v4sf __attribute__ ((vector_size (16)));
+  if (sizeof(VFloat) == 4 && m >= 16)
+    {
+      VFloat sums[4] = {0,0,0,0};
+      v4sf acc = *(v4sf*)sums;
+      while (m >= 4)
+        {
+          v4sf q1 = *(v4sf*)f1;
+          v4sf q2 = *(v4sf*)f2;
+          acc = acc + q1 * q2;
+          m -= 4;
+          f1 += 4;
+          f2 += 4;
+        }
+      *(v4sf*)sums = acc;
+      sum = sums[0] + sums[1] + sums[2] + sums[3];
+    }
+#endif
   while (--m >= 0)
-    sum += (double)(*f1++) * (double)(*f2++);
+    sum += (*f1++) * (*f2++);
   return sum;
 }
 
@@ -917,3 +1048,4 @@ combine(const FVector &v1, double a1, const FVector &v2, double a2)
    c++-font-lock-extra-types: ( "\\sw+_t" "[A-Z]\\sw*[a-z]\\sw*" "std::\\sw+")
    End:
    ------------------------------------------------------------- */
+
