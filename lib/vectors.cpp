@@ -867,7 +867,7 @@ dot(const FVector &v1, const FVector &v2)
   const VFloat *f1 = v1;
   const VFloat *f2 = v2;
   VFloat sum = 0.0;
-#ifdef __SSE2_
+#ifdef __SSE2__
   typedef float v4sf __attribute__ ((vector_size (16)));
   if (sizeof(VFloat) == 4 && m >= 16)
     {
