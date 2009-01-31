@@ -180,7 +180,7 @@ FVector::add(double c1)
   VFloat *d = r->data;
   VFloat c = c1;
   int m = r->size;
-#ifdef __SSE2__
+#if defined(__GNUC__) && defined(__SSE2__) && !defined(__APPLE__)
   typedef float v4sf __attribute__ ((vector_size (16)));
   if (sizeof(VFloat) == 4 && m >= 16)
     {
@@ -211,7 +211,7 @@ FVector::add(const FVector &v2)
     r->resize(m);
   VFloat *d = r->data;
   const VFloat *s = (const VFloat*) v2;
-#ifdef __SSE2__
+#if defined(__GNUC__) && defined(__SSE2__) && !defined(__APPLE__)
   typedef float v4sf __attribute__ ((vector_size (16)));
   if (sizeof(VFloat) == 4 && m >= 16)
     {
@@ -258,7 +258,7 @@ FVector::add(const FVector &v2, double c2)
   VFloat c = c2;
   VFloat *d = r->data;
   const VFloat *s = (const VFloat*) v2;
-#ifdef __SSE2__
+#if defined(__GNUC__) && defined(__SSE2__) && !defined(__APPLE__)
   typedef float v4sf __attribute__ ((vector_size (16)));
   if (sizeof(VFloat) == 4 && m >= 16)
     {
@@ -312,7 +312,7 @@ FVector::add(const FVector &v2, double c2, const FVector &q2)
   VFloat *d = r->data;
   const VFloat *s = (const VFloat*) v2;
   const VFloat *q = (const VFloat*) q2;
-#ifdef __SSE2__
+#if defined(__GNUC__) && defined(__SSE2__) && !defined(__APPLE__)
   typedef float v4sf __attribute__ ((vector_size (16)));
   if (sizeof(VFloat) == 4 && m >= 16)
     {
@@ -364,7 +364,7 @@ FVector::scale(double c1)
   VFloat *d = r->data;
   VFloat c = c1;
   int m = r->size;
-#ifdef __SSE2__
+#if defined(__GNUC__) && defined(__SSE2__) && !defined(__APPLE__)
   typedef float v4sf __attribute__ ((vector_size (16)));
   if (sizeof(VFloat) == 4 && m >= 16)
     {
@@ -397,7 +397,7 @@ FVector::combine(double c1d, const FVector &v2, double c2d)
   const VFloat *s = (const VFloat*) v2;
   VFloat c1 = c1d;
   VFloat c2 = c2d;
-#ifdef __SSE2__
+#if defined(__GNUC__) && defined(__SSE2__) && !defined(__APPLE__)
   typedef float v4sf __attribute__ ((vector_size (16)));
   if (sizeof(VFloat) == 4 && m >= 16)
     {
@@ -867,7 +867,7 @@ dot(const FVector &v1, const FVector &v2)
   const VFloat *f1 = v1;
   const VFloat *f2 = v2;
   VFloat sum = 0.0;
-#ifdef __SSE2__
+#if defined(__GNUC__) && defined(__SSE2__) && !defined(__APPLE__)
   typedef float v4sf __attribute__ ((vector_size (16)));
   if (sizeof(VFloat) == 4 && m >= 16)
     {
