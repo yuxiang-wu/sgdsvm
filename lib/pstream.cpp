@@ -20,7 +20,8 @@
 
 
 #include "pstream.h"
-#include <stdio.h>
+#include <cstdio>
+#include <cstring>
 
 
 pstreambuf* 
