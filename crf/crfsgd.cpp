@@ -1488,7 +1488,7 @@ CrfSgd::tryEtaBySampling(const dataset_t &data, const ivec_t &sample,
   FVector savedW = w;
   double savedWNorm = wnorm;
   double savedT = t;
-  skip = max(1/(4*eta*lambda), 1.0/dict.forwardBackwardSparsity());
+  skip = min(1/(4*eta*lambda), 1.0/dict.forwardBackwardSparsity());
   count = 0;
   for (unsigned int i=0; i<sample.size(); i++)
     trainOnce(data[sample[i]], eta);
@@ -1556,7 +1556,7 @@ CrfSgd::trainOnce(const Sentence &sentence, double eta)
   // weight decay
   if (++count >= skip)
     {
-      w.scale(1.0 - count / t);
+      w.scale(1.0 - count * eta * lambda);
       count = 0;
     }
   // t
@@ -1579,7 +1579,7 @@ CrfSgd::train(const dataset_t &data, int epochs, Timer *tm)
   for (int j=0; j<epochs; j++)
     {
       count = 0;
-      skip = max(t/4.0, 1.0/dict.forwardBackwardSparsity());
+      skip = min(t/4.0, 1.0/dict.forwardBackwardSparsity());
       epoch += 1;
       // shuffle examples
       random_shuffle(shuffle.begin(), shuffle.end());
