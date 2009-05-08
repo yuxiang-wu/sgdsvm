@@ -1829,7 +1829,7 @@ main(int argc, char **argv)
       // training
       Timer tm;
       tm.start();
-      crf.adjustEta(train, 1000, 0.01);
+      crf.adjustEta(train, 1000, 0.1);
       tm.stop();
       if (verbose)
         cout << "Initial eta=" << crf.getEta()  << " t0=" << crf.getT()
