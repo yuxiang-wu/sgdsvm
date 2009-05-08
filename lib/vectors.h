@@ -87,7 +87,6 @@ public:
   void combine(double c1, const FVector &v2, double c2);
   void combine(double c1, const SVector &v2, double c2);
 
-
   friend std::ostream& operator<<(std::ostream &f, const FVector &v);
   friend std::istream& operator>>(std::istream &f, FVector &v);
   bool save(std::ostream &f) const;
