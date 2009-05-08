@@ -26,6 +26,7 @@
 #include <iostream>
 #include <string>
 #include <map>
+#include <vector>
 #include <algorithm>
 #include <cassert>
 #include <cstdlib>
@@ -34,15 +35,17 @@
 
 using namespace std;
 
-#ifdef __GNUC__
+#if defined(_GXX_EXPERIMENTAL_CXX0X__)
+# include <unordered_map>
+# define hash_map unordered_map
+#elsif defined(__GNUC__)
 # include <ext/hash_map>
 using __gnu_cxx::hash_map;
 namespace __gnu_cxx {
   template<>
   struct hash<string> {
     hash<char*> h;
-    inline size_t operator()(const string &s) const { return h(s.c_str());
-    };
+    inline size_t operator()(const string &s) const { return h(s.c_str()); };
   };
 };
 #else
