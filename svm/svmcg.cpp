@@ -39,16 +39,20 @@ typedef vector<SVector> xvec_t;
 typedef vector<double> yvec_t;
 
 
+// Select loss
+#define LOSS LOGLOSS
+
+// Magic to find loss name
+#define _NAME(x) #x
+#define _NAME2(x) _NAME(x)
+const char *lossname = _NAME2(LOSS);
+
 // Available losses
 #define HINGELOSS 1
 #define SMOOTHHINGELOSS 2
 #define SQUAREDHINGELOSS 3
 #define LOGLOSS 10
 #define LOGLOSSMARGIN 11
-
-// Select loss
-#define LOSS LOGLOSS
-
 
 // Add bias at index zero during load.
 #define REGULARIZEDBIAS 1
@@ -478,6 +482,11 @@ int
 main(int argc, const char **argv)
 {
   parse(argc, argv);
+  cout << "Loss=" << lossname 
+       << " Bias=" << REGULARIZEDBIAS
+       << " RegBias=" << REGULARIZEDBIAS 
+       << " Lambda=" << lambda
+       << endl;
 
   // load training set
   load(trainfile.c_str(), xtrain, ytrain);

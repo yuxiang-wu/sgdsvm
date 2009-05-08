@@ -33,6 +33,14 @@
 #include <cassert>
 #include <cstdlib>
 #include <cmath>
+#include <cfloat>
+
+// set this value to 1 if you are not using sparse data
+#define DENSE_DATA 0
+
+#if DENSE_DATA == 1
+#define SVector FVector
+#endif
 
 using namespace std;
 
@@ -40,9 +48,8 @@ using namespace std;
 typedef vector<SVector> xvec_t;
 typedef vector<double> yvec_t;
 
-
 // Select loss
-#define LOSS LOGLOSS
+#define LOSS SQUAREDHINGELOSS
 
 // Magic to find loss name
 #define _NAME(x) #x
@@ -55,13 +62,6 @@ const char *lossname = _NAME2(LOSS);
 #define SQUAREDHINGELOSS 3
 #define LOGLOSS 10
 #define LOGLOSSMARGIN 11
-
-// Zero when no bias
-// One when bias term
-#define BIAS 1
-
-// One when bias is regularized
-#define REGULARIZEBIAS 1
 
 
 inline 
@@ -129,131 +129,161 @@ double dloss(double z)
 
 // -- stochastic gradient
 
-class SvmSgd
+class olbfgs
 {
 public:
-  SvmSgd(int dim, double lambda);
+  olbfgs(int dim, double lambda);
   
   void calibrate(int imin, int imax, 
-               const xvec_t &x, const yvec_t &y);
-  
+		 const xvec_t &xp, const yvec_t &yp);
+
   void train(int imin, int imax, 
              const xvec_t &x, const yvec_t &y,
-             const char *prefix = "");
+             const char *prefix);
+
   void test(int imin, int imax, 
             const xvec_t &x, const yvec_t &y, 
-            const char *prefix = "");
+            const char *prefix);
 private:
   double  t;
   double  lambda;
   FVector w;
   double  bias;
-  double  bscale;
   int skip;
   int count;
+  double t0;
+
+  double m;
+  vector<FVector> ss;
+  vector<FVector> ys;
+  double sum_i;
+  int i_1;
 };
 
 
 
-SvmSgd::SvmSgd(int dim, double l)
-  : lambda(l), w(dim), bias(0),
-    bscale(1), skip(1000)
+olbfgs::olbfgs(int dim, double l)
+  : t(0), lambda(l), w(dim), skip(1000), sum_i(0), i_1(0)
 {
-  // Shift t in order to have a 
-  // reasonable initial learning rate.
-  // This assumes |x| \approx 1.
   double maxw = 1.0 / sqrt(lambda);
   double typw = sqrt(maxw);
   double eta0 = typw / max(1.0,dloss(-typw));
-  t = 1 / (eta0 * lambda);
+  t0 = 1 / (eta0 * lambda);
+  m = 1.;
 }
 
 
 void 
-SvmSgd::calibrate(int imin, int imax, 
-                const xvec_t &xp, const yvec_t &yp)
+olbfgs::calibrate(int imin, int imax, 
+		    const xvec_t &xp, const yvec_t &yp)
 {
-  cout << "Estimating sparsity and bscale." << endl;
+  cout << "Estimating sparsity" << endl;
   int j;
 
   // compute average gradient size
   double n = 0;
-  double m = 0;
   double r = 0;
-  FVector c(w.size());
-  for (j=imin; j<=imax && m<=1000; j++,n++)
+
+#if DENSE_DATA==1
+  for (j=imin; j<=imax; j++,n++)
+    {
+      const FVector &x = xp.at(j);
+      n += 1;
+      r += x.size();
+    }
+#else
+  for (j=imin; j<=imax; j++,n++)
     {
       const SVector &x = xp.at(j);
       n += 1;
       r += x.npairs();
-      const SVector::Pair *p = x;
-      while (p->i >= 0 && p->i < c.size())
-        {
-          double z = c.get(p->i) + fabs(p->v);
-          c.set(p->i, z);
-          m = max(m, z);
-          p += 1;
-        }
     }
-
-  // bias update scaling
-  bscale = m/n;
+#endif
 
   // compute weight decay skip
   skip = (int) ((8 * n * w.size()) / r);
   cout << " using " << n << " examples." << endl;
-  cout << " skip: " << skip 
-       << " bscale: " << setprecision(6) << bscale << endl;
+  cout << " skip: " << skip << endl;
 }
 
 
 void 
-SvmSgd::train(int imin, int imax, 
-              const xvec_t &xp, const yvec_t &yp,
-              const char *prefix)
+olbfgs::train(int imin, int imax, 
+		const xvec_t &xp, const yvec_t &yp,
+		const char *prefix)
 {
   cout << prefix << "Training on [" << imin << ", " << imax << "]." << endl;
   assert(imin <= imax);
-  count = skip;
+  count = 0;
   for (int i=imin; i<=imax; i++)
     {
       const SVector &x = xp.at(i);
       double y = yp.at(i);
-      double wx = dot(w,x);
-      double z = y * (wx + bias);
-      double eta = 1.0 / (lambda * t);
-#if LOSS < LOGLOSS
-      if (z < 1)
-#endif
-        {
-          double etd = eta * dloss(z);
-          w.add(x, etd * y);
-#if BIAS
-#if REGULARIZEBIAS
-          bias *= 1 - eta * lambda * bscale;
-#endif
-          bias += etd * y * bscale;
-#endif
-        }
-      if (--count <= 0)
-        {
-          double r = 1 - eta * lambda * skip;
-          if (r < 0.8)
-            r = pow(1 - eta * lambda, skip);
-          w.scale(r);
-          count = skip;
-        }
-      t += 1;
+      double z = y * dot(w, x);
+      double old_loss = dloss(z);	  
+      FVector pt = combine(w,-lambda,x,old_loss*y); // 3 (1)
+
+      vector<double> alphas;
+      alphas.resize((int)min(m,t));
+      for (int ii=0; ii<min(m,t); ii++) // 3 (2)
+	{
+	  int idx = i_1-ii;
+	  if(idx<0)
+	    idx+=(int)min(t,m);
+	  double alpha = dot(ss[idx],pt) / dot(ss[idx],ys[idx]);
+	  alphas[idx] = alpha;
+	  pt.add(ys[idx],-alpha);	  
+	}
+
+      if(t>0) // 3 (3)
+	pt.scale(sum_i/min(m,t));
+      else
+	pt.scale(0.0001);
+
+      for (int ii=0; ii<min(m,t); ii++) // 3 (4)
+	{
+	  int idx = i_1+ii+1;
+	  if(idx>=(int)min(t,m))
+	    idx-=(int)min(t,m);
+	  double beta = dot(ys[idx],pt) / dot(ys[idx],ss[idx]);
+	  pt.add(ss[idx],(alphas[idx]-beta));
+	}
+
+
+      pt.scale(0.1*(t0/lambda)/(t+t0)); // pt -> st (c)
+      w.add(pt);//(d)	  
+
+      double z2 = y * dot(w,x);
+      double diffloss = dloss(z2) - old_loss;      
+      FVector yt = combine(pt,(lambda+t0),x, -y*diffloss); // (e)
+      
+      if(t<m)
+	{
+	  ys.push_back(yt);
+	  ss.push_back(pt);
+	  i_1 = (int)t;
+	  sum_i += dot(pt,yt)/dot(yt,yt);
+	}
+      else
+	{
+	  int idx = i_1+1;
+	  if(idx>=m)
+	    idx-=(int)m;
+	  sum_i += dot(pt,yt)/dot(yt,yt) - dot(ss[idx],ys[idx])/dot(ys[idx],ys[idx]);
+	  ys[idx]=yt;
+	  ss[idx]=pt;
+	  i_1=idx;
+	}
+      t += 1;//(i)
     }
   cout << prefix << setprecision(6) 
-       << "Norm: " << dot(w,w) << ", Bias: " << bias << endl;
+       << "Norm2: " << dot(w,w) << ", Bias: " << 0 << endl;
 }
 
-
-void 
-SvmSgd::test(int imin, int imax, 
-             const xvec_t &xp, const yvec_t &yp, 
-             const char *prefix)
+void
+olbfgs::test(int imin, int imax, 
+	       const xvec_t &xp, const yvec_t &yp, 
+	       const char *prefix)
 
 {
   cout << prefix << "Testing on [" << imin << ", " << imax << "]." << endl;
@@ -276,16 +306,15 @@ SvmSgd::test(int imin, int imax,
   int n = imax - imin + 1;
   double loss = cost / n;
   cost = loss + 0.5 * lambda * dot(w,w);
+
   cout << prefix << setprecision(4)
        << "Misclassification: " << (double)nerr * 100.0 / n << "%." << endl;
   cout << prefix << setprecision(12) 
        << "Cost: " << cost << "." << endl;
   cout << prefix << setprecision(12) 
        << "Loss: " << loss << "." << endl;
+  
 }
-
-
-
 
 // --- options
 
@@ -319,7 +348,7 @@ parse(int argc, const char **argv)
             trainfile = arg;
           else if (testfile.empty())
             testfile = arg;
-          else
+	  else
             usage();
         }
       else
@@ -422,42 +451,86 @@ load(const char *fname, xvec_t &xp, yvec_t &yp)
 }
 
 
+void
+rearrange(xvec_t& xp, int dim)
+{
+  double n = xp.size();
+  FVector sum(dim);
+  FVector var(dim);
 
+  for(int ex=0; ex<n; ex++) //compute means
+    sum.add(xp.at(ex));
+  sum.scale(1/n);
+
+  for(int ex=0; ex<n; ex++) //compute standard deviations
+    for(int feat=1; feat<dim; feat++)
+      {
+	double old_var= var.get(feat);
+	double val = (xp.at(ex).get(feat)-sum.get(feat))*(xp.at(ex).get(feat)-sum.get(feat));
+	var.set(feat, old_var+val);
+      }
+  var.scale(1/n);
+
+  for(int ex=0; ex<n; ex++) //normalize
+    xp.at(ex).add(sum,-1);
+
+  for(int ex=0; ex<n; ex++) //center
+    for(int feat=1; feat<dim; feat++)
+      {
+	double old_x = xp.at(ex).get(feat);
+	xp.at(ex).set(feat, old_x/sqrt(var.get(feat)));
+      }
+
+  for(int ex=0; ex<n; ex++) //|x|=1
+    {
+      double norm = sqrt(dot(xp.at(ex),xp.at(ex)));
+      xp.at(ex).scale(1/norm);
+    }
+}
 
 int 
 main(int argc, const char **argv)
 {
   parse(argc, argv);
   cout << "Loss=" << lossname 
-       << " Bias=" << BIAS 
-       << " RegBias=" << REGULARIZEBIAS
+       << " Bias=" << 0 
+       << " RegBias=" << 0
        << " Lambda=" << lambda
        << endl;
 
   // load training set
   load(trainfile.c_str(), xtrain, ytrain);
+#if DENSE_DATA==1
+  rearrange(xtrain, dim);
+#endif
   cout << "Number of features " << dim << "." << endl;
   int imin = 0;
   int imax = xtrain.size() - 1;
   if (trainsize > 0 && imax >= trainsize)
     imax = imin + trainsize -1;
+
   // prepare svm
-  SvmSgd svm(dim, lambda);
+  olbfgs svm(dim, lambda);
   Timer timer;
 
   // load testing set
   if (! testfile.empty())
-    load(testfile.c_str(), xtest, ytest);
+    {
+      load(testfile.c_str(), xtest, ytest);
+#if DENSE_DATA==1
+    rearrange(xtest, dim);
+#endif
+    }
   int tmin = 0;
   int tmax = xtest.size() - 1;
-
+  
   svm.calibrate(imin, imax, xtrain, ytrain);
   for(int i=0; i<epochs; i++)
     {
       
       cout << "--------- Epoch " << i+1 << "." << endl;
       timer.start();
-      svm.train(imin, imax, xtrain, ytrain);
+      svm.train(imin, imax, xtrain, ytrain, "train: ");
       timer.stop();
       cout << "Total training time " << setprecision(6) 
            << timer.elapsed() << " secs." << endl;
