@@ -1309,11 +1309,13 @@ class CrfSgd
   double lambda;
   double wnorm;
   double t;
+  double count;
+  double skip;
   int epoch;
-
+  
   void load(istream &f);
   void save(ostream &f) const;
-  
+  void trainOnce(const Sentence &sentence, double eta);
   double findObjBySampling(const dataset_t &data, const ivec_t &sample);
   double tryEtaBySampling(const dataset_t &data, const ivec_t &sample, 
                           double eta);
@@ -1347,7 +1349,7 @@ public:
 
 
 CrfSgd::CrfSgd()
-  : lambda(0), wnorm(0), t(0), epoch(0)
+  : lambda(0), wnorm(0), t(0), count(0), skip(0), epoch(0)
 {
 }
 
@@ -1485,25 +1487,16 @@ CrfSgd::tryEtaBySampling(const dataset_t &data, const ivec_t &sample,
 {
   FVector savedW = w;
   double savedWNorm = wnorm;
-  int i, n = sample.size();
-  double skip = max(1/(4*eta*lambda), 1.0/dict.forwardBackwardSparsity());
-  int count = 0;
-  for (i=0; i<n; i++)
-    {
-      int j = sample[i];
-      TScorer scorer(data[j], dict, w, eta);
-      scorer.gradCorrect(+1);
-      scorer.gradForward(-1);
-      if (++count >= skip)
-        {
-          w.scale(1.0 - skip*eta*lambda);
-          count = 0;
-        }
-    }
+  double savedT = t;
+  skip = max(1/(4*eta*lambda), 1.0/dict.forwardBackwardSparsity());
+  count = 0;
+  for (unsigned int i=0; i<sample.size(); i++)
+    trainOnce(data[sample[i]], eta);
   wnorm = dot(w,w);
   double obj = findObjBySampling(data, sample);
   w = savedW;
   wnorm = savedWNorm;
+  t = savedT;
   return obj;
 }
 
@@ -1581,6 +1574,23 @@ CrfSgd::calibrate(const dataset_t &data, int samples,
 }
 
 
+void
+CrfSgd::trainOnce(const Sentence &sentence, double eta)
+{
+  TScorer scorer(sentence, dict, w, eta);
+  scorer.gradCorrect(+1);
+  scorer.gradForward(-1);
+  // weight decay
+  if (++count >= skip)
+    {
+      w.scale(1.0 - count / t);
+      count = 0;
+    }
+  // t
+  t += 1;
+}
+
+
 void 
 CrfSgd::train(const dataset_t &data, int epochs, Timer *tm)
 {
@@ -1595,9 +1605,8 @@ CrfSgd::train(const dataset_t &data, int epochs, Timer *tm)
     shuffle.push_back(i);
   for (int j=0; j<epochs; j++)
     {
-      int n = data.size();
-      double count = 0;
-      double skip = max(t/4.0, 1.0/dict.forwardBackwardSparsity());
+      count = 0;
+      skip = max(t/4.0, 1.0/dict.forwardBackwardSparsity());
       epoch += 1;
       // shuffle examples
       random_shuffle(shuffle.begin(), shuffle.end());
@@ -1606,22 +1615,8 @@ CrfSgd::train(const dataset_t &data, int epochs, Timer *tm)
       if (verbose)
         cout.flush();
       // perform epoch
-      for (int i=0; i<n; i++)
-        {
-          double eta = 1/(lambda*t);
-          // train
-          TScorer scorer(data[shuffle[i]], dict, w, eta);
-          scorer.gradCorrect(+1);
-          scorer.gradForward(-1);
-          // weight decay
-          if (++count >= skip)
-            {
-              w.scale(1.0 - count / t);
-              count = 0;
-            }
-          // iteration done
-          t += 1;
-        }
+      for (unsigned int i=0; i<data.size(); i++)
+        trainOnce(data[shuffle[i]], 1/(t*lambda));
       // epoch done
       wnorm = dot(w,w);
       cout << "  wnorm: " << wnorm;
