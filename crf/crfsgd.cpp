@@ -1328,6 +1328,7 @@ public:
   const Dictionary& getDict() const { return dict; }
   double getLambda() const { return lambda; }
   double getEta() const { return 1/(t*lambda); }
+  double getT() const { return t; }
   FVector getW() const { return w; }
   
 
@@ -1336,8 +1337,7 @@ public:
                   double c = 4,
                   int cutoff = 3);
   
-  void calibrate(const dataset_t &data, int sample=500, 
-                 double seta=1, Timer *tm=0);
+  double adjustEta(const dataset_t &data, int sample=5000, double eta=1);
 
   void train(const dataset_t &data, int epochs=1, Timer *tm=0);
 
@@ -1501,13 +1501,10 @@ CrfSgd::tryEtaBySampling(const dataset_t &data, const ivec_t &sample,
 }
 
 
-void 
-CrfSgd::calibrate(const dataset_t &data, int samples, 
-                  double seta, Timer *tm)
+double
+CrfSgd::adjustEta(const dataset_t &data, int samples, double eta)
 {
   ivec_t sample;
-  if (verbose)
-    cout << "[Calibrating] --  " << samples << " samples" << endl;
   assert(samples > 0);
   assert(dict.nOutputs() > 0);
   // choose sample
@@ -1520,57 +1517,33 @@ CrfSgd::calibrate(const dataset_t &data, int samples,
       sample.push_back(i);
   // initial obj
   double sobj = findObjBySampling(data, sample);
-  cout << "  initial objective: " << sobj << endl;
   // empirically find eta that works best
-  double besteta = 1;
-  double bestobj = sobj;
-  double eta = seta;
-  int totest = 10;
-  double factor = 2;
-  bool phase2 = false;
-  while (totest > 0 || !phase2)
+  double obja = sobj;
+  double objb = sobj;
+  double objc = tryEtaBySampling(data, sample, eta/2);
+  if (objc < sobj)
     {
-      double obj = tryEtaBySampling(data, sample, eta);
-      bool okay = (obj < sobj);
-      if (verbose)
+      obja = tryEtaBySampling(data, sample, eta*2);
+      objb = tryEtaBySampling(data, sample, eta);
+      while (obja < objb)
         {
-          cout << "  trying eta=" << eta << "  obj=" << obj;
-          if (okay)
-            cout << " (possible)" << endl;
-          else
-            cout << " (too large)" << endl;
+          eta = eta * 2;
+          objc = objb;
+          objb = obja;
+          obja = tryEtaBySampling(data, sample, eta*2);
         }
-      if (okay)
-        {
-          totest -= 1;
-          if (obj < bestobj) {
-            bestobj = obj;
-            besteta = eta;
-          }
-        }
-      if (! phase2)
-        {
-          if (okay)
-            eta = eta * factor;
-          else {
-            phase2 = true;
-            eta = seta;
-          }
-        }
-      if (phase2)
-        eta = eta / factor;
     }
-  // take it on the safe side (implicit regularization)
-  besteta /= factor;
-  // determine t
-  t = 1 / (besteta * lambda);
-  if (verbose)
-    cout << "  taking eta=" << besteta << "  t0=" << t;
-  // finalize
-  if  (tm && verbose)
-    cout << "  total time: " << tm->elapsed() << " seconds";
-  if (verbose)
-    cout << endl;
+  while (objc < objb || objb >= sobj)
+    {
+      eta = eta / 2;
+      obja = objb;
+      objb = objc;
+      objc = tryEtaBySampling(data, sample, eta/2);
+    }
+
+  // set t
+  t = 1.0 / (eta * lambda);
+  return eta;
 }
 
 
@@ -1597,7 +1570,7 @@ CrfSgd::train(const dataset_t &data, int epochs, Timer *tm)
   if (t <= 0)
     {
       cerr << "ERROR (train): "
-           << "Must call calibrate() before train()." << endl;
+           << "Must call adjustEta() before train()." << endl;
       exit(10);
     }
   ivec_t shuffle;
@@ -1856,8 +1829,11 @@ main(int argc, char **argv)
       // training
       Timer tm;
       tm.start();
-      crf.calibrate(train, 1000, 0.1, &tm);
+      crf.adjustEta(train, 1000, 0.01);
       tm.stop();
+      if (verbose)
+        cout << "Initial eta=" << crf.getEta()  << " t0=" << crf.getT()
+             << "  total time: " << tm.elapsed() << " seconds" << endl;
       while (crf.getEpoch() < epochs)
         {
           tm.start();
