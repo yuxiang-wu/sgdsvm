@@ -1486,7 +1486,7 @@ CrfSgd::tryEtaBySampling(const dataset_t &data, const ivec_t &sample,
   FVector savedW = w;
   double savedWNorm = wnorm;
   int i, n = sample.size();
-  double skip = max(n/4.0, 1.0/dict.forwardBackwardSparsity());
+  double skip = max(1/(4*eta*lambda), 1.0/dict.forwardBackwardSparsity());
   int count = 0;
   for (i=0; i<n; i++)
     {
@@ -1496,7 +1496,7 @@ CrfSgd::tryEtaBySampling(const dataset_t &data, const ivec_t &sample,
       scorer.gradForward(-1);
       if (++count >= skip)
         {
-          w.scale(1.0 - count / t);
+          w.scale(1.0 - skip*eta*lambda);
           count = 0;
         }
     }
@@ -1597,7 +1597,7 @@ CrfSgd::train(const dataset_t &data, int epochs, Timer *tm)
     {
       int n = data.size();
       double count = 0;
-      double skip = max(n/4.0, 1.0/dict.forwardBackwardSparsity());
+      double skip = max(t/4.0, 1.0/dict.forwardBackwardSparsity());
       epoch += 1;
       // shuffle examples
       random_shuffle(shuffle.begin(), shuffle.end());
