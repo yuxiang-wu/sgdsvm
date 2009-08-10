@@ -23,9 +23,9 @@ OPTS=-g -O2
 CXXFLAGS= ${OPTS} -Wall -I$L
 LIBS = -lz -lm
 
-PROGRAMS = crfsgd
+PROGRAMS = crfsgd crfsgd2 crfasgd
 
-OBJS = crfsgd.o vectors.o matrices.o gzstream.o pstream.o timer.o
+OBJS = vectors.o matrices.o gzstream.o pstream.o timer.o
 
 all: ${PROGRAMS}
 
@@ -33,12 +33,26 @@ clean:
 	-rm ${PROGRAMS} 2>/dev/null
 	-rm *.o 2>/dev/null
 
-crfsgd: ${OBJS}
+crfsgd: crfsgd.o ${OBJS}
 	-rm $@ 2>/dev/null
-	${CXX} ${CXXFLAGS} -o $@ ${OBJS} ${LIBS}
+	${CXX} ${CXXFLAGS} -o $@ crfsgd.o ${OBJS} ${LIBS}
+
+crfsgd2: crfsgd2.o ${OBJS}
+	-rm $@ 2>/dev/null
+	${CXX} ${CXXFLAGS} -o $@ crfsgd2.o ${OBJS} ${LIBS}
+
+crfasgd: crfasgd.o ${OBJS}
+	-rm $@ 2>/dev/null
+	${CXX} ${CXXFLAGS} -o $@ crfasgd.o ${OBJS} ${LIBS}
 
 crfsgd.o: crfsgd.cpp $L/vectors.h  $L/gzstream.h $L/timer.h
 	${CXX} ${CXXFLAGS} -c -o $@ crfsgd.cpp
+
+crfsgd2.o: crfsgd2.cpp $L/vectors.h  $L/gzstream.h $L/timer.h
+	${CXX} ${CXXFLAGS} -c -o $@ crfsgd2.cpp
+
+crfasgd.o: crfasgd.cpp $L/vectors.h  $L/gzstream.h $L/timer.h
+	${CXX} ${CXXFLAGS} -c -o $@ crfasgd.cpp
 
 vectors.o: $L/vectors.cpp $L/vectors.h  $L/wrapper.h
 	${CXX} ${CXXFLAGS} -c -o $@ $L/vectors.cpp
