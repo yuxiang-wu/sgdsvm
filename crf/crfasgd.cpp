@@ -389,9 +389,6 @@ public:
   int nTemplates() const { return templates.size(); }
   int nParams() const { return index; }
 
-  double forwardBackwardSparsity() const;
-  double viterbiSparsity() const;
-  
   int output(string s) const { 
     dict_t::const_iterator it = outputs.find(s);
     return (it != outputs.end()) ? it->second : -1;
@@ -413,28 +410,6 @@ public:
   friend ostream& operator<< ( ostream &f, const Dictionary &d );
 };
 
-
-
-double 
-Dictionary::forwardBackwardSparsity() const
-{
-  int nu = 0;
-  int nb = 0;
-  int nout = outputs.size();
-  for (int i=0; i<(int)templates.size(); i++)
-    if (templates.at(i).at(0) == 'B')
-      nb += 1;
-    else
-      nu += 1;
-  return (double)(nout*(nu+nb*nout))/nParams();
-}
-
-
-double 
-Dictionary::viterbiSparsity() const
-{
-  return (double)(2*templates.size())/nParams();
-}
 
 
 string
@@ -832,9 +807,139 @@ loadSentences(const char *fname, const Dictionary &dict, dataset_t &data)
 
 
 
+// ============================================================
+// Weights
+
+struct Weights
+{
+  int nOutputs;
+  FVector w;
+  FVector a;
+  VFloat  wScale;
+  FVector aFraction;
+  VFloat  aDivisor;
+  
+  Weights();
+  Weights(int nParams, int nOutputs);
+  void clear();
+  void resize(int nParams, int nOutputs);
+  void normalize();
+  void normalize() const;
+  void average(double gamma);
+
+  FVector real_w() const { normalize(); return w; }
+  FVector real_a() const { normalize(); return a; }
+};
+
+
+Weights::Weights()
+  : nOutputs(0), wScale(1.0), aDivisor(1.0)
+{
+}
+
+Weights::Weights(int nParams, int nOutputs)
+  : nOutputs(0), wScale(1.0), aDivisor(0.0)
+{
+  resize(nParams, nOutputs);
+}
+
+void 
+Weights::clear()
+{
+  resize(0,0);
+}
+
+void 
+Weights::resize(int nParams, int nOutputs)
+{
+  int b = (nOutputs > 0) ? nParams / nOutputs : 0;
+  assert(b * nOutputs == nParams);
+  this->nOutputs = nOutputs;
+  w.resize(nParams);
+  a.resize(nParams);
+  aFraction.resize(b);
+  aDivisor = 1.0;
+  wScale = 1.0;
+  for(int i=0; i<b; i++)
+    aFraction[i] = 0.0;
+}
+
+void 
+Weights::normalize() const
+{
+  const_cast<Weights*>(this)->normalize();
+}
+
+void 
+Weights::normalize()
+{
+  for (int b = 0; b < aFraction.size(); b++)
+    {
+      int lo = b * nOutputs;
+      int hi = lo + nOutputs;
+      float p = aFraction[b] / aDivisor;
+      float q = (1.0 - p) * wScale;
+      for(int i  = lo; i < hi; i++)
+        {
+          a[i] = a[i] * p + w[i] * q;
+          w[i] = w[i] * wScale;
+        }
+      aFraction[b] = 1.0;
+    }
+  aDivisor = 1.0;
+  wScale = 1.0;
+}
+
+void 
+Weights::average(double gamma)
+{
+  assert(gamma >= 0 && gamma <= 1);
+  if (gamma < 1)
+    {
+      aDivisor = aDivisor / (1 - gamma);
+      if (aDivisor > 1e20)
+        normalize();
+    }
+  else
+    {
+      aDivisor = 1.0;
+      for (int i=0; i<aFraction.size(); i++)
+        aFraction[i] = 0.0;
+    }
+}
+
+ostream&
+operator<<(ostream &f, const Weights &ww)
+{
+  ww.normalize();
+  f << ww.a;
+  return f;
+}
+
+istream&
+operator>>(istream &f, Weights &ww)
+{
+  FVector w; 
+  f >> w;
+  if (w.size() != ww.w.size())
+    {
+      cerr << "ERROR (reading weights):"
+           << "Invalid weight vector size: " << w.size() << endl;
+      exit(10);
+    }
+  for (int i=0; i<ww.w.size(); i++)
+    ww.w[i] = ww.a[i] = w[i];
+  for (int b=0; b<ww.aFraction.size(); b++)
+    ww.aFraction[b] = 0.0;
+  ww.wScale = 1.0;
+  ww.aDivisor = 1.0;
+  return f;
+}
+
+
 
 // ============================================================
-// Scorer
+// Scorer [using non averaged weights]
 
 
 class Scorer
@@ -842,14 +947,14 @@ class Scorer
 public:
   Sentence s;
   const Dictionary &d;
-  VFloat *w;
+  Weights &ww;
   bool scoresOk;
   vector<FVector> uScores;
   vector<FMatrix> bScores;
 
-  Scorer(const Sentence &s_, const Dictionary &d_, FVector &w_);
-  void computeScores();
+  Scorer(const Sentence &s_, const Dictionary &d_, Weights &ww_);
   virtual ~Scorer() {}
+  virtual void computeScores();
   virtual void uGradients(const VFloat *g, int pos, int fy, int ny) {}
   virtual void bGradients(const VFloat *g, int pos, int fy, int ny, int y) {}
   
@@ -863,17 +968,20 @@ public:
 };
 
 
-Scorer::Scorer(const Sentence &s_, const Dictionary &d_, FVector &w_)
-  : s(s_), d(d_), w(w_), scoresOk(false)
+Scorer::Scorer(const Sentence &s_, const Dictionary &d_, Weights &ww_)
+  : s(s_), d(d_), ww(ww_), scoresOk(false)
 {
-  assert(w_.size() == d.nParams());
+  assert(ww.w.size() == d.nParams());
 }
+
 
 void
 Scorer::computeScores()
 {
   if (! scoresOk)
     {
+      const VFloat *w = ww.w;
+      VFloat wscale = ww.wScale;
       int nout = d.nOutputs();
       int npos = s.size();
       int pos;
@@ -887,6 +995,8 @@ Scorer::computeScores()
           for (const SVector::Pair *p = x; p->i >= 0; p++)
             for (int j=0; j<nout; j++)
               u[j] += w[p->i + j] * p->v;
+          for (int j=0; j<nout; j++)
+            u[j] *= wscale;
         }
       // compute bScores
       bScores.resize(npos-1);
@@ -904,6 +1014,12 @@ Scorer::computeScores()
                   for (int j=0; j<nout; j++, k++)
                     bi[j] += w[p->i + k] * p->v;
                 }
+            }
+          for (int i=0; i<nout; i++) 
+            {
+              FVector &bi = b[i];
+              for (int j=0; j<nout; j++)
+                bi[j] *= wscale;
             }
         }
     }
@@ -1183,6 +1299,88 @@ Scorer::gradForward(double g)
 
 
 // ============================================================
+// AScorer [using averaged weights]
+
+
+class AScorer : public Scorer
+{
+public:
+  AScorer(const Sentence &s_, const Dictionary &d_, Weights &ww_);
+  virtual void computeScores();
+};
+
+
+AScorer::AScorer(const Sentence &s_, const Dictionary &d_, Weights &ww_)
+  : Scorer(s_, d_, ww_) 
+{
+}
+
+
+void
+AScorer::computeScores()
+{
+  if (! scoresOk)
+    {
+      const VFloat *w = ww.w;
+      VFloat *a = ww.a;
+      int nout = d.nOutputs();
+      int npos = s.size();
+      int pos;
+      // compute uScores
+      uScores.resize(npos);
+      for (pos=0; pos<npos; pos++)
+        {
+          FVector &u = uScores[pos];
+          u.resize(nout);
+          SVector x = s.u(pos);
+          for (const SVector::Pair *p = x; p->i >= 0; p++)
+            {
+              int k = p->i;
+              int b = k / nout;
+              VFloat qa = ww.aFraction[b] / ww.aDivisor;
+              VFloat qw = (1.0 - qa) * ww.wScale;
+              for(int j=0; j<nout; j++, k++)
+                {
+                  a[k] = qa * a[k] + qw * w[k];
+                  u[j] += a[k] * p->v;
+                }
+              ww.aFraction[b] = ww.aDivisor;
+            }
+        }
+      // compute bScores
+      bScores.resize(npos-1);
+      for (pos=0; pos<npos-1; pos++)
+        {
+          FMatrix &b = bScores[pos];
+          b.resize(nout,nout);
+          SVector x = s.b(pos);
+          for (const SVector::Pair *p = x; p->i >= 0; p++)
+            { 
+              int k = p->i;
+              for (int i=0; i<nout; i++)
+                {
+                  FVector &bi = b[i];
+                  int b = k / nout;
+                  VFloat qa = ww.aFraction[b] / ww.aDivisor;
+                  VFloat qw = (1.0 - qa) * ww.wScale;
+                  for (int j=0; j<nout; j++, k++)
+                    {
+                      a[k] = qa * a[k] + qw * w[k];
+                      bi[j] += a[k] * p->v;
+                    }
+                  ww.aFraction[b] = ww.aDivisor;
+                }
+            }
+        }
+    }
+  scoresOk = true;
+}
+
+
+
+
+
+// ============================================================
 // GScorer - compute gradients as SVectors
 
 
@@ -1191,7 +1389,7 @@ class GScorer : public Scorer
 private:
   SVector grad;
 public:
-  GScorer(const Sentence &s_, const Dictionary &d_, FVector &w_);
+  GScorer(const Sentence &s_, const Dictionary &d_, Weights &ww_);
   void clear() { grad.clear(); }
   SVector gradient() { return grad; }
   virtual void uGradients(const VFloat *g, int pos, int fy, int ny);
@@ -1199,8 +1397,8 @@ public:
 };
 
 
-GScorer::GScorer(const Sentence &s_,const Dictionary &d_, FVector &w_)
-  : Scorer(s_, d_, w_)
+GScorer::GScorer(const Sentence &s_,const Dictionary &d_, Weights &ww_)
+  : Scorer(s_, d_, ww_)
 {
 }
 
@@ -1250,17 +1448,88 @@ class TScorer : public Scorer
 private:
   double eta;
 public:
-  TScorer(const Sentence &s_, const Dictionary &d_, FVector &w_, double eta_);
+  TScorer(const Sentence &s_, const Dictionary &d_, Weights &ww_, double eta_);
+  virtual void computeScores();
   virtual void uGradients(const VFloat *g, int pos, int fy, int ny);
   virtual void bGradients(const VFloat *g, int pos, int fy, int ny, int y);
+  void average(double gamma) { ww.average(gamma); }
 };
 
 
-TScorer::TScorer(const Sentence &s_, const Dictionary &d_, FVector &w_, double eta_ )
-  : Scorer(s_,d_,w_), eta(eta_)
+TScorer::TScorer(const Sentence &s_, const Dictionary &d_, Weights &ww_, double eta_ )
+  : Scorer(s_,d_,ww_), eta(eta_)
 {
 }
 
+
+void
+TScorer::computeScores()
+{
+  if (! scoresOk)
+    {
+      const VFloat *w = ww.w;
+      VFloat *a = ww.a;
+      VFloat wscale = ww.wScale;
+      int nout = d.nOutputs();
+      int npos = s.size();
+      int pos;
+      // compute uScores
+      uScores.resize(npos);
+      for (pos=0; pos<npos; pos++)
+        {
+          FVector &u = uScores[pos];
+          u.resize(nout);
+          SVector x = s.u(pos);
+          for (const SVector::Pair *p = x; p->i >= 0; p++)
+            {
+              int k = p->i;
+              int b = k / nout;
+              VFloat qa =  ww.aFraction[b] / ww.aDivisor;
+              VFloat qw = (1.0 - qa) * wscale;
+              for(int j=0; j<nout; j++, k++)
+                {
+                  a[k] = qa * a[k] + qw * w[k];
+                  u[j] += w[k] * p->v;
+                }
+              ww.aFraction[b] = ww.aDivisor;
+            }
+          for (int j=0; j<nout; j++)
+            u[j] *= wscale;
+        }
+      // compute bScores
+      bScores.resize(npos-1);
+      for (pos=0; pos<npos-1; pos++)
+        {
+          FMatrix &b = bScores[pos];
+          b.resize(nout,nout);
+          SVector x = s.b(pos);
+          for (const SVector::Pair *p = x; p->i >= 0; p++)
+            { 
+              int k = p->i;
+              for (int i=0; i<nout; i++)
+                {
+                  FVector &bi = b[i];
+                  int b = k / nout;
+                  VFloat qa = ww.aFraction[b] / ww.aDivisor;
+                  VFloat qw = (1.0 - qa) * wscale;
+                  for (int j=0; j<nout; j++, k++)
+                    {
+                      a[k] = qa * a[k] + qw * w[k];
+                      bi[j] += w[k] * p->v;
+                    }
+                  ww.aFraction[b] = ww.aDivisor;
+                }
+            }
+          for (int i=0; i<nout; i++) 
+            {
+              FVector &bi = b[i];
+              for (int j=0; j<nout; j++)
+                bi[j] *= wscale;
+            }
+        }
+    }
+  scoresOk = true;
+}
 
 void 
 TScorer::uGradients(const VFloat *g, int pos, int fy, int ny)
@@ -1271,9 +1540,11 @@ TScorer::uGradients(const VFloat *g, int pos, int fy, int ny)
   assert(fy+ny>0 && fy+ny<=n);
   int off = fy;
   SVector x = s.u(pos);
+  VFloat *w = ww.w;
+  VFloat gain = eta / ww.wScale;
   for (const SVector::Pair *p = x; p->i>=0; p++)
     for (int j=0; j<ny; j++)
-      w[p->i + off + j] += g[j] * p->v * eta;
+      w[p->i + off + j] += g[j] * p->v * gain;
 }
 
 
@@ -1287,10 +1558,11 @@ TScorer::bGradients(const VFloat *g, int pos, int fy, int ny, int y)
   assert(fy+ny>0 && fy+ny<=n);
   int off = y * n + fy;
   SVector x = s.b(pos);
-  SVector a;
+  VFloat *w = ww.w;
+  VFloat gain = eta / ww.wScale;
   for (const SVector::Pair *p = x; p->i>=0; p++)
     for (int j=0; j<ny; j++)
-      w[p->i + off + j] += g[j] * p->v * eta;
+      w[p->i + off + j] += g[j] * p->v * gain;
 }
 
 
@@ -1305,20 +1577,18 @@ TScorer::bGradients(const VFloat *g, int pos, int fy, int ny, int y)
 class CrfSgd
 {
   Dictionary dict;
-  FVector w;
+  Weights ww;
   double lambda;
-  double wnorm;
+  double etop;
   double t;
-  double count;
-  double skip;
+  double t0;
   int epoch;
   
   void load(istream &f);
   void save(ostream &f) const;
-  void trainOnce(const Sentence &sentence, double eta);
+  void trainOnce(const Sentence &sentence, double eta, double gamma);
   double findObjBySampling(const dataset_t &data, const ivec_t &sample);
-  double tryEtaBySampling(const dataset_t &data, const ivec_t &sample, 
-                          double eta);
+  double tryEtaBySampling(const dataset_t &data, const ivec_t &sample, double eta);
   
 public:
   
@@ -1327,9 +1597,12 @@ public:
   int getEpoch() const { return epoch; }
   const Dictionary& getDict() const { return dict; }
   double getLambda() const { return lambda; }
-  double getEta() const { return 1/(t*lambda); }
+  double getEta() const { return etop * pow(t0 + t, -0.75); }
+  double getEtop() const { return etop; }
   double getT() const { return t; }
-  FVector getW() const { return w; }
+  double getT0() const { return t0; }
+  FVector getW() const { return ww.real_w(); }
+  FVector getA() const { return ww.real_a(); }
   
 
   void initialize(const char *templatefile, 
@@ -1337,6 +1610,7 @@ public:
                   double c = 4,
                   int cutoff = 3);
   
+  double adjustEta(double eta);
   double adjustEta(const dataset_t &data, int sample=5000, double eta=1);
 
   void train(const dataset_t &data, int epochs=1, Timer *tm=0);
@@ -1349,7 +1623,7 @@ public:
 
 
 CrfSgd::CrfSgd()
-  : lambda(0), wnorm(0), t(0), count(0), skip(0), epoch(0)
+  : lambda(0), etop(0), t(0), epoch(0)
 {
 }
 
@@ -1357,10 +1631,11 @@ void
 CrfSgd::load(istream &f)
 {
   f >> dict;
-  t = 0;
+  etop = 0;
+  t = t0 = 0;
   epoch = 0;
-  w.clear();
-  
+  ww.clear();
+  ww.resize(dict.nParams(), dict.nOutputs());
   while (f.good())
     {
       skipSpace(f);
@@ -1391,15 +1666,13 @@ CrfSgd::load(istream &f)
         }
       else if (c == 'W')
         {
-          w.clear();
-          f >> w;
-          if (! f.good() || w.size() != dict.nParams())
+          f >> ww;
+          if (! f.good() || ww.w.size() != dict.nParams())
             {
               cerr << "ERROR (reading model): "
-                   << "Invalid weight vector size: " << w.size() << endl;
+                   << "Invalid weight vector size: " << ww.w.size() << endl;
               exit(10);
             }
-          wnorm = dot(w,w);
         }
       else if (c == 'L')
         {
@@ -1438,7 +1711,7 @@ CrfSgd::save(ostream &f) const
   f << "L" << lambda << endl;
   f << "T" << t << endl;
   f << "E" << epoch << endl;
-  f << "W" << w << endl;
+  f << "W" << ww << endl;
 }
 
 
@@ -1460,11 +1733,12 @@ CrfSgd::initialize(const char *tfname, const char *dfname,
   lambda = 1 / (c * n);
   if (verbose)
     cout << "Using c=" << c << ", i.e. lambda=" << lambda << endl;
-  w.clear();
-  w.resize(dict.nParams());
-  wnorm = 0;
+  ww.clear();
+  ww.resize(dict.nParams(), dict.nOutputs());
 }
 
+
+#if 0
 
 double 
 CrfSgd::findObjBySampling(const dataset_t &data, const ivec_t &sample)
@@ -1474,10 +1748,10 @@ CrfSgd::findObjBySampling(const dataset_t &data, const ivec_t &sample)
   for (int i=0; i<n; i++)
     {
       int j = sample[i];
-      Scorer scorer(data[j], dict, w);
+      Scorer scorer(data[j], dict, ww);
       loss += scorer.scoreForward() - scorer.scoreCorrect();
     }
-  return loss + 0.5 * wnorm * lambda * n;
+  return loss + 0.5 * dot(ww.w,ww.w) * ww.wScale * ww.wScale * lambda * n;
 }
 
 
@@ -1485,17 +1759,12 @@ double
 CrfSgd::tryEtaBySampling(const dataset_t &data, const ivec_t &sample,
                          double eta)
 {
-  FVector savedW = w;
-  double savedWNorm = wnorm;
+  Weights savedW = ww;
   double savedT = t;
-  skip = min(1/(4*eta*lambda), 1.0/dict.forwardBackwardSparsity());
-  count = 0;
   for (unsigned int i=0; i<sample.size(); i++)
-    trainOnce(data[sample[i]], eta);
-  wnorm = dot(w,w);
+    trainOnce(data[sample[i]], eta, 0);
   double obj = findObjBySampling(data, sample);
-  w = savedW;
-  wnorm = savedWNorm;
+  ww = savedW;
   t = savedT;
   return obj;
 }
@@ -1546,20 +1815,27 @@ CrfSgd::adjustEta(const dataset_t &data, int samples, double eta)
   return eta;
 }
 
+#endif
+
+double 
+CrfSgd::adjustEta(double eta)
+{
+  t0 = 1.0 / (eta * lambda);
+  t0 = (t0 < 1) ? 1 : t0;
+  etop = pow(t0, -0.25) / lambda;
+  return eta;
+}
+
+
 
 void
-CrfSgd::trainOnce(const Sentence &sentence, double eta)
+CrfSgd::trainOnce(const Sentence &sentence, double eta, double gamma)
 {
-  TScorer scorer(sentence, dict, w, eta);
+  TScorer scorer(sentence, dict, ww, eta);
   scorer.gradCorrect(+1);
   scorer.gradForward(-1);
-  // weight decay
-  if (++count >= skip)
-    {
-      w.scale(1.0 - count * eta * lambda);
-      count = 0;
-    }
-  // t
+  ww.wScale = ww.wScale * (1 - eta * lambda);
+  scorer.average(gamma);
   t += 1;
 }
 
@@ -1567,7 +1843,7 @@ CrfSgd::trainOnce(const Sentence &sentence, double eta)
 void 
 CrfSgd::train(const dataset_t &data, int epochs, Timer *tm)
 {
-  if (t <= 0)
+  if (t0 <= 0 || etop <= 0)
     {
       cerr << "ERROR (train): "
            << "Must call adjustEta() before train()." << endl;
@@ -1578,21 +1854,21 @@ CrfSgd::train(const dataset_t &data, int epochs, Timer *tm)
     shuffle.push_back(i);
   for (int j=0; j<epochs; j++)
     {
-      count = 0;
-      skip = min(t/4.0, 1.0/dict.forwardBackwardSparsity());
       epoch += 1;
       // shuffle examples
       random_shuffle(shuffle.begin(), shuffle.end());
       if (verbose)
-        cout << "[Epoch " << epoch << "] --" << " skip=" << skip;
+        cout << "[Epoch " << epoch << "] --";
       if (verbose)
         cout.flush();
       // perform epoch
       for (unsigned int i=0; i<data.size(); i++)
-        trainOnce(data[shuffle[i]], 1/(t*lambda));
+        trainOnce(data[shuffle[i]], getEta(), 1/(1 + t));
       // epoch done
-      wnorm = dot(w,w);
-      cout << "  wnorm: " << wnorm;
+      ww.normalize();
+      double wnorm = dot(ww.w,ww.w);
+      double anorm = dot(ww.a,ww.a);
+      cout << "  wnorm: " << wnorm << "  anorm: " << anorm;
       if (tm && verbose)
         cout << "  total time: " << tm->elapsed() << " seconds";
       if (verbose)
@@ -1621,7 +1897,7 @@ CrfSgd::test(const dataset_t &data, const char *conlleval, Timer *tm)
    int total = 0;
    for (unsigned int i=0; i<data.size(); i++)
      {
-       Scorer scorer(data[i], dict, w);
+       AScorer scorer(data[i], dict, ww);
        obj += scorer.scoreForward() - scorer.scoreCorrect();
        if (conlleval && conlleval[0] && verbose)
          errors += scorer.test(f);
@@ -1633,12 +1909,12 @@ CrfSgd::test(const dataset_t &data, const char *conlleval, Timer *tm)
      }
    if (verbose)
      cout << "  loss: " << obj;
-   obj += 0.5 * wnorm * lambda * data.size();
+   double anorm = dot(ww.a,ww.a);
+   obj += 0.5 * anorm * lambda * data.size();
    double misrate = (double)(errors*100)/(total ? total : 1);
    if (verbose)
-     cout << "  objective*n: " << obj << endl
-          << "  misclassifications: " << errors 
-          << "(" << misrate << "%)";
+     cout << "  obj*n: " << obj  
+          << "  miss: " << errors << " (" << misrate << "%)";
    if (tm && verbose)
      cout << "  total time: " << tm->elapsed() << " seconds";
    if (verbose)
@@ -1828,11 +2104,17 @@ main(int argc, char **argv)
         loadSentences(testFile.c_str(), crf.getDict(), test);
       // training
       Timer tm;
+#if 0
       tm.start();
       crf.adjustEta(train, 1000, 0.1);
       tm.stop();
+#else
+      crf.adjustEta(0.2);
+#endif
       if (verbose)
-        cout << "Initial eta=" << crf.getEta()  << " t0=" << crf.getT()
+        cout << "Initial eta=" << crf.getEta() 
+             << " t0=" << crf.getT0() 
+             << " etop=" << crf.getEtop()
              << "  total time: " << tm.elapsed() << " seconds" << endl;
       while (crf.getEpoch() < epochs)
         {
