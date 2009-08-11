@@ -897,8 +897,6 @@ Weights::average(double gamma)
   if (gamma < 1)
     {
       aDivisor = aDivisor / (1 - gamma);
-      if (aDivisor > 1e20)
-        normalize();
     }
   else
     {
@@ -1627,6 +1625,7 @@ CrfSgd::CrfSgd()
 {
 }
 
+
 void
 CrfSgd::load(istream &f)
 {
@@ -1836,6 +1835,8 @@ CrfSgd::trainOnce(const Sentence &sentence, double eta, double gamma)
   scorer.gradForward(-1);
   ww.wScale = ww.wScale * (1 - eta * lambda);
   scorer.average(gamma);
+  if (ww.wScale < 1e-25 || ww.aDivisor > 1e15)
+    ww.normalize();
   t += 1;
 }
 
@@ -1912,6 +1913,7 @@ CrfSgd::test(const dataset_t &data, const char *conlleval, Timer *tm)
    double anorm = dot(ww.a,ww.a);
    obj += 0.5 * anorm * lambda * data.size();
    double misrate = (double)(errors*100)/(total ? total : 1);
+   misrate = ((int)(misrate*100))/100.0;
    if (verbose)
      cout << "  obj*n: " << obj  
           << "  miss: " << errors << " (" << misrate << "%)";
@@ -2109,7 +2111,7 @@ main(int argc, char **argv)
       crf.adjustEta(train, 1000, 0.1);
       tm.stop();
 #else
-      crf.adjustEta(0.2);
+      crf.adjustEta(1);
 #endif
       if (verbose)
         cout << "Initial eta=" << crf.getEta() 
