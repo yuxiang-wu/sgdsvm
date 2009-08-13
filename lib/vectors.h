@@ -32,7 +32,10 @@
 class FVector;
 class SVector;
 
-typedef float VFloat;
+#ifndef VFLOAT
+# define VFLOAT float
+#endif
+typedef VFLOAT VFloat;
 
 class FVector
 {

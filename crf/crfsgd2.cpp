@@ -1574,14 +1574,14 @@ CrfSgd::train(const dataset_t &data, int epochs, Timer *tm)
       exit(10);
     }
   ivec_t shuffle;
-  for (unsigned int i=0; i<data.size(); i++)
-    shuffle.push_back(i);
+  shuffle.resize(data.size());
   for (int j=0; j<epochs; j++)
     {
       count = 0;
       skip = min(t/4.0, 1.0/dict.forwardBackwardSparsity());
       epoch += 1;
       // shuffle examples
+      for (unsigned int i=0; i<data.size(); i++) shuffle[i] = i;
       random_shuffle(shuffle.begin(), shuffle.end());
       if (verbose)
         cout << "[Epoch " << epoch << "] --" << " skip=" << skip;

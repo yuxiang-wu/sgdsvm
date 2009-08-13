@@ -23,7 +23,7 @@ OPTS=-g -O2
 CXXFLAGS= ${OPTS} -Wall -I$L
 LIBS = -lz -lm
 
-PROGRAMS = crfsgd crfsgd2 crfasgd
+PROGRAMS = crfsgd crfsgd2 crfasgd crfsgdqn
 
 OBJS = vectors.o matrices.o gzstream.o pstream.o timer.o
 
@@ -44,6 +44,10 @@ crfsgd2: crfsgd2.o ${OBJS}
 crfasgd: crfasgd.o ${OBJS}
 	-rm $@ 2>/dev/null
 	${CXX} ${CXXFLAGS} -o $@ crfasgd.o ${OBJS} ${LIBS}
+
+crfsgdqn: crfsgdqn.o ${OBJS}
+	-rm $@ 2>/dev/null
+	${CXX} ${CXXFLAGS} -o $@ crfsgdqn.o ${OBJS} ${LIBS}
 
 crfsgd.o: crfsgd.cpp $L/vectors.h  $L/gzstream.h $L/timer.h
 	${CXX} ${CXXFLAGS} -c -o $@ crfsgd.cpp
