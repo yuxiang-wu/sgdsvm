@@ -75,6 +75,7 @@ public:
   operator VFloat* () { w.detach(); return rep()->data; }
 
   void clear();
+  void zero();
   void resize(int n);
   void touch(int i);
   FVector slice(int fi, int ti) const;
@@ -142,6 +143,7 @@ public:
   int npairs() const { return rep()->npairs; }
   operator const Pair* () const { return rep()->pairs; }
 
+  void zero();
   void clear();
   void trim();
   SVector slice(int fi, int ti) const;

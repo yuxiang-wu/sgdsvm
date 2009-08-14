@@ -26,6 +26,7 @@
 #include <iomanip>
 #include <iostream>
 #include <cassert>
+#include <cstring>
 #include <cctype>
 
 namespace
@@ -126,6 +127,15 @@ FVector::set(int i, double v)
 
 
 void 
+FVector::zero()
+{
+  w.detach();
+  Rep *r = rep();
+  memset(r->data, 0, r->size*sizeof(VFloat));
+}
+
+
+void 
 FVector::clear()
 {
   w.detach();
@@ -192,7 +202,7 @@ FVector::add(double c1)
           v4sf dv = *(v4sf*)d;
           *(v4sf*)d = dv + cv;
           d += 4;
-          m += 4;
+          m -= 4;
         }
     }
 #endif
@@ -696,6 +706,13 @@ SVector::set(int i, double v)
         }
     }
   return v;
+}
+
+
+void 
+SVector::zero()
+{
+  clear();
 }
 
 
