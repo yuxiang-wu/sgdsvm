@@ -389,9 +389,6 @@ public:
   int nTemplates() const { return templates.size(); }
   int nParams() const { return index; }
 
-  double forwardBackwardSparsity() const;
-  double viterbiSparsity() const;
-  
   int output(string s) const { 
     dict_t::const_iterator it = outputs.find(s);
     return (it != outputs.end()) ? it->second : -1;
@@ -412,29 +409,6 @@ public:
   friend istream& operator>> ( istream &f, Dictionary &d );
   friend ostream& operator<< ( ostream &f, const Dictionary &d );
 };
-
-
-
-double 
-Dictionary::forwardBackwardSparsity() const
-{
-  int nu = 0;
-  int nb = 0;
-  int nout = outputs.size();
-  for (int i=0; i<(int)templates.size(); i++)
-    if (templates.at(i).at(0) == 'B')
-      nb += 1;
-    else
-      nu += 1;
-  return (double)(nout*(nu+nb*nout))/nParams();
-}
-
-
-double 
-Dictionary::viterbiSparsity() const
-{
-  return (double)(2*templates.size())/nParams();
-}
 
 
 string
@@ -831,6 +805,25 @@ loadSentences(const char *fname, const Dictionary &dict, dataset_t &data)
 }
 
 
+double 
+trainSparsity(const dataset_t &data, const Dictionary &dict)
+{
+  int nu = 0;
+  int nb = 0;
+  int nout = dict.nOutputs();
+  for (int i=0; i<dict.nTemplates(); i++)
+    if (dict.templateString(i).at(0) == 'B')
+      nb += 1;
+    else
+      nu += 1;
+  double sl = 0;
+  for (int i=0; i<(int)data.size(); i++)
+    sl += data.at(i).size();
+  sl = sl / data.size();
+  return (double)((sl*nu + (sl-1)*nb*nout)*nout)/dict.nParams();
+}
+
+
 
 
 // ============================================================
@@ -840,8 +833,6 @@ struct Weights
 {
   FVector w;
   FVector b;
-  FVector d;
-  VFloat dn;
   
   void clear() { resize(0); }
   void resize(int n);
@@ -855,7 +846,6 @@ Weights::resize(int n)
 {
   w.resize(n);
   b.clear();
-  d.clear();
 }
 
 void
@@ -863,11 +853,8 @@ Weights::setup_b(double lambda)
 {
   int size = w.size();
   b.resize(size);
-  d.resize(size);
   b.zero();
   b.add(1.0/lambda);
-  d.zero();
-  dn = 0;
 }
 
 
@@ -1359,11 +1346,10 @@ class CrfSgd
   double lambda;
   double t0;
   double t;
-  double countr;
-  double skipr;
-  double countb;
-  double skipb;
   int epoch;
+  double sparsity;
+  double count;
+  double skip;
   
   void load(istream &f);
   void save(ostream &f) const;
@@ -1379,8 +1365,9 @@ public:
   int getEpoch() const { return epoch; }
   const Dictionary& getDict() const { return dict; }
   double getLambda() const { return lambda; }
-  double getEta() const { return 1/(lambda*t); }
+  double getEta() const { return 1/(t0+t); }
   double getT() const { return t; }
+  double getT0() const { return t0; }
   FVector getW() const { return ww.w; }
   
 
@@ -1404,10 +1391,8 @@ public:
 
 CrfSgd::CrfSgd()
   : lambda(0), 
-    t0(0), t(0), 
-    countr(0), skipr(0), 
-    countb(0), skipb(0), 
-    epoch(0)
+    t0(0), t(0), epoch(0),
+    sparsity(.1), count(0), skip(0)
 {
 }
 
@@ -1511,10 +1496,10 @@ void
 CrfSgd::initialize(const char *tfname, const char *dfname, 
                    double c, int cutoff)
 {
-  t = 0;
-  epoch = 0;
   int n = dict.initFromData(tfname, dfname, cutoff);
-  lambda = 1 / (c * n);
+  t = 0;
+  t0 = c * n;
+  lambda = 1 / t0;
   if (verbose)
     cout << "Using c=" << c << ", i.e. lambda=" << lambda << endl;
   ww.clear();
@@ -1545,12 +1530,10 @@ CrfSgd::tryEtaBySampling(const dataset_t &data, const ivec_t &sample,
 {
   double savedT = t;
   Weights savedWW = ww;
-  skipr = min(1/(4*eta*lambda), 0.5/dict.forwardBackwardSparsity());
-  skipb = 100;
-  countr = 0;
-  countb = 0;
+  skip = sample.size() + 1;
+  count = 0;
   for (unsigned int i=0; i<sample.size(); i++)
-    trainOnce(data[sample[i]], eta*lambda);
+    trainOnce(data[sample[i]], eta);
   double obj = findObjBySampling(data, sample);
   ww = savedWW;
   t = savedT;
@@ -1566,12 +1549,10 @@ CrfSgd::adjustEta(const dataset_t &data, int samples, double eta)
   assert(dict.nOutputs() > 0);
   // choose sample
   int datasize = data.size();
-  if (samples < datasize)
-    for (int i=0; i<samples; i++)
-      sample.push_back((int)((double)rand()*datasize/RAND_MAX));
-  else
-    for (int i=0; i<datasize; i++)
-      sample.push_back(i);
+  if (samples > datasize)
+    samples = datasize;
+  for (int i=0; i<samples; i++)
+    sample.push_back((int)((double)rand()*datasize/RAND_MAX));
   // initial obj
   double sobj = findObjBySampling(data, sample);
   // empirically find eta that works best
@@ -1597,17 +1578,16 @@ CrfSgd::adjustEta(const dataset_t &data, int samples, double eta)
       objb = objc;
       objc = tryEtaBySampling(data, sample, eta/2);
     }
-
+  
   // set t
-  t0 = t = 1.0 / (eta * lambda);
-  return eta;
+  return adjustEta(eta);
 }
 
 
 double
 CrfSgd::adjustEta(double eta)
 {
-  t0 = t = 1.0 / (eta * lambda);
+  t0 = 1.0 / eta - t;
   return eta;
 }
 
@@ -1615,9 +1595,8 @@ CrfSgd::adjustEta(double eta)
 void
 CrfSgd::trainOnce(const Sentence &sentence, double eta)
 {
-  if (++countb >= skipb)
+  if (++count >= skip)
     {
-      countb = 0;
       // compute gradient of loss before
       SVector gb; 
       {
@@ -1626,8 +1605,10 @@ CrfSgd::trainOnce(const Sentence &sentence, double eta)
         scorer.gradForward(-1);
         gb = scorer.gradient();
       }
-      // apply update
+      // apply update (with reweighted regularization)
       ww.w.add(gb, eta, ww.b);
+      ww.w.add(ww.w, - count * eta * lambda, ww.b);
+      count = 0;
       // compute gradient of loss after update
       SVector ga; 
       {
@@ -1637,53 +1618,46 @@ CrfSgd::trainOnce(const Sentence &sentence, double eta)
         ga = scorer.gradient();
       }
       // update b
+      double w1 = 2;
+      double w2 = 20 + t/skip;
+      double wt = w1+w2;
+      w1 = w1 / wt;
+      w2 = w2 / wt;
+      int n = ww.b.size();
+      VFloat *b = ww.b;
       const VFloat oneOverLambda = 1/lambda;
       const SVector::Pair *pb = gb;
       const SVector::Pair *pa = ga;
-      VFloat *b = ww.b;
-      VFloat *d = ww.d;
-      for(; pb->i >= 0; pb++)
+      for (int i=0; i<n; i++)
         {
-          int i = pb->i;
-          VFloat bi = b[i];
-          VFloat gbi = pb->v;
-          VFloat dwi = gbi * eta * bi;
-          VFloat gai = 0;
-          while (pa->i < i && pa->i >= 0) 
-            pa++;
-          if (pa->i == i)
-            gai = pa->v;
-          if (dwi != 0)
+          VFloat s = oneOverLambda;
+          if (i == pb->i)
             {
-              VFloat s = dwi / (lambda * dwi - (gai - gbi));
-              s = min<VFloat>(s, oneOverLambda);
-              s = max<VFloat>(s, 0.0001 * oneOverLambda);
-              d[i] += oneOverLambda - s;
+              VFloat bi = b[i];
+              VFloat gbi = pb->v;
+              VFloat dwi = gbi * eta * bi;
+              VFloat gai = 0;
+              while (pa->i < i && pa->i >= 0) 
+                pa++;
+              if (pa->i == i)
+                gai = pa->v;
+              if (dwi != 0)
+                {
+                  s = dwi / (lambda * dwi - (gai - gbi));
+                  s = min<VFloat>(s, oneOverLambda);
+                  s = max<VFloat>(s, 0.00001 * oneOverLambda);
+                }
+              pb++;
             }
+          b[i] = b[i] * w2 + s * w1;
         }
-      ww.dn += 1;
     }
   else
     {
-      // normal path
+      // normal path (unregularized)
       TScorer scorer(sentence, dict, ww, eta);
       scorer.gradCorrect(+1);
       scorer.gradForward(-1);
-    }
-  // regularizaton
-  if (++countr >= skipr)
-    {
-      // regularizaton
-      ww.w.add(ww.w, - countr * eta * lambda, ww.b);
-      // update b
-      double w1 = ww.dn;
-      double w2 = 20 + (t-t0)/skipb/2;
-      ww.b.combine(w2/(w1+w2), ww.d, -1/(w1+w2));
-      ww.b.add(w1/(w1+w2)*1/lambda);
-      ww.d.zero();
-      ww.dn = 0;
-      // end
-      countr = 0;
     }
   // t
   t += 1;
@@ -1693,34 +1667,29 @@ CrfSgd::trainOnce(const Sentence &sentence, double eta)
 void 
 CrfSgd::train(const dataset_t &data, int epochs, Timer *tm)
 {
-  if (t <= 0)
+  if (t0 + t <= 0)
     {
       cerr << "ERROR (train): "
            << "Must call adjustEta() before train()." << endl;
       exit(10);
     }
+  sparsity = trainSparsity(data, dict);
   ivec_t shuffle;
   shuffle.resize(data.size());
   for (int j=0; j<epochs; j++)
     {
-      skipr = min((t+t0)/8.0, 0.5/dict.forwardBackwardSparsity());
-      skipb = 100;
-      countr = 0;
-      countb = 0;
+      skip = min(1/(8*lambda*getEta()), 3.0/sparsity);
+      count = 0;
       epoch += 1;
-      ww.d.zero();
-      ww.dn = 0;
-      // shuffle examples
       for (unsigned int i=0; i<data.size(); i++) shuffle[i] = i;
       random_shuffle(shuffle.begin(), shuffle.end());
       if (verbose)
-        cout << "[Epoch " << epoch << "] --" 
-             << " skipr=" << skipr << " skipb=" << skipb;
+        cout << "[Epoch " << epoch << "] --" << " skip=" << skip << " eta=" << getEta();
       if (verbose)
         cout.flush();
       // perform epoch
       for (unsigned int i=0; i<data.size(); i++)
-        trainOnce(data[shuffle[i]], 1.0/t);
+        trainOnce(data[shuffle[i]], getEta());
       // epoch done
       double wnorm = dot(ww.w,ww.w);
       cout << "  wnorm: " << wnorm;
@@ -1796,7 +1765,7 @@ const char *conlleval = "./conlleval -q";
 double c = 1;
 int cutoff = 3;
 int epochs = 50;
-int cepochs = 10;
+int cepochs = 5;
 bool tag = false;
 
 dataset_t train;
@@ -1815,7 +1784,7 @@ usage()
     << " -c <num> : capacity control parameter (1.0)" << endl
     << " -f <num> : threshold on the occurences of each feature (3)" << endl
     << " -r <num> : total number of epochs (50)" << endl
-    << " -h <num> : epochs between each testing phase (10)" << endl
+    << " -h <num> : epochs between each testing phase (5)" << endl
     << " -e <cmd> : performance evaluation command (conlleval -q)" << endl
     << " -q       : silent mode" << endl;
   exit(10);
@@ -1962,10 +1931,10 @@ main(int argc, char **argv)
       // training
       Timer tm;
       tm.start();
-      crf.adjustEta(train, 1000, 0.1);
+      crf.adjustEta(train, 1000, crf.getEta());
       tm.stop();
       if (verbose)
-        cout << "Initial eta=" << crf.getEta()  << " t0=" << crf.getT()
+        cout << "Initial eta=" << crf.getEta()  << " t0=" << crf.getT0()
              << "  total time: " << tm.elapsed() << " seconds" << endl;
       while (crf.getEpoch() < epochs)
         {
