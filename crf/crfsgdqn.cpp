@@ -1497,9 +1497,8 @@ CrfSgd::initialize(const char *tfname, const char *dfname,
                    double c, int cutoff)
 {
   int n = dict.initFromData(tfname, dfname, cutoff);
-  t = 0;
-  t0 = c * n;
-  lambda = 1 / t0;
+  lambda = 1 / (c * n);
+  t = t0 = 0;
   if (verbose)
     cout << "Using c=" << c << ", i.e. lambda=" << lambda << endl;
   ww.clear();
@@ -1579,8 +1578,8 @@ CrfSgd::adjustEta(const dataset_t &data, int samples, double eta)
       objc = tryEtaBySampling(data, sample, eta/2);
     }
   
-  // set t
-  return adjustEta(eta);
+  // set t0
+  return adjustEta(eta); 
 }
 
 
@@ -1931,7 +1930,7 @@ main(int argc, char **argv)
       // training
       Timer tm;
       tm.start();
-      crf.adjustEta(train, 1000, crf.getEta());
+      crf.adjustEta(train, 1000, 0.1);
       tm.stop();
       if (verbose)
         cout << "Initial eta=" << crf.getEta()  << " t0=" << crf.getT0()
