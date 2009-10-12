@@ -1,0 +1,306 @@
+
+Results with crfsgd2:
+---------------------
+
+leonb@pollux:~/sgd/crf$ ./crfsgd2 -e '' -c 1 -f 3 -h 5 model.gz template \
+  ../data/conll2000/train.txt.gz \
+  ../data/conll2000/test.txt.gz
+
+leonb@ml24:~/sgd/crf$  ./crfsgd2 -e '' -c 1 -f 3 model.gz template ../data/conll2000/train.txt.gz
+Reading template file template.
+  u-templates: 19  b-templates: 1
+Scanning ../data/conll2000/train.txt.gz to build dictionary.
+  sentences: 8936  outputs: 22
+  cutoff: 3  features: 76329  parameters: 1679700
+  duration: 6.7 seconds.
+Using c=1, i.e. lambda=0.000111907
+Reading and preprocessing ../data/conll2000/train.txt.gz.
+  processed: 8936 sentences.
+  duration: 6.8 seconds.
+Initial eta=0.2 t0=44680  total time: 5.66 seconds
+[Epoch 1] -- skip=1862.2  wnorm: 7577.97  total time: 13.74 seconds
+[Epoch 2] -- skip=1862.2  wnorm: 9856.8  total time: 21.72 seconds
+[Epoch 3] -- skip=1862.2  wnorm: 10906.4  total time: 29.77 seconds
+[Epoch 4] -- skip=1862.2  wnorm: 11369.3  total time: 37.88 seconds
+[Epoch 5] -- skip=1862.2  wnorm: 11554.3  total time: 46.02 seconds
+[Epoch 6] -- skip=1862.2  wnorm: 11630  total time: 54.19 seconds
+[Epoch 7] -- skip=1862.2  wnorm: 11633.2  total time: 62.37 seconds
+[Epoch 8] -- skip=1862.2  wnorm: 11624.8  total time: 70.55 seconds
+[Epoch 9] -- skip=1862.2  wnorm: 11578.4  total time: 78.75 seconds
+[Epoch 10] -- skip=1862.2  wnorm: 11542.5  total time: 86.96 seconds
+Training perf:  sentences: 8936  loss: 4082.95  obj*n: 9854.19
+  misses: 997(0.47%)
+[Epoch 11] -- skip=1862.2  wnorm: 11499.3  total time: 95.17 seconds
+[Epoch 12] -- skip=1862.2  wnorm: 11458.6  total time: 103.37 seconds
+[Epoch 13] -- skip=1862.2  wnorm: 11418.9  total time: 111.55 seconds
+[Epoch 14] -- skip=1862.2  wnorm: 11387.6  total time: 119.72 seconds
+[Epoch 15] -- skip=1862.2  wnorm: 11358.6  total time: 127.89 seconds
+[Epoch 16] -- skip=1862.2  wnorm: 11329.6  total time: 136.06 seconds
+[Epoch 17] -- skip=1862.2  wnorm: 11300  total time: 144.22 seconds
+[Epoch 18] -- skip=1862.2  wnorm: 11274.5  total time: 152.37 seconds
+[Epoch 19] -- skip=1862.2  wnorm: 11252.6  total time: 160.53 seconds
+[Epoch 20] -- skip=1862.2  wnorm: 11228.5  total time: 168.69 seconds
+Training perf:  sentences: 8936  loss: 3757.58  obj*n: 9371.83
+  misses: 626(0.29%)
+[Epoch 21] -- skip=1862.2  wnorm: 11210.5  total time: 176.92 seconds
+[Epoch 22] -- skip=1862.2  wnorm: 11188.8  total time: 185.14 seconds
+[Epoch 23] -- skip=1862.2  wnorm: 11169.8  total time: 193.36 seconds
+[Epoch 24] -- skip=1862.2  wnorm: 11151.3  total time: 201.6 seconds
+[Epoch 25] -- skip=1862.2  wnorm: 11133.8  total time: 209.82 seconds
+[Epoch 26] -- skip=1862.2  wnorm: 11119.1  total time: 218.06 seconds
+[Epoch 27] -- skip=1862.2  wnorm: 11105.2  total time: 226.28 seconds
+[Epoch 28] -- skip=1862.2  wnorm: 11090.2  total time: 234.51 seconds
+[Epoch 29] -- skip=1862.2  wnorm: 11078.4  total time: 242.74 seconds
+[Epoch 30] -- skip=1862.2  wnorm: 11067.1  total time: 250.97 seconds
+Training perf:  sentences: 8936  loss: 3766.84  obj*n: 9300.41
+  misses: 581(0.27%)
+[Epoch 31] -- skip=1862.2  wnorm: 11054.6  total time: 259.21 seconds
+[Epoch 32] -- skip=1862.2  wnorm: 11042.7  total time: 267.46 seconds
+[Epoch 33] -- skip=1862.2  wnorm: 11031.6  total time: 275.71 seconds
+[Epoch 34] -- skip=1862.2  wnorm: 11021.6  total time: 283.95 seconds
+[Epoch 35] -- skip=1862.2  wnorm: 11012.8  total time: 292.19 seconds
+[Epoch 36] -- skip=1862.2  wnorm: 11004.2  total time: 300.41 seconds
+[Epoch 37] -- skip=1862.2  wnorm: 10993.7  total time: 308.64 seconds
+[Epoch 38] -- skip=1862.2  wnorm: 10984.3  total time: 316.86 seconds
+[Epoch 39] -- skip=1862.2  wnorm: 10977.5  total time: 325.08 seconds
+[Epoch 40] -- skip=1862.2  wnorm: 10969.1  total time: 333.3 seconds
+Training perf:  sentences: 8936  loss: 3723.19  obj*n: 9207.72
+  misses: 483(0.22%)
+[Epoch 41] -- skip=1862.2  wnorm: 10961.8  total time: 341.53 seconds
+[Epoch 42] -- skip=1862.2  wnorm: 10955.3  total time: 349.77 seconds
+[Epoch 43] -- skip=1862.2  wnorm: 10947.9  total time: 358 seconds
+[Epoch 44] -- skip=1862.2  wnorm: 10941.1  total time: 366.21 seconds
+[Epoch 45] -- skip=1862.2  wnorm: 10934  total time: 374.41 seconds
+[Epoch 46] -- skip=1862.2  wnorm: 10927.3  total time: 382.61 seconds
+[Epoch 47] -- skip=1862.2  wnorm: 10922.8  total time: 390.82 seconds
+[Epoch 48] -- skip=1862.2  wnorm: 10916.7  total time: 399.02 seconds
+[Epoch 49] -- skip=1862.2  wnorm: 10910.4  total time: 407.2 seconds
+[Epoch 50] -- skip=1862.2  wnorm: 10905.6  total time: 415.39 seconds
+Training perf:  sentences: 8936  loss: 3718.18  obj*n: 9170.96
+  misses: 493(0.23%)
+Saving model file model.gz.
+Done!  415.39 seconds.
+
+
+
+Results with crfsgdqn:
+----------------------
+
+
+leonb@pollux:~/sgd/crf$ ./crfsgdqn -c 1 -f 3 model.gz template \
+     ../data/conll2000/train.txt.gz \
+     ../data/conll2000/test.txt.gz
+
+Reading template file template.
+  u-templates: 19  b-templates: 1
+Scanning ../data/conll2000/train.txt.gz to build dictionary.
+  sentences: 8936  outputs: 22
+  cutoff: 3  features: 76329  parameters: 1679700
+  duration: 7.64 seconds.
+Using c=1, i.e. lambda=0.000111907
+Reading and preprocessing ../data/conll2000/train.txt.gz.
+  processed: 8936 sentences.
+  duration: 7.89 seconds.
+Reading and preprocessing ../data/conll2000/test.txt.gz.
+  processed: 2012 sentences.
+  duration: 1.76 seconds.
+Initial eta=1.39884e-05 t0=71488  total time: 7.32 seconds
+[Epoch 1] -- skip=241.247 eta=1.39884e-05  wnorm: 3697.23  total time: 17.14 seconds
+[Epoch 2] -- skip=241.247 eta=1.24341e-05  wnorm: 5246.51  total time: 26.77 seconds
+[Epoch 3] -- skip=241.247 eta=1.11907e-05  wnorm: 6336.98  total time: 36.56 seconds
+[Epoch 4] -- skip=241.247 eta=1.01734e-05  wnorm: 7090.98  total time: 46.12 seconds
+[Epoch 5] -- skip=241.247 eta=9.32557e-06  wnorm: 7652.46  total time: 55.5 seconds
+Training perf:  sentences: 8936  loss: 6260.61  obj*n: 10086.8  misses: 1744(0.82%)
+accuracy:  99.18%; precision:  98.56%; recall:  98.50%; FB1:  98.53
+Testing perf:  sentences: 2012  loss: 4599.26  obj*n: 5460.76  misses: 1911(4.03%)
+accuracy:  95.97%; precision:  93.68%; recall:  93.61%; FB1:  93.65
+[Epoch 6] -- skip=241.247 eta=8.60822e-06  wnorm: 8071.79  total time: 65.04 seconds
+[Epoch 7] -- skip=241.247 eta=7.99335e-06  wnorm: 8387.73  total time: 74.31 seconds
+[Epoch 8] -- skip=241.247 eta=7.46046e-06  wnorm: 8630.38  total time: 83.88 seconds
+[Epoch 9] -- skip=241.247 eta=6.99418e-06  wnorm: 8821.09  total time: 93.35 seconds
+[Epoch 10] -- skip=241.247 eta=6.58276e-06  wnorm: 8971.75  total time: 102.99 seconds
+Training perf:  sentences: 8936  loss: 4927.9  obj*n: 9413.77  misses: 1059(0.5%)
+accuracy:  99.50%; precision:  99.13%; recall:  98.96%; FB1:  99.04
+Testing perf:  sentences: 2012  loss: 4532.75  obj*n: 5542.77  misses: 1934(4.08%)
+accuracy:  95.92%; precision:  93.67%; recall:  93.54%; FB1:  93.61
+[Epoch 11] -- skip=241.247 eta=6.21705e-06  wnorm: 9095.51  total time: 112.41 seconds
+[Epoch 12] -- skip=241.247 eta=5.88984e-06  wnorm: 9187.66  total time: 121.94 seconds
+[Epoch 13] -- skip=241.247 eta=5.59534e-06  wnorm: 9268.68  total time: 131.38 seconds
+[Epoch 14] -- skip=241.247 eta=5.3289e-06  wnorm: 9333.77  total time: 140.76 seconds
+[Epoch 15] -- skip=241.247 eta=5.08668e-06  wnorm: 9391.31  total time: 150.28 seconds
+Training perf:  sentences: 8936  loss: 4583.97  obj*n: 9279.63  misses: 839(0.39%)
+accuracy:  99.60%; precision:  99.27%; recall:  99.15%; FB1:  99.21
+Testing perf:  sentences: 2012  loss: 4518.36  obj*n: 5575.62  misses: 1908(4.02%)
+accuracy:  95.97%; precision:  93.79%; recall:  93.56%; FB1:  93.67
+[Epoch 16] -- skip=241.247 eta=4.86552e-06  wnorm: 9434.59  total time: 159.7 seconds
+[Epoch 17] -- skip=241.247 eta=4.66279e-06  wnorm: 9474.88  total time: 169.2 seconds
+[Epoch 18] -- skip=241.247 eta=4.47628e-06  wnorm: 9507.95  total time: 178.66 seconds
+[Epoch 19] -- skip=241.247 eta=4.30411e-06  wnorm: 9534.73  total time: 188.24 seconds
+[Epoch 20] -- skip=241.247 eta=4.1447e-06  wnorm: 9557.08  total time: 197.44 seconds
+Training perf:  sentences: 8936  loss: 4452.67  obj*n: 9231.21  misses: 724(0.34%)
+accuracy:  99.66%; precision:  99.37%; recall:  99.25%; FB1:  99.31
+Testing perf:  sentences: 2012  loss: 4502.94  obj*n: 5578.86  misses: 1897(4%)
+accuracy:  96.00%; precision:  93.81%; recall:  93.61%; FB1:  93.71
+[Epoch 21] -- skip=241.247 eta=3.99667e-06  wnorm: 9577.74  total time: 207.02 seconds
+[Epoch 22] -- skip=241.247 eta=3.85886e-06  wnorm: 9595.46  total time: 216.4 seconds
+[Epoch 23] -- skip=241.247 eta=3.73023e-06  wnorm: 9612.11  total time: 225.95 seconds
+[Epoch 24] -- skip=241.247 eta=3.6099e-06  wnorm: 9622.9  total time: 235.32 seconds
+[Epoch 25] -- skip=241.247 eta=3.49709e-06  wnorm: 9634.67  total time: 244.78 seconds
+Training perf:  sentences: 8936  loss: 4407.48  obj*n: 9224.82  misses: 670(0.31%)
+accuracy:  99.68%; precision:  99.43%; recall:  99.30%; FB1:  99.36
+Testing perf:  sentences: 2012  loss: 4505.65  obj*n: 5590.31  misses: 1907(4.02%)
+accuracy:  95.97%; precision:  93.80%; recall:  93.56%; FB1:  93.68
+[Epoch 26] -- skip=241.247 eta=3.39112e-06  wnorm: 9644.15  total time: 254.46 seconds
+[Epoch 27] -- skip=241.247 eta=3.29138e-06  wnorm: 9654.09  total time: 263.93 seconds
+[Epoch 28] -- skip=241.247 eta=3.19734e-06  wnorm: 9660.34  total time: 273.29 seconds
+[Epoch 29] -- skip=241.247 eta=3.10852e-06  wnorm: 9665.69  total time: 282.67 seconds
+[Epoch 30] -- skip=241.247 eta=3.02451e-06  wnorm: 9673.75  total time: 292.01 seconds
+Training perf:  sentences: 8936  loss: 4361.59  obj*n: 9198.46  misses: 709(0.33%)
+accuracy:  99.67%; precision:  99.39%; recall:  99.27%; FB1:  99.33
+Testing perf:  sentences: 2012  loss: 4513.68  obj*n: 5602.74  misses: 1894(3.99%)
+accuracy:  96.00%; precision:  93.78%; recall:  93.63%; FB1:  93.71
+[Epoch 31] -- skip=241.247 eta=2.94492e-06  wnorm: 9677.98  total time: 301.33 seconds
+[Epoch 32] -- skip=241.247 eta=2.86941e-06  wnorm: 9682.47  total time: 310.76 seconds
+[Epoch 33] -- skip=241.247 eta=2.79767e-06  wnorm: 9686.28  total time: 320.09 seconds
+[Epoch 34] -- skip=241.247 eta=2.72944e-06  wnorm: 9687.77  total time: 329.46 seconds
+[Epoch 35] -- skip=241.247 eta=2.66445e-06  wnorm: 9691.27  total time: 338.86 seconds
+Training perf:  sentences: 8936  loss: 4333.49  obj*n: 9179.13  misses: 651(0.3%)
+accuracy:  99.69%; precision:  99.43%; recall:  99.33%; FB1:  99.38
+Testing perf:  sentences: 2012  loss: 4493.79  obj*n: 5584.81  misses: 1891(3.99%)
+accuracy:  96.01%; precision:  93.85%; recall:  93.66%; FB1:  93.76
+[Epoch 36] -- skip=241.247 eta=2.60249e-06  wnorm: 9691.54  total time: 348.37 seconds
+[Epoch 37] -- skip=241.247 eta=2.54334e-06  wnorm: 9695.28  total time: 357.78 seconds
+[Epoch 38] -- skip=241.247 eta=2.48682e-06  wnorm: 9696.76  total time: 367.22 seconds
+[Epoch 39] -- skip=241.247 eta=2.43276e-06  wnorm: 9698.79  total time: 376.73 seconds
+[Epoch 40] -- skip=241.247 eta=2.381e-06  wnorm: 9700.24  total time: 386.36 seconds
+Training perf:  sentences: 8936  loss: 4328.88  obj*n: 9179  misses: 654(0.3%)
+accuracy:  99.69%; precision:  99.43%; recall:  99.32%; FB1:  99.38
+Testing perf:  sentences: 2012  loss: 4493.58  obj*n: 5585.62  misses: 1893(3.99%)
+accuracy:  96.00%; precision:  93.80%; recall:  93.65%; FB1:  93.73
+[Epoch 41] -- skip=241.247 eta=2.33139e-06  wnorm: 9701.03  total time: 395.8 seconds
+[Epoch 42] -- skip=241.247 eta=2.28381e-06  wnorm: 9700.24  total time: 405.08 seconds
+[Epoch 43] -- skip=241.247 eta=2.23814e-06  wnorm: 9702.11  total time: 414.43 seconds
+[Epoch 44] -- skip=241.247 eta=2.19425e-06  wnorm: 9702.74  total time: 423.81 seconds
+[Epoch 45] -- skip=241.247 eta=2.15206e-06  wnorm: 9703.44  total time: 433.26 seconds
+Training perf:  sentences: 8936  loss: 4322.14  obj*n: 9173.86  misses: 626(0.29%)
+accuracy:  99.70%; precision:  99.44%; recall:  99.35%; FB1:  99.40
+Testing perf:  sentences: 2012  loss: 4489.93  obj*n: 5582.33  misses: 1880(3.96%)
+accuracy:  96.03%; precision:  93.86%; recall:  93.67%; FB1:  93.76
+[Epoch 46] -- skip=241.247 eta=2.11145e-06  wnorm: 9702.23  total time: 442.75 seconds
+[Epoch 47] -- skip=241.247 eta=2.07235e-06  wnorm: 9702.16  total time: 452.12 seconds
+[Epoch 48] -- skip=241.247 eta=2.03467e-06  wnorm: 9702.93  total time: 461.57 seconds
+[Epoch 49] -- skip=241.247 eta=1.99834e-06  wnorm: 9702.91  total time: 470.9 seconds
+[Epoch 50] -- skip=241.247 eta=1.96328e-06  wnorm: 9702.99  total time: 480.26 seconds
+Training perf:  sentences: 8936  loss: 4310.54  obj*n: 9162.04  misses: 650(0.3%)
+accuracy:  99.69%; precision:  99.43%; recall:  99.31%; FB1:  99.37
+Testing perf:  sentences: 2012  loss: 4494.95  obj*n: 5587.3  misses: 1890(3.98%)
+accuracy:  96.01%; precision:  93.84%; recall:  93.64%; FB1:  93.74
+Saving model file model.gz.
+Done!  480.26 seconds.
+
+
+
+Results with crfasgd:
+---------------------
+
+
+leonb@pollux:~/sgd/crf$  ./crfasgd -e '' -c 1 -f 3 -h 5 model.gz template \
+  ../data/conll2000/train.txt.gz \
+  ../data/conll2000/test.txt.gz
+
+Reading template file template.
+  u-templates: 19  b-templates: 1
+Scanning ../data/conll2000/train.txt.gz to build dictionary.
+  sentences: 8936  outputs: 22
+  cutoff: 3  features: 76329  parameters: 1679700
+  duration: 8.91 seconds.
+Using c=1, i.e. lambda=0.000111907
+Reading and preprocessing ../data/conll2000/train.txt.gz.
+  processed: 8936 sentences.
+  duration: 10.22 seconds.
+Reading and preprocessing ../data/conll2000/test.txt.gz.
+  processed: 2012 sentences.
+  duration: 2.51 seconds.
+Initial eta=0.1 t0=89360 etop=516.841  total time: 0 seconds
+[Epoch 1] --  wnorm: 3499.3  anorm: 3471.26  total time: 13.85 seconds
+[Epoch 2] --  wnorm: 5108.33  anorm: 5085.21  total time: 28.04 seconds
+[Epoch 3] --  wnorm: 6256.45  anorm: 5790.58  total time: 42.23 seconds
+[Epoch 4] --  wnorm: 7099.84  anorm: 6244.35  total time: 56.27 seconds
+[Epoch 5] --  wnorm: 7730.67  anorm: 6624.78  total time: 70.29 seconds
+Training perf [w]: sentences: 8936  loss: 7004.41  obj*n: 10869.7  miss: 2556 (1.2%)
+Training perf [a]: sentences: 8936  loss: 6959.9  obj*n: 10272.3  miss: 2411 (1.13%)
+Testing perf: sentences: 2012  loss: 4473.83  obj*n: 5219.64  miss: 1869 (3.94%)
+[Epoch 6] --  wnorm: 8193.77  anorm: 6944.65  total time: 84.28 seconds
+[Epoch 7] --  wnorm: 8551.76  anorm: 7207.62  total time: 98.28 seconds
+[Epoch 8] --  wnorm: 8837.01  anorm: 7439.23  total time: 112.31 seconds
+[Epoch 9] --  wnorm: 9058.89  anorm: 7637.54  total time: 126.4 seconds
+[Epoch 10] --  wnorm: 9226.33  anorm: 7807.49  total time: 140.58 seconds
+Training perf [w]: sentences: 8936  loss: 5095.16  obj*n: 9708.33  miss: 1321 (0.62%)
+Training perf [a]: sentences: 8936  loss: 5652.02  obj*n: 9555.77  miss: 1647 (0.77%)
+Testing perf: sentences: 2012  loss: 4444.97  obj*n: 5323.92  miss: 1877 (3.96%)
+[Epoch 11] --  wnorm: 9354.98  anorm: 7956.31  total time: 154.63 seconds
+[Epoch 12] --  wnorm: 9468.13  anorm: 8090.43  total time: 168.68 seconds
+[Epoch 13] --  wnorm: 9552.7  anorm: 8210.35  total time: 182.75 seconds
+[Epoch 14] --  wnorm: 9620.03  anorm: 8318.01  total time: 196.85 seconds
+[Epoch 15] --  wnorm: 9680.03  anorm: 8408.24  total time: 211.16 seconds
+Training perf [w]: sentences: 8936  loss: 4564.14  obj*n: 9404.15  miss: 1027 (0.48%)
+Training perf [a]: sentences: 8936  loss: 5120.98  obj*n: 9325.1  miss: 1332 (0.62%)
+Testing perf: sentences: 2012  loss: 4441.75  obj*n: 5388.34  miss: 1866 (3.93%)
+[Epoch 16] --  wnorm: 9723.36  anorm: 8484.86  total time: 225.25 seconds
+[Epoch 17] --  wnorm: 9758.74  anorm: 8564.28  total time: 239.36 seconds
+[Epoch 18] --  wnorm: 9791.49  anorm: 8625.81  total time: 253.4 seconds
+[Epoch 19] --  wnorm: 9815.4  anorm: 8681.34  total time: 267.47 seconds
+[Epoch 20] --  wnorm: 9836.39  anorm: 8739.09  total time: 281.45 seconds
+Training perf [w]: sentences: 8936  loss: 4530.59  obj*n: 9448.78  miss: 829 (0.39%)
+Training perf [a]: sentences: 8936  loss: 4853.37  obj*n: 9222.92  miss: 1171 (0.55%)
+Testing perf: sentences: 2012  loss: 4437.82  obj*n: 5421.65  miss: 1875 (3.95%)
+[Epoch 21] --  wnorm: 9853.96  anorm: 8789.55  total time: 295.68 seconds
+[Epoch 22] --  wnorm: 9864.61  anorm: 8838.59  total time: 309.87 seconds
+[Epoch 23] --  wnorm: 9876.23  anorm: 8874.35  total time: 323.92 seconds
+[Epoch 24] --  wnorm: 9883.93  anorm: 8919.72  total time: 338.04 seconds
+[Epoch 25] --  wnorm: 9890.4  anorm: 8960.27  total time: 352.2 seconds
+Training perf [w]: sentences: 8936  loss: 4393.73  obj*n: 9338.93  miss: 790 (0.37%)
+Training perf [a]: sentences: 8936  loss: 4688.21  obj*n: 9168.35  miss: 1064 (0.5%)
+Testing perf: sentences: 2012  loss: 4436.42  obj*n: 5445.16  miss: 1874 (3.95%)
+[Epoch 26] --  wnorm: 9897.67  anorm: 8999.82  total time: 366.41 seconds
+[Epoch 27] --  wnorm: 9903.04  anorm: 9023.6  total time: 380.91 seconds
+[Epoch 28] --  wnorm: 9907.18  anorm: 9052.95  total time: 395.01 seconds
+[Epoch 29] --  wnorm: 9905.46  anorm: 9089.79  total time: 409.23 seconds
+[Epoch 30] --  wnorm: 9908.79  anorm: 9117.71  total time: 423.44 seconds
+Training perf [w]: sentences: 8936  loss: 4293  obj*n: 9247.39  miss: 711 (0.33%)
+Training perf [a]: sentences: 8936  loss: 4577.49  obj*n: 9136.34  miss: 987 (0.46%)
+Testing perf: sentences: 2012  loss: 4435.43  obj*n: 5461.89  miss: 1873 (3.95%)
+[Epoch 31] --  wnorm: 9912.22  anorm: 9139.2  total time: 437.69 seconds
+[Epoch 32] --  wnorm: 9909.08  anorm: 9155.86  total time: 452.01 seconds
+[Epoch 33] --  wnorm: 9913.94  anorm: 9169.44  total time: 466.17 seconds
+[Epoch 34] --  wnorm: 9910.42  anorm: 9181.57  total time: 480.54 seconds
+[Epoch 35] --  wnorm: 9911.8  anorm: 9193.48  total time: 494.92 seconds
+Training perf [w]: sentences: 8936  loss: 4265.99  obj*n: 9221.89  miss: 724 (0.34%)
+Training perf [a]: sentences: 8936  loss: 4518.65  obj*n: 9115.39  miss: 935 (0.44%)
+Testing perf: sentences: 2012  loss: 4433.22  obj*n: 5468.21  miss: 1871 (3.94%)
+[Epoch 36] --  wnorm: 9908.12  anorm: 9206.16  total time: 509.16 seconds
+[Epoch 37] --  wnorm: 9907.77  anorm: 9220.84  total time: 523.44 seconds
+[Epoch 38] --  wnorm: 9901.89  anorm: 9238.37  total time: 537.74 seconds
+[Epoch 39] --  wnorm: 9903.04  anorm: 9259.47  total time: 551.76 seconds
+[Epoch 40] --  wnorm: 9897.87  anorm: 9266.02  total time: 565.83 seconds
+Training perf [w]: sentences: 8936  loss: 4232.67  obj*n: 9181.6  miss: 753 (0.35%)
+Training perf [a]: sentences: 8936  loss: 4468.04  obj*n: 9101.05  miss: 885 (0.41%)
+Testing perf: sentences: 2012  loss: 4432.22  obj*n: 5475.37  miss: 1871 (3.94%)
+[Epoch 41] --  wnorm: 9899.09  anorm: 9278.25  total time: 580.07 seconds
+[Epoch 42] --  wnorm: 9895.01  anorm: 9296.58  total time: 594.24 seconds
+[Epoch 43] --  wnorm: 9893.36  anorm: 9302.45  total time: 608.33 seconds
+[Epoch 44] --  wnorm: 9891.28  anorm: 9315.89  total time: 622.62 seconds
+[Epoch 45] --  wnorm: 9882.25  anorm: 9337.16  total time: 636.83 seconds
+Training perf [w]: sentences: 8936  loss: 4213.76  obj*n: 9154.89  miss: 667 (0.31%)
+Training perf [a]: sentences: 8936  loss: 4422.95  obj*n: 9091.53  miss: 842 (0.39%)
+Testing perf: sentences: 2012  loss: 4431.77  obj*n: 5482.93  miss: 1872 (3.95%)
+[Epoch 46] --  wnorm: 9886.92  anorm: 9347.61  total time: 651 seconds
+[Epoch 47] --  wnorm: 9883.96  anorm: 9367.11  total time: 665.24 seconds
+[Epoch 48] --  wnorm: 9877.1  anorm: 9376.82  total time: 679.44 seconds
+[Epoch 49] --  wnorm: 9878.85  anorm: 9377.16  total time: 693.52 seconds
+[Epoch 50] --  wnorm: 9874.28  anorm: 9388.14  total time: 707.59 seconds
+Training perf [w]: sentences: 8936  loss: 4235.68  obj*n: 9172.81  miss: 681 (0.32%)
+Training perf [a]: sentences: 8936  loss: 4390.43  obj*n: 9084.5  miss: 818 (0.38%)
+Testing perf: sentences: 2012  loss: 4431.15  obj*n: 5488.05  miss: 1873 (3.95%)
+Saving model file model.gz.
+Done!  707.59 seconds.
