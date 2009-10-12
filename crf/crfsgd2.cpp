@@ -1636,9 +1636,8 @@ CrfSgd::test(const dataset_t &data, const char *conlleval, Timer *tm)
    obj += 0.5 * wnorm * lambda * data.size();
    double misrate = (double)(errors*100)/(total ? total : 1);
    if (verbose)
-     cout << "  objective*n: " << obj << endl
-          << "  misclassifications: " << errors 
-          << "(" << misrate << "%)";
+     cout << "  obj*n: " << obj 
+          << "  misses: " << errors << "(" << misrate << "%)";
    if (tm && verbose)
      cout << "  total time: " << tm->elapsed() << " seconds";
    if (verbose)
