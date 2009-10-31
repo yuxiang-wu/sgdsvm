@@ -1,6 +1,6 @@
 // -*- C++ -*-
 // SVM with Stochastic Gradient Descent and diagonal Quasi-Newton approximation
-// Copyright (C) 2008- Antoine Bordes & Leon Bottou
+// Copyright (C) 2009- Antoine Bordes
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
@@ -35,34 +35,13 @@
 using namespace std;
 
 
-// Select loss
-#define LOSS HINGELOSS
-
-// Magic to find loss name
-#define _NAME(x) #x
-#define _NAME2(x) _NAME(x)
-const char *lossname = _NAME2(LOSS);
-
-// Available losses
-#define HINGELOSS 1
-#define SMOOTHHINGELOSS 2
-#define SQUAREDHINGELOSS 3
-#define LOGLOSS 10
-#define LOGLOSSMARGIN 11
-
-
-// set this value to 1 if you are not using sparse data
-#define DENSE_DATA 0
-
-
-// -- custom vector functions
-
+// custom vector functions
 
 void 
-compute_ratio(FVector &w,
-              const SVector &x, double lambda, 
-              const FVector &wp, const FVector &wpp, 
-              double loss)
+compute_inverse_ratio_and_clip(FVector &w,
+                               const SVector &x, double lambda, 
+                               const FVector &wp, const FVector &wpp, 
+                               double loss, double cmin=1, double cmax=100)
 {
   int m = max(x.size(), w.size());
   if (w.size() < m) 
@@ -74,28 +53,37 @@ compute_ratio(FVector &w,
   const SVector::Pair *pairs = x;
   int j = 0;
   double diffw=0;
+  cmin = cmin * lambda;
+  cmax = cmax * lambda;
   for (int i=0; i<npairs; i++, pairs++)
     {
       for (; j < pairs->i; j++)
-	d[j] += 1/lambda;
+	d[j] = lambda;
       j = pairs->i;
       diffw = s[j]-sp[j];
-      if(diffw)
-	  d[j] += diffw/ (lambda*diffw+ loss*pairs->v);
+      if (diffw)
+        {
+          VFloat x = lambda + loss*pairs->v / diffw;
+          if (x > cmax) x = cmax;
+          if (x < cmin) x = cmin;
+          d[j] = x;
+        }
+      else if (pairs->v)
+      	d[i] = lambda + cmax;
       else
-      	d[j] += 1/lambda;
+      	d[j] = lambda;
       j++;
     }
   for (; j<m; j++)
-    d[j] += 1/lambda;
+    d[j] = lambda;
 }
 
 
 void
-compute_ratio(FVector &w,
-              const FVector &x, double lambda, 
-              const FVector &wp, const FVector &wpp, 
-              double loss)
+compute_inverse_ratio_and_clip(FVector &w,
+                               const FVector &x, double lambda, 
+                               const FVector &wp, const FVector &wpp, 
+                               double loss, double cmin=1, double cmax=100)
 {
   int m = max(x.size(), w.size());
   if (w.size() < m) 
@@ -104,42 +92,51 @@ compute_ratio(FVector &w,
   const VFloat *sx = (const VFloat*) x;
   const VFloat *s = (const VFloat*) wp;
   const VFloat *sp = (const VFloat*) wpp;
+  cmin = cmin * lambda;
+  cmax = cmax * lambda;
   for (int i=0; i<m; i++)
     {
       double diffw = s[i]-sp[i];
       if(diffw)
-	d[i] += diffw/ (lambda*diffw+ loss*sx[i]);
+        {
+          VFloat x = lambda + loss*sx[i] / diffw;
+          if (x > cmax) x = cmax;
+          if (x < cmin) x = cmin;
+          d[i] = x;
+        }
+      else if (sx[i])
+      	d[i] = lambda + cmax;
       else
-      	d[i] += 1/lambda;
+        d[i] = lambda;
     }
 }
 
 
-void
-combine_and_clip(FVector &w,
-                 double c1, const FVector &v2, double c2,
-                 double vmin, double vmax)
-{
-  int m = max(w.size(), v2.size());
-  if (w.size() < m)
-    w.resize(m);
-  VFloat *d = w;
-  const VFloat *s = (const VFloat*) v2;
-  for (int i=0; i<m; i++)
-    if(s[i])
-      {
-	d[i] = d[i] * c1 + s[i] * c2;
-	d[i] = min(max((double)d[i], vmin), vmax);
-      }
-}
 
 
-#if DENSE_DATA == 1
-# define SVector FVector
+#ifndef DENSE_DATA
+// set this value to 1 if you are not using sparse data
+# define DENSE_DATA 1
 #endif
+#if DENSE_DATA
+#define SVector FVector
+#endif
+
+using namespace std;
 
 typedef vector<SVector> xvec_t;
 typedef vector<double> yvec_t;
+
+
+// Available losses
+#define HINGELOSS 1
+#define SMOOTHHINGELOSS 2
+#define SQUAREDHINGELOSS 3
+#define LOGLOSS 10
+#define LOGLOSSMARGIN 11
+
+// Select loss
+#define LOSS SQUAREDHINGELOSS
 
 
 inline 
@@ -206,58 +203,52 @@ double dloss(double z)
 
 
 
+
+
 // -- stochastic gradient
 
 class SgdQn
 {
 public:
-  SgdQn(int dim, double lambda);
+  SgdQn(int dim, double lambda, double t0);
   
   double printQnInfo(const FVector &Bb, double init);
   
   void calibrate(int imin, int imax, 
-		 const xvec_t &xp, const yvec_t &yp);
+		 const xvec_t &xp, const yvec_t &yp, bool verb);
 
   void train(int imin, int imax, 
              const xvec_t &x, const yvec_t &y,
-	     const char *prefix);
-  
-  void train2(int imin, int imax, 
-	      const xvec_t &x, const yvec_t &y,
-	      const char *prefix);
+	     const char *prefix, bool verb);
 
-  double test(int imin, int imax, 
-            const xvec_t &x, const yvec_t &y, 
-            const char *prefix);
+  void test(int imin, int imax, 
+	    const xvec_t &x, const yvec_t &y, 
+	    const char *prefix, bool verb, FVector &infos);
 
   FVector copy_w()
   {return w;}
-
+  
 private:
   double  t;
+  double  t0;
   double  lambda;
   FVector w;
-  double  bias;
   int skip;
   int count;
 
   FVector B;
   FVector Bc;
+  double  lastt;
 };
 
 
 
-SgdQn::SgdQn(int dim, double l)
-  : lambda(l), w(dim), skip(1000),
-    B(dim), Bc(dim)
+SgdQn::SgdQn(int dim, double l, double t0)
+  : t(0), t0(t0), lambda(l), w(dim), skip(1000),
+    B(dim), Bc(dim), lastt(0)
 {
-  double maxw = 1.0 / sqrt(lambda);
-  double typw = sqrt(maxw);
-  double eta0 = typw / max(1.0,dloss(-typw));
-  t = 1 / (eta0 * lambda);
   for(int i=0; i<dim; i++)
-    Bc.set(i, 1/lambda);
-  cout << "t0 =" << t << endl;
+    Bc.set(i, 1/(lambda*t0));
 }
 
 
@@ -266,7 +257,7 @@ SgdQn::printQnInfo(const FVector &Bb, double init)
 {
   double bmax=-DBL_MAX, bmin=DBL_MAX, bmean=0.;
   int minb=0, maxb=0, notchg=0, imin=0, imax=0;
-  for(int i=0; i<Bb.size();i++)
+  for(int i=1; i<Bb.size();i++) // x[0] always zero
     {
       if(Bb[i]<bmin)
 	bmin = Bb[i], imin=i;
@@ -276,193 +267,125 @@ SgdQn::printQnInfo(const FVector &Bb, double init)
       if(Bb[i]==init)
 	notchg++;
     }
-  for(int i=0; i<Bb.size();i++)
+  for(int i=0; i<Bb.size();i++) // x[0] always zero
     {
       if(Bb[i]==bmax)
 	maxb++;
       if(Bb[i]==bmin)
 	minb++;
     }
-  bmean /= Bb.size();
-  cout  << "Bmax: " << bmax << " (i:"<<imax <<" ,@max: " << maxb << "/" << Bb.size()<<  ")\n"
-	<< "Bmin: " << bmin << " (i:"<<imin <<" ,(@min: " << minb << "/" << Bb.size()<<  ")\n"
-	<< "Bmean: " << bmean << "\n"
-	<< "Didnt Change: " << notchg << "\n";
+  bmean /= (Bb.size() - 1);
+  //cout << Bb << endl;
+  cout  << "Bmax: " << bmax << " (i:"<<imax <<" ,@max: " 
+        << maxb << "/" << Bb.size() <<  ")" << endl
+        << "Bmin: " << bmin << " (i:"<<imin <<" ,@min: " 
+        << minb << "/" << Bb.size()<<  ")" << endl
+        << "Bmean: " << bmean << " Didnt Change: " << notchg << endl;
   return bmean;
 }
 
 
 void 
 SgdQn::calibrate(int imin, int imax, 
-		    const xvec_t &xp, const yvec_t &yp)
+		 const xvec_t &xp, const yvec_t &yp, bool verb)
 {
-  cout << "Estimating sparsity" << endl;
+  if (verb) 
+    cout << "Estimating sparsity" << endl;
   int j;
   
   // compute average gradient size
   double n = 0;
-  double r = 0;
+  double s = 0;
   
-#if DENSE_DATA==1
+#if DENSE_DATA
   for (j=imin; j<=imax; j++,n++)
     {
       const FVector &x = xp.at(j);
       n += 1;
-      r += x.size();
+      s += x.size();
     }
 #else
   for (j=imin; j<=imax; j++,n++)
     {
       const SVector &x = xp.at(j);
       n += 1;
-      r += x.npairs();
+      s += x.npairs();
     }
 #endif    
-
+  
   // compute weight decay skip
-  skip = (int) ((8 * n * w.size()) / r);
-  cout << " using " << n << " examples." << endl;
-  cout << " skip: " << skip << endl;
+  skip = (int) ((8 * n * w.size()) / s);
+  if (verb) 
+    {
+      cout << " using " << n << " examples." << endl;
+      cout << " skip: " << skip << endl;
+    }
 }
+
+
 
 void 
 SgdQn::train(int imin, int imax, 
 	     const xvec_t &xp, const yvec_t &yp,
-	     const char *prefix)
+	     const char *prefix, bool verb)
 {
-  cout << prefix << "Training on [" << imin << ", " << imax << "]." << endl;
+  if (verb)
+    cout << prefix << "Training on [" << imin << ", " << imax << "]." << endl;
   assert(imin <= imax);
 
   count = skip;
   bool updateB = false;
+  FVector w_1 = w;
   for (int i=imin; i<=imax; i++)
     {
       const SVector &x = xp.at(i);
       double y = yp.at(i);
       double z = y * dot(w, x);
-      double eta = 1.0 / t ;
-
-      if(updateB==true)
-	{
-#if LOSS < LOGLOSS
-	  if (z < 1)
-#endif
-	    {
-	      FVector w_1=w;
-	      double loss_1 = dloss(z);	  
-	      w.add(x, eta*loss_1*y, Bc);
-	      
-	      double z2 = y * dot(w,x);
-	      double diffloss = dloss(z2) - loss_1;  
-	      if (diffloss)
-		{
-		  compute_ratio(B, x, lambda, w_1, w, y*diffloss);
-		  if(t>skip)
-		    combine_and_clip(Bc, 
-                                     (t-skip)/(t+skip),B,2*skip/(t+skip),
-                                     1/(100*lambda),100/lambda);
-                  else
-                    combine_and_clip(Bc,
-                                     t/(t+skip),B,skip/(t+skip),
-                                     1/(100*lambda),100/lambda);
-		  B.clear();
-		  B.resize(w.size());
-		}
-	    }
-	  updateB=false;	
-	}
-      else
-	{
-	  if(--count <= 0)
-	    {
-	      w.add(w,-skip*lambda*eta,Bc);	  
-	      count = skip;
-	      updateB=true;
-	    }      
-#if LOSS < LOGLOSS
-	  if (z < 1)
-#endif
-	    {
-	      w.add(x, eta*dloss(z)*y, Bc);
-	    }
-	}
-      t += 1;
-    }
-  // printQnInfo(Bc, 1/lambda);
-  cout << prefix << setprecision(6) 
-       << "Norm2: " << dot(w,w) << ", Bias: " << 0 << endl;
-}
-
-
-// This train function implements a 2nd way f updating the scaling matrix
-// separating the example on which a parameter update is performed 
-// and the example on which the B scaling matrix is updated.
-void 
-SgdQn::train2(int imin, int imax, 
-	      const xvec_t &xp, const yvec_t &yp,
-	      const char *prefix)
-{
-  cout << prefix << "Training on [" << imin << ", " << imax << "]." << endl;
-  assert(imin <= imax);
-  count = skip;
-  bool updateB = false;
-  FVector w_1=w;
-  for (int i=imin; i<=imax; i++)
-    {
-      const SVector &x = xp.at(i);
-      double y = yp.at(i);
-      double z = y * dot(w,x);
-      double loss=dloss(z);
-      double eta = 1.0 / t ;
-
-      if(updateB==true)
-	{
-	  double z_1 = y * dot(w_1, x);
-	  double diffloss = loss - dloss(z_1);      
-	    
+      double dl = dloss(z);
+      t += 1;      
+      if (updateB)
+        {
+	  double diffloss = dl - dloss(y * dot(w_1, x));
 	  if (diffloss)
 	    {
-	      compute_ratio(B, x, lambda, w_1, w, y*diffloss);
-		      
-	      if(t>skip)
-		combine_and_clip(Bc, (t-skip)/(t+skip),B,2*skip/(t+skip),
-                                 1/(100*lambda),100/lambda);
-	      else
-		combine_and_clip(Bc, t/(t+skip),B,skip/(t+skip),
-                                 1/(100*lambda),100/lambda);
-	      B.clear();
-	      B.resize(w.size());
+	      compute_inverse_ratio_and_clip(B, x, lambda, w_1, w, y*diffloss, 0.1, 100);
+              VFloat *bc = Bc;
+              const VFloat *b = B;
+              VFloat dt = t - lastt;
+              int m = Bc.size();
+              for (int j=0; j<m; j++)
+                bc[j] = 1.0 / ( 1.0 / bc[j] + dt * b[j] );
+              lastt = t;
 	    }
 	  updateB=false;	
-	}
-      else
-	{
-	  if(--count <= 0)
-	    {
-	      w_1=w;	    
-	      w.add(w,-skip*lambda*eta,Bc);
-	      count = skip;
-	      updateB=true;
-	    }      
-	}
+        }
+      // normal update
+      if(--count <= 0)
+        {
+          w_1 = w;
+          updateB = true;
+          w.add(w,-skip*lambda,Bc);
+          count = skip;
+        }      
 #if LOSS < LOGLOSS
       if (z < 1)
 #endif
-	{
-	  w.add(x, eta*loss*y, Bc);       
-	}
-      t += 1;      
+        w.add(x, dl*y, Bc);       
     }
-  printQnInfo(Bc, 1/lambda);
-  cout << prefix << setprecision(6) 
-       << "Norm2: " << dot(w,w) << ", Bias: " << 0 << endl;
+
+  if (verb)
+    printQnInfo(Bc, 1/lambda);
+  if (verb)
+    cout << prefix << setprecision(6) << "Norm2: " << dot(w,w) << endl;
 }
 
 
-double
-SgdQn::test(int imin, int imax, const xvec_t &xp, const yvec_t &yp, const char *prefix)
+
+void
+SgdQn::test(int imin, int imax, const xvec_t &xp, const yvec_t &yp, const char *prefix, bool verb, FVector &infos)
 {
-  cout << prefix << "Testing on [" << imin << ", " << imax << "]." << endl;
+  if (verb)
+    cout << prefix << "Testing on [" << imin << ", " << imax << "]." << endl;
   assert(imin <= imax);
   int nerr = 0;
   double cost = 0;
@@ -470,8 +393,7 @@ SgdQn::test(int imin, int imax, const xvec_t &xp, const yvec_t &yp, const char *
     {
       const SVector &x = xp.at(i);
       double y = yp.at(i);
-      double wx = dot(w,x);
-      double z = y * (wx + bias);
+      double z = y * dot(w,x);
       if (z <= 0)
         nerr += 1;
 #if LOSS < LOGLOSS
@@ -483,13 +405,17 @@ SgdQn::test(int imin, int imax, const xvec_t &xp, const yvec_t &yp, const char *
   double loss = cost / n;
   cost = loss + 0.5 * lambda * dot(w,w);
 
-  cout << prefix << setprecision(4)
-       << "Misclassification: " << (double)nerr * 100.0 / n << "%." << endl;
-  cout << prefix << setprecision(12) 
-       << "Cost: " << cost << "." << endl;
-  cout << prefix << setprecision(12) 
-       << "Loss: " << loss << "." << endl;
-  return cost/lambda; 
+  if (verb)
+    {
+      cout << prefix << setprecision(4)
+	   << "Misclassification: " << (double)nerr * 100.0 / n << "%." << endl;
+      cout << prefix << setprecision(12) 
+	   << "Cost: " << cost << "." << endl;
+      cout << prefix << setprecision(12) 
+	   << "Loss: " << loss << "." << endl;
+    }
+  infos[1]=(double)nerr/n;
+  infos[2]=cost;
 }
 
 
@@ -498,18 +424,24 @@ SgdQn::test(int imin, int imax, const xvec_t &xp, const yvec_t &yp, const char *
 
 string trainfile;
 string testfile;
+string logfile;
+
 double lambda = 1e-4;
+double t0 = 0;
 int epochs = 5;
 int trainsize = -1;
+double steps=1.;
 
 void 
 usage()
 {
-  cerr << "Usage: sgdqn [options] trainfile [testfile]" << endl
+  cerr << "Usage: (sparse_)svmsgdqn [options] trainfile [testfile] [logfile]" << endl
        << "Options:" << endl
-       << " -lambda <lambda>" << endl
-       << " -epochs <epochs>" << endl
+       << " -lambda <lambda> (default 1e-4)" << endl
+       << " -epochs <epochs> (default 5)" << endl
+       << " -t0 <t0>: if none given (default), an automatic procedure selects one." << endl
        << " -trainsize <n>" << endl
+       << " -steps <s>: number of intermediate values to be printed in the logfile (including a test error)."  << endl   
        << endl;
   exit(10);
 }
@@ -526,6 +458,8 @@ parse(int argc, const char **argv)
             trainfile = arg;
           else if (testfile.empty())
             testfile = arg;
+          else if (logfile.empty())
+            logfile = arg;
 	  else
             usage();
         }
@@ -539,6 +473,12 @@ parse(int argc, const char **argv)
               cout << "Using lambda=" << lambda << "." << endl;
 	      assert(lambda>0 && lambda<1e4);
             }
+          else if (opt == "t0" && i+1<argc)
+            {
+              t0 = atof(argv[++i]);
+              cout << "Using t0=" << t0 << "." << endl;
+	      assert(t0>0);
+            }
           else if (opt == "epochs" && i+1<argc)
             {
               epochs = atoi(argv[++i]);
@@ -549,6 +489,11 @@ parse(int argc, const char **argv)
             {
               trainsize = atoi(argv[++i]);
               assert(trainsize > 0);
+            }
+          else if (opt == "steps" && i+1<argc)
+            {
+              steps = atoi(argv[++i]);
+              assert(steps > 0);
             }
           else
             usage();
@@ -566,6 +511,7 @@ xvec_t xtrain;
 yvec_t ytrain;
 xvec_t xtest;
 yvec_t ytest;
+ofstream logs;
 
 void
 load(const char *fname, xvec_t &xp, yvec_t &yp)
@@ -634,6 +580,7 @@ rearrange(xvec_t& xp, int dim)
 {
   cout << "Preprocessing ..." << endl;
   double n = xp.size();
+
   FVector sum(dim);
   FVector var(dim);
 
@@ -650,14 +597,15 @@ rearrange(xvec_t& xp, int dim)
       }
   var.scale(1/n);
 
-  for(int ex=0; ex<n; ex++) //normalize
+  for(int ex=0; ex<n; ex++) //center
     xp.at(ex).add(sum,-1);
 
   for(int ex=0; ex<n; ex++) //center
     for(int feat=1; feat<dim; feat++)
       {
 	double old_x = xp.at(ex).get(feat);
-	xp.at(ex).set(feat, old_x/sqrt(var.get(feat)));
+        double ratio = 1/sqrt(var.get(feat));
+	xp.at(ex).set(feat, old_x * ratio);
       }
 
   for(int ex=0; ex<n; ex++) //|x|=1
@@ -665,21 +613,51 @@ rearrange(xvec_t& xp, int dim)
       double norm = sqrt(dot(xp.at(ex),xp.at(ex)));
       xp.at(ex).scale(1/norm);
     }
+
+#ifdef NASTIFY
+  for(int ex=0; ex<n; ex++) //damage
+    for(int feat=1; feat<dim; feat+=10)
+      xp.at(ex).set(feat, 20 * xp.at(ex).get(feat));
+#endif
+}
+
+
+double determine_t0(int imin, int imax, int epochs)
+{  
+
+  cout << "Estimating t0 ..." << endl;
+  double t0 = 1;
+  double t0tmp = 1;
+  double lowest_cost=DBL_MAX;
+  for (int i=0; i<=10; i++)
+    {
+      SgdQn svm(dim, lambda, t0tmp);
+      svm.calibrate(imin, (int)imax/10, xtrain, ytrain, false);
+      for (int ep=0; ep<epochs; ep++)
+	svm.train(imin, (int)imax/10, xtrain, ytrain, "train: ", false);
+      FVector info(2);
+      svm.test(imin, (int)imax/10, xtrain, ytrain, "train: ", false, info);
+      double cost= info[2];
+      if (cost<lowest_cost && cost==cost) // check for NaN
+	{
+	  t0=t0tmp;
+	  lowest_cost=cost;
+	}      
+      cout  << " t0=" << t0tmp << ", cost="<<cost <<endl;
+      t0tmp=t0tmp*10;
+    }
+  cout <<   "Final choice: t0=" << t0 << endl;	 
+  return t0;
 }
 
 int 
 main(int argc, const char **argv)
 {
   parse(argc, argv);
-  cout << "Loss=" << lossname 
-       << " Bias=0" 
-       << " RegBias=0" 
-       << " Lambda=" << lambda
-       << endl;
 
   // load training set
   load(trainfile.c_str(), xtrain, ytrain);
-#if DENSE_DATA==1
+#if DENSE_DATA
   rearrange(xtrain,dim);
 #endif
   cout << "Number of features " << dim << "." << endl;
@@ -688,32 +666,79 @@ main(int argc, const char **argv)
   if (trainsize > 0 && imax >= trainsize)
     imax = imin + trainsize -1;
 
-  // prepare svm
-  SgdQn svm(dim, lambda);
-  Timer timer;
-
   // load testing set
   if (! testfile.empty())
     {
       load(testfile.c_str(), xtest, ytest);
-#if DENSE_DATA==1
+#if DENSE_DATA
       rearrange(xtest,dim);
 #endif
     }
   int tmin = 0;
   int tmax = xtest.size() - 1;
   
-  svm.calibrate(0, imax, xtrain, ytrain);
-  for(int i=0; i<epochs; i++)
+  // prepare svm
+  if(t0==0)
+    t0 = determine_t0(imin, imax, epochs);
+
+  SgdQn svm(dim, lambda, t0);
+  svm.calibrate(0, imax, xtrain, ytrain, true);
+
+  if (! logfile.empty())
     {
-      cout << "--------- Epoch " << i+1 << "." << endl;
-      timer.start();
-      svm.train(imin, imax, xtrain, ytrain, "train: ");
-      timer.stop();
-      cout << "Total training time " << setprecision(6)
-           << timer.elapsed() << " secs." << endl;
-      svm.test(imin, imax, xtrain, ytrain, "train: ");
+      logs.open(logfile.c_str());
+      logs << "# SVMSGDQN. lambda = " << lambda << " , t0 = " << t0 << endl;
+      logs << "# trnsz = " << imax-imin+1 << " , tstsz = " << tmax-tmin+1 << endl;
+      logs << "# it time trn_err trn_cost tst_err tst_cost" << endl;
+      FVector info(2);
+      svm.test(imin, imax, xtrain, ytrain, "train: ", true, info);
+      logs << 0 << " " << 0 << " " << info[1] << " " << info[2];
       if (tmax >= tmin)
-        svm.test(tmin, tmax, xtest, ytest, "test:  ");
+	{
+	  svm.test(tmin, tmax, xtest, ytest, "test:  ", true, info);
+	  if (! logfile.empty())
+	    logs << " " << info[1] << " " << info[2];
+	}
+      logs << endl;
     }
+
+  Timer timer;
+  if(! logfile.empty())
+    for(int i=0; i<epochs; i++)
+      {
+	FVector info(2);
+	cout << "--------- Epoch " << i+1 << "." << endl;
+	for (int j=0;j<(int)steps;j++)
+	  {
+	    int idxmin=imin+(int)((double)imax*j/steps);
+	    int idxmax=imin+(int)((double)imax*(j+1)/steps);
+	    timer.start();
+	    svm.train(idxmin, idxmax, xtrain, ytrain, "train: ",true);
+	    timer.stop();
+	    cout << "Total training time " << setprecision(6) 
+		 << timer.elapsed() << " secs." << endl;
+	    svm.test(imin, imax, xtrain, ytrain, "train: ", true, info);
+	    logs << i+(double)(j+1)/steps << " " << timer.elapsed() << " " << info[1] << " " << info[2];
+	    if (tmax >= tmin)
+	      {
+		svm.test(tmin, tmax, xtest, ytest, "test:  ", true, info);
+		logs << " " << info[1] << " " << info[2];
+	      }
+	    logs << endl;
+	  }
+      }
+  else
+    for(int i=0; i<epochs; i++)
+      {
+	FVector info(2);
+	cout << "--------- Epoch " << i+1 << "." << endl;
+	timer.start();
+	svm.train(imin, imax, xtrain, ytrain, "train: ", true);
+	timer.stop();
+	cout << "Total training time " << setprecision(6)
+	     << timer.elapsed() << " secs." << endl;
+	svm.test(imin, imax, xtrain, ytrain, "train: ", true, info);
+	if (tmax >= tmin)
+	    svm.test(tmin, tmax, xtest, ytest, "test:  ", true, info);
+      }
 }
