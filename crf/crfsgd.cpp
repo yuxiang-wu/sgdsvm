@@ -1325,7 +1325,9 @@ public:
                   double c = 4,
                   int cutoff = 3);
   
-  void calibrate(const dataset_t &data, int sample=500, 
+  void adjustEta(double seta=1);
+
+  void adjustEta(const dataset_t &data, int sample=500, 
                  double seta=1, Timer *tm=0);
 
   void train(const dataset_t &data, int epochs=1, Timer *tm=0);
@@ -1520,7 +1522,16 @@ CrfSgd::tryEtaBySampling(const dataset_t &data, const ivec_t &sample,
 
 
 void 
-CrfSgd::calibrate(const dataset_t &data, int samples, 
+CrfSgd::adjustEta(double eta)
+{  
+  t = 1 / (eta * lambda);
+  if (verbose)
+    cout << "  taking eta=" << eta << "  t0=" << t;
+}
+
+
+void 
+CrfSgd::adjustEta(const dataset_t &data, int samples, 
                   double seta, Timer *tm)
 {
   ivec_t sample;
@@ -1580,11 +1591,9 @@ CrfSgd::calibrate(const dataset_t &data, int samples,
     }
   // take it on the safe side (implicit regularization)
   besteta /= factor;
-  // determine t
-  t = 1 / (besteta * lambda);
-  if (verbose)
-    cout << "  taking eta=" << besteta << "  t0=" << t;
-  // finalize
+  // set initial t
+  adjustEta(besteta);
+  // message
   if  (tm && verbose)
     cout << "  total time: " << tm->elapsed() << " seconds";
   if (verbose)
@@ -1598,7 +1607,7 @@ CrfSgd::train(const dataset_t &data, int epochs, Timer *tm)
   if (t <= 0)
     {
       cerr << "ERROR (train): "
-           << "Must call calibrate() before train()." << endl;
+           << "Must call adjustEta() before train()." << endl;
       exit(10);
     }
   ivec_t shuffle;
@@ -1701,6 +1710,7 @@ string testFile;
 const char *conlleval = "./conlleval -q";
 
 double c = 1;
+double eta = 0;
 int cutoff = 3;
 int epochs = 50;
 int cepochs = 10;
@@ -1724,6 +1734,7 @@ usage()
     << " -r <num> : total number of epochs (50)" << endl
     << " -h <num> : epochs between each testing phase (10)" << endl
     << " -e <cmd> : performance evaluation command (conlleval -q)" << endl
+    << " -s <num> : initial learning rate" << endl
     << " -q       : silent mode" << endl;
   exit(10);
 }
@@ -1758,6 +1769,16 @@ parseCmdLine(int argc, char **argv)
                 {
                   cerr << "ERROR: "
                        << "Illegal C value: " << c << endl;
+                  exit(10);
+                }
+            }
+         else if (s[0 ] == 's')
+            {
+              eta = atof(argv[i]);
+              if (eta <= 0)
+                {
+                  cerr << "ERROR: "
+                       << "Illegal initial learning rate: " << s << endl;
                   exit(10);
                 }
             }
@@ -1869,7 +1890,10 @@ main(int argc, char **argv)
       // training
       Timer tm;
       tm.start();
-      crf.calibrate(train, 1000, 0.1, &tm);
+      if (eta > 0)
+        crf.adjustEta(eta);
+      else
+        crf.adjustEta(train, 1000, 0.1, &tm);
       tm.stop();
       while (crf.getEpoch() < epochs)
         {

@@ -1,0 +1,139 @@
+
+
+
+(de readone()
+  (let ((c (skip-char))
+        (chars "-+.A-Za-z0-9") )
+    (if (regex-match "[-+.A-Za-z0-9]" c)
+        (let ((s (read-string chars)))
+          (or (val s) s))
+      (if (<> c "\e")
+          (named (read-string 1)) ) ) ) )
+
+
+(de read-log-file(s)
+
+  (let ((epochs ())
+        (trainobj ()) 
+        (traintime ())
+        (testobj ())
+        (testloss ())
+        (testfb1 ())
+        (cepoch 0) 
+        (ctrainobj ())
+        (ctraintime ())
+        (ctestobj ())
+        (ctestloss ())
+        (ctestfb1 ()) 
+        (ctest ())
+        (clast ()) 
+        (cnow ()) 
+
+        (record (lambda(epoch)
+                  (setq epochs (nconc1 epochs epoch))
+                  (setq trainobj (nconc1 trainobj ctrainobj))
+                  (setq traintime (nconc1 traintime ctraintime))
+                  (setq testobj (nconc1 testobj ctestobj))
+                  (setq testloss (nconc1 testloss ctestloss))
+                  (setq testfb1 (nconc1 testfb1 ctestfb1)) ) ) )
+
+
+    (reading s
+      (while (setq cnow (readone))
+        (when (numberp cnow)
+          (cond
+           ((and (= clast "Epoch"))
+            (when (and cepoch ctrainobj ctestfb1) (record cepoch))
+            (setq ctrainobj () ctraintime () ctestobj () ctestloss () ctestfb1 ())
+            (setq cepoch cnow) )
+           ((and (= clast "n") (not ctest))
+            (setq ctrainobj cnow) )
+           ((and (= clast "time"))
+            (setq ctraintime cnow) )
+           ((and (= clast "n") ctest)
+            (setq ctestobj cnow) )
+           ((and (= clast "loss") ctest)
+            (setq ctestloss cnow) )
+           ((and (= clast "FB1") ctest)
+            (setq ctestfb1 cnow) ) ) )
+        (when (stringp cnow)
+          (setq clast cnow)
+          (when (= clast "Training")
+            (setq ctest ()) )
+          (when (= clast "Testing")
+            (setq ctest t) ) ) ) )
+    (when (and cepoch ctrainobj ctestfb1) (record cepoch))
+    (list epochs trainobj traintime testobj testloss testfb1) ) )
+
+(de pr(l)
+  (let ((a (array (length (car l)) 6)))
+    ((transpose a) () () l)
+    a ) )
+
+
+
+(de plot-datum(pos . options)
+  (let ((v (graph-options . options))
+        (objects (list closed-square closed-circle open-square open-circle
+                       open-up-triangle open-down-triangle open-down-triangle
+                       straight-cross oblique-cross) ) )
+    (nconc objects objects)
+    (let ((recs ()))
+      (all ((f (files "logs")))
+        (let ((s (regex-extract "crf(.*)-s=([-+0-9e]+)\\.txt" f)))
+          (when (and s)
+            (setq recs (cons (list f (car s) (val (cadr s))) recs)) ) ) )
+      ;; sort
+      (setq recs (sort-list recs (lambda(a b) 
+                                   (or (> (cadr a) (cadr b))
+                                       (and (= (cadr a) (cadr b))
+                                            (>= (caddr a) (caddr b))) ) ) ) )
+      ;; assign options
+      (let ((m (htable)))
+        (each ((r recs))
+          (let (((f alg eta) r))
+            (when (not (m eta))
+              (m eta (car objects))
+              (setq objects (cdr objects)) )
+            (setq r (nconc1 r `(object ,(m eta))))
+            (setq r (nconc1 r (if (= alg "sgd2") `(color-rgb 1 0 0) `(color-rgb 0 1 0)))) ) ) )
+      
+      (each (((f alg eta . options) recs))
+        (let ((vals (read-log-file (concat-fname "logs" f))))
+          (let ((name (sprintf "%s s=%l" alg eta)))
+            (print name)
+            (graph-xy (car vals) (nth pos vals) v 
+                      `(name name)
+                      `(object-size 4)
+                      . options) ) ) ) ) 
+    v ) )
+
+
+(de plot-trainobj() 
+  (plot-datum 1
+              `(title "Training objective")
+              `(xtitle "epochs")
+              `(xbounds (0 15))
+              `(ybounds (8000 30000)) 
+              `(legend topright) ) )
+
+
+(de plot-testloss() 
+  (plot-datum 4
+              `(title "Test loss")
+              `(xtitle "epochs")
+              `(xbounds (0 15))
+              `(ybounds (4000 10000)) 
+              `(legend topright) ) )
+
+(de plot-testfb1() 
+  (plot-datum 5
+              `(title "Test FB1 score")
+              `(xtitle "epochs")
+              `(xbounds (0 15))
+              `(ybounds (88 94)) 
+              `(legend bottomright) ) )
+              
+            
+
+

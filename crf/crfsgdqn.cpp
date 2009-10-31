@@ -836,7 +836,7 @@ struct Weights
   
   void clear() { resize(0); }
   void resize(int n);
-  void setup_b(double lambda);
+  void setb(double x);
 };
 
 
@@ -849,12 +849,12 @@ Weights::resize(int n)
 }
 
 void
-Weights::setup_b(double lambda)
+Weights::setb(double x)
 {
   int size = w.size();
   b.resize(size);
   b.zero();
-  b.add(1.0/lambda);
+  b.add(x);
 }
 
 
@@ -1275,17 +1275,15 @@ GScorer::bGradients(const VFloat *g, int pos, int fy, int ny, int y)
 
 class TScorer : public Scorer
 {
-private:
-  double eta;
 public:
-  TScorer(const Sentence &s_, const Dictionary &d_, Weights &ww_, double eta_);
+  TScorer(const Sentence &s_, const Dictionary &d_, Weights &ww_);
   virtual void uGradients(const VFloat *g, int pos, int fy, int ny);
   virtual void bGradients(const VFloat *g, int pos, int fy, int ny, int y);
 };
 
 
-TScorer::TScorer(const Sentence &s_, const Dictionary &d_, Weights &ww_, double eta_)
-  : Scorer(s_,d_,ww_), eta(eta_)
+TScorer::TScorer(const Sentence &s_, const Dictionary &d_, Weights &ww_)
+  : Scorer(s_,d_,ww_)
 {
 }
 
@@ -1305,7 +1303,7 @@ TScorer::uGradients(const VFloat *g, int pos, int fy, int ny)
     {
       int k = p->i + off;
       for (int j=0; j<ny; j++, k++)
-        w[k] += g[j] * b[k] * p->v * eta;
+        w[k] += g[j] * b[k] * p->v;
     }
 }
 
@@ -1326,7 +1324,7 @@ TScorer::bGradients(const VFloat *g, int pos, int fy, int ny, int y)
     {
       int k = p->i + off;
       for (int j=0; j<ny; j++, k++)
-        w[k] += g[j] * b[k] * p->v * eta;
+        w[k] += g[j] * b[k] * p->v;
     }
 }
 
@@ -1343,17 +1341,20 @@ class CrfSgd
 {
   Dictionary dict;
   Weights ww;
+  Weights w1;
   double lambda;
-  double t0;
   double t;
+  double t0;
   int epoch;
   double sparsity;
   double count;
   double skip;
+  double lastt;
+  bool updateb;
   
   void load(istream &f);
   void save(ostream &f) const;
-  void trainOnce(const Sentence &sentence, double eta);
+  void trainOnce(const Sentence &sentence);
   double findObjBySampling(const dataset_t &data, const ivec_t &sample);
   double tryEtaBySampling(const dataset_t &data, const ivec_t &sample, 
                           double eta);
@@ -1365,7 +1366,6 @@ public:
   int getEpoch() const { return epoch; }
   const Dictionary& getDict() const { return dict; }
   double getLambda() const { return lambda; }
-  double getEta() const { return 1/(t0+t); }
   double getT() const { return t; }
   double getT0() const { return t0; }
   FVector getW() const { return ww.w; }
@@ -1378,7 +1378,7 @@ public:
   
   double adjustEta(const dataset_t &data, int sample=5000, double eta=1);
 
-  double adjustEta(double eta=1);
+  double adjustEta(double eta);
 
   void train(const dataset_t &data, int epochs=1, Timer *tm=0);
 
@@ -1390,9 +1390,9 @@ public:
 
 
 CrfSgd::CrfSgd()
-  : lambda(0), 
-    t0(0), t(0), epoch(0),
-    sparsity(.1), count(0), skip(0)
+  : lambda(0), t(0), t0(0), epoch(0),
+    sparsity(.1), count(0), skip(0),
+    lastt(0), updateb(false)
 {
 }
 
@@ -1498,12 +1498,11 @@ CrfSgd::initialize(const char *tfname, const char *dfname,
 {
   int n = dict.initFromData(tfname, dfname, cutoff);
   lambda = 1 / (c * n);
-  t = t0 = 0;
+  t = lastt = 0;
   if (verbose)
     cout << "Using c=" << c << ", i.e. lambda=" << lambda << endl;
   ww.clear();
   ww.resize(dict.nParams());
-  ww.setup_b(lambda);
 }
 
 
@@ -1531,8 +1530,10 @@ CrfSgd::tryEtaBySampling(const dataset_t &data, const ivec_t &sample,
   Weights savedWW = ww;
   skip = sample.size() + 1;
   count = 0;
+  updateb = false;
+  ww.setb(eta);
   for (unsigned int i=0; i<sample.size(); i++)
-    trainOnce(data[sample[i]], eta);
+    trainOnce(data[sample[i]]);
   double obj = findObjBySampling(data, sample);
   ww = savedWW;
   t = savedT;
@@ -1578,7 +1579,7 @@ CrfSgd::adjustEta(const dataset_t &data, int samples, double eta)
       objc = tryEtaBySampling(data, sample, eta/2);
     }
   
-  // set t0
+  // set b and t0
   return adjustEta(eta); 
 }
 
@@ -1586,80 +1587,90 @@ CrfSgd::adjustEta(const dataset_t &data, int samples, double eta)
 double
 CrfSgd::adjustEta(double eta)
 {
-  t0 = 1.0 / eta - t;
+  t0 = 1/(eta * lambda);
+  ww.setb(eta);
   return eta;
 }
 
 
 void
-CrfSgd::trainOnce(const Sentence &sentence, double eta)
+CrfSgd::trainOnce(const Sentence &sentence)
 {
-  if (++count >= skip)
+  t = t + 1;
+  SVector g;
+  if (updateb)
     {
-      // compute gradient of loss before
-      SVector gb; 
-      {
-        GScorer scorer(sentence, dict, ww);        
+      SVector gb;
+      SVector ga;
+      { // gradient before
+        GScorer scorer(sentence, dict, w1);
         scorer.gradCorrect(+1);
         scorer.gradForward(-1);
         gb = scorer.gradient();
       }
-      // apply update (with reweighted regularization)
-      ww.w.add(gb, eta, ww.b);
-      ww.w.add(ww.w, - count * eta * lambda, ww.b);
-      count = 0;
-      // compute gradient of loss after update
-      SVector ga; 
-      {
-        GScorer scorer(sentence, dict, ww);        
+      { // gradient after update
+        GScorer scorer(sentence, dict, ww);
         scorer.gradCorrect(+1);
         scorer.gradForward(-1);
         ga = scorer.gradient();
       }
       // update b
-      double w1 = 2;
-      double w2 = 20 + t/skip;
-      double wt = w1+w2;
-      w1 = w1 / wt;
-      w2 = w2 / wt;
-      int n = ww.b.size();
-      VFloat *b = ww.b;
-      const VFloat oneOverLambda = 1/lambda;
+      double dt = t - lastt;
       const SVector::Pair *pb = gb;
       const SVector::Pair *pa = ga;
+      int n = ww.b.size();
+      const double cmin = 0.5 * lambda;
+      const double cmax = 100 * lambda;
       for (int i=0; i<n; i++)
         {
-          VFloat s = oneOverLambda;
+          double ratio = lambda;
+          double dw = ww.w[i] - w1.w[i];
+          double dg = 0;
           if (i == pb->i)
+            { dg += pb->v; pb++; }
+          if (i == pa->i)
+            { dg -= pa->v; pa++; }
+          if (dw)
             {
-              VFloat bi = b[i];
-              VFloat gbi = pb->v;
-              VFloat dwi = gbi * eta * bi;
-              VFloat gai = 0;
-              while (pa->i < i && pa->i >= 0) 
-                pa++;
-              if (pa->i == i)
-                gai = pa->v;
-              if (dwi != 0)
-                {
-                  s = dwi / (lambda * dwi - (gai - gbi));
-                  s = min<VFloat>(s, oneOverLambda);
-                  s = max<VFloat>(s, 0.00001 * oneOverLambda);
-                }
-              pb++;
+              ratio += dg / dw;
+              if (ratio < cmin)
+                ratio = cmin;
+              if (ratio > cmax)
+                ratio = cmax;
             }
-          b[i] = b[i] * w2 + s * w1;
+          else if (dg)
+            ratio = cmax;
+          VFloat bi = ww.b[i];
+          ww.b[i] = bi / ( 1.0 + dt * ratio * bi );
+          lastt = t;
         }
+      // save gradient and reset
+      g = ga;
+      updateb = false;
     }
-  else
+  // delayed regularization
+  if (++count >= skip)
     {
-      // normal path (unregularized)
-      TScorer scorer(sentence, dict, ww, eta);
+      // prepare for updateb
+      w1.w = ww.w;
+      updateb = true;
+      // delayed regularization
+      ww.w.add(ww.w, - count * lambda, ww.b);
+      count = 0;
+    }
+  // update
+  if (g.size() > 0)
+    {
+      // apply saved gradient
+      ww.w.add(g, 1.0, ww.b);
+    }
+  else 
+    {
+      // apply gradient via tscorer
+      TScorer scorer(sentence, dict, ww);
       scorer.gradCorrect(+1);
       scorer.gradForward(-1);
     }
-  // t
-  t += 1;
 }
 
 
@@ -1677,23 +1688,47 @@ CrfSgd::train(const dataset_t &data, int epochs, Timer *tm)
   shuffle.resize(data.size());
   for (int j=0; j<epochs; j++)
     {
-      skip = min(1/(8*lambda*getEta()), 3.0/sparsity);
+      skip = min(t0/8, 3.0/sparsity);
       count = 0;
       epoch += 1;
       for (unsigned int i=0; i<data.size(); i++) shuffle[i] = i;
       random_shuffle(shuffle.begin(), shuffle.end());
       if (verbose)
-        cout << "[Epoch " << epoch << "] --" << " skip=" << skip << " eta=" << getEta();
+        cout << "[Epoch " << epoch << "] --" << " skip=" << skip;
       if (verbose)
         cout.flush();
       // perform epoch
       for (unsigned int i=0; i<data.size(); i++)
-        trainOnce(data[shuffle[i]], getEta());
+        trainOnce(data[shuffle[i]]);
       // epoch done
       double wnorm = dot(ww.w,ww.w);
       cout << "  wnorm: " << wnorm;
       if (tm && verbose)
-        cout << "  total time: " << tm->elapsed() << " seconds";
+        cout << "  total time: " << tm->elapsed() << " seconds" << endl;
+      // check b
+      if (tm && verbose)
+        {
+          double bmin = 1e38;
+          double bmax = -1e38;
+          int n = ww.b.size();
+          for (int i=1; i<n; i++)
+            {
+              double b = ww.b[i];
+              if (b > bmax)  bmax = b;
+              if (b < bmin)  bmin = b;
+            }
+          double q = (bmax - bmin) / 4;
+          int nmin=0, nmax = 0;
+          for (int i=1; i<n; i++)
+            {
+              double b = ww.b[i];
+              if (b > bmax-q)  nmax += 1;
+              if (b < bmin+q)  nmin += 1;
+            }
+          cout << "\tbmin: " << bmin << " (" << (int)(100.0*nmin/n) << "%)"
+               << "  bmax: " << bmax << " (" << (int)(100.0*nmax/n) << "%)"
+               << "  mgain: " << 1.0 / getLambda() / (getT0() + getT());
+        }
       if (verbose)
         cout << endl;
     }
@@ -1762,6 +1797,7 @@ string testFile;
 const char *conlleval = "./conlleval -q";
 
 double c = 1;
+double eta = 0;
 int cutoff = 3;
 int epochs = 50;
 int cepochs = 5;
@@ -1785,6 +1821,7 @@ usage()
     << " -r <num> : total number of epochs (50)" << endl
     << " -h <num> : epochs between each testing phase (5)" << endl
     << " -e <cmd> : performance evaluation command (conlleval -q)" << endl
+    << " -s <num> : initial learning rate" << endl
     << " -q       : silent mode" << endl;
   exit(10);
 }
@@ -1819,6 +1856,16 @@ parseCmdLine(int argc, char **argv)
                 {
                   cerr << "ERROR: "
                        << "Illegal C value: " << c << endl;
+                  exit(10);
+                }
+            }
+          else if (s[0 ] == 's')
+            {
+              eta = atof(argv[i]);
+              if (eta <= 0)
+                {
+                  cerr << "ERROR: "
+                       << "Illegal initial learning rate: " << s << endl;
                   exit(10);
                 }
             }
@@ -1930,15 +1977,20 @@ main(int argc, char **argv)
       // training
       Timer tm;
       tm.start();
-      crf.adjustEta(train, 1000, 0.1);
+      if (eta > 0)
+        crf.adjustEta(eta);
+      else
+        crf.adjustEta(train, 1000, 0.1);
       tm.stop();
       if (verbose)
-        cout << "Initial eta=" << crf.getEta()  << " t0=" << crf.getT0()
-             << "  total time: " << tm.elapsed() << " seconds" << endl;
+        cout << "Initial eta=" << 1.0/(crf.getT0()*crf.getLambda()) 
+             << " t0=" << crf.getT0()
+             << " total time: " << tm.elapsed() << " seconds" << endl;
       while (crf.getEpoch() < epochs)
         {
           tm.start();
-          crf.train(train, cepochs, &tm);
+          int ce = (crf.getEpoch() < cepochs) ? 1 : cepochs;
+          crf.train(train, ce, &tm);
           tm.stop();
           if (verbose)
             {

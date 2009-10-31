@@ -1337,6 +1337,8 @@ public:
                   double c = 4,
                   int cutoff = 3);
   
+  double adjustEta(double eta);
+
   double adjustEta(const dataset_t &data, int sample=5000, double eta=1);
 
   void train(const dataset_t &data, int epochs=1, Timer *tm=0);
@@ -1502,6 +1504,13 @@ CrfSgd::tryEtaBySampling(const dataset_t &data, const ivec_t &sample,
 
 
 double
+CrfSgd::adjustEta(double eta)
+{
+  t = 1.0 / (eta * lambda);
+  return eta;
+}
+
+double
 CrfSgd::adjustEta(const dataset_t &data, int samples, double eta)
 {
   ivec_t sample;
@@ -1542,8 +1551,7 @@ CrfSgd::adjustEta(const dataset_t &data, int samples, double eta)
     }
 
   // set t
-  t = 1.0 / (eta * lambda);
-  return eta;
+  return adjustEta(eta);
 }
 
 
@@ -1660,6 +1668,7 @@ string testFile;
 const char *conlleval = "./conlleval -q";
 
 double c = 1;
+double eta = 0;
 int cutoff = 3;
 int epochs = 50;
 int cepochs = 10;
@@ -1674,7 +1683,7 @@ usage()
 {
   cerr 
     << "Usage (training): "
-    << "crfsgd [options] model template traindata [devdata]" << endl
+    << "crfsgd2 [options] model template traindata [devdata]" << endl
     << "Usage (tagging):  "
     << "crfsgd -t model testdata" << endl
     << "Options for training:" << endl
@@ -1683,6 +1692,7 @@ usage()
     << " -r <num> : total number of epochs (50)" << endl
     << " -h <num> : epochs between each testing phase (10)" << endl
     << " -e <cmd> : performance evaluation command (conlleval -q)" << endl
+    << " -s <num> : initial learning rate" << endl
     << " -q       : silent mode" << endl;
   exit(10);
 }
@@ -1717,6 +1727,16 @@ parseCmdLine(int argc, char **argv)
                 {
                   cerr << "ERROR: "
                        << "Illegal C value: " << c << endl;
+                  exit(10);
+                }
+            }
+          else if (s[0 ] == 's')
+            {
+              eta = atof(argv[i]);
+              if (eta <= 0)
+                {
+                  cerr << "ERROR: "
+                       << "Illegal initial learning rate: " << s << endl;
                   exit(10);
                 }
             }
@@ -1828,7 +1848,10 @@ main(int argc, char **argv)
       // training
       Timer tm;
       tm.start();
-      crf.adjustEta(train, 1000, 0.1);
+      if (eta > 0)
+        crf.adjustEta(eta);
+      else
+        crf.adjustEta(train, 1000, 0.1);
       tm.stop();
       if (verbose)
         cout << "Initial eta=" << crf.getEta()  << " t0=" << crf.getT()
@@ -1836,7 +1859,8 @@ main(int argc, char **argv)
       while (crf.getEpoch() < epochs)
         {
           tm.start();
-          crf.train(train, cepochs, &tm);
+          int ce = (crf.getEpoch() < cepochs) ? 1 : cepochs;
+          crf.train(train, ce, &tm);
           tm.stop();
           if (verbose)
             {
