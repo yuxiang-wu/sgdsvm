@@ -72,7 +72,7 @@
 
 
 
-(de plot-datum(pos . options)
+(de plot-datum(px py . options)
   (let ((v (graph-options . options))
         (objects (list closed-square closed-circle open-square open-circle
                        open-up-triangle open-down-triangle open-down-triangle
@@ -96,13 +96,14 @@
               (m eta (car objects))
               (setq objects (cdr objects)) )
             (setq r (nconc1 r `(object ,(m eta))))
-            (setq r (nconc1 r (if (= alg "sgd2") `(color-rgb 1 0 0) `(color-rgb 0 1 0)))) ) ) )
+            (setq r (nconc1 r (if (= alg "sgd2") `(color-rgb 1 0 0) `(color-rgb 0 1 0))))
+            (setq r (nconc1 r (if (= alg "sgd2") `(linestyle 1) `(linestyle 0)))) ) ) )
       
       (each (((f alg eta . options) recs))
         (let ((vals (read-log-file (concat-fname "logs" f))))
           (let ((name (sprintf "%s s=%l" alg eta)))
             (print name)
-            (graph-xy (car vals) (nth pos vals) v 
+            (graph-xy (nth px vals) (nth py vals) v 
                       `(name name)
                       `(object-size 4)
                       . options) ) ) ) ) 
@@ -110,30 +111,47 @@
 
 
 (de plot-trainobj() 
-  (plot-datum 1
+  (plot-datum 0 1
               `(title "Training objective")
               `(xtitle "epochs")
+              `(xticks 1)
               `(xbounds (0 15))
               `(ybounds (8000 30000)) 
               `(legend topright) ) )
 
 
 (de plot-testloss() 
-  (plot-datum 4
+  (plot-datum 0 4
               `(title "Test loss")
               `(xtitle "epochs")
+              `(xticks 1)
               `(xbounds (0 15))
               `(ybounds (4000 10000)) 
               `(legend topright) ) )
 
 (de plot-testfb1() 
-  (plot-datum 5
+  (plot-datum 0 5
               `(title "Test FB1 score")
               `(xtitle "epochs")
+              `(xticks 1)
               `(xbounds (0 15))
               `(ybounds (88 94)) 
               `(legend bottomright) ) )
               
+(de plot-testfb1-vs-time() 
+  (plot-datum 2 5
+              `(title "Test FB1 score")
+              `(xtitle "cpu training time (seconds)")
+              `(xbounds (0 250))
+              `(ybounds (88 94)) 
+              `(legend bottomright) ) )
             
+(de plot-testloss-vs-time() 
+  (plot-datum 2 4
+              `(title "Test Loss")
+              `(xtitle "cpu training time (seconds)")
+              `(xbounds (0 250))
+              `(ybounds (4000 10000)) 
+              `(legend topright) ) )
 
 

@@ -1859,7 +1859,7 @@ main(int argc, char **argv)
       while (crf.getEpoch() < epochs)
         {
           tm.start();
-          int ce = (crf.getEpoch() < cepochs) ? 1 : cepochs;
+          int ce = cepochs; // (crf.getEpoch() < cepochs) ? 1 : cepochs;
           crf.train(train, ce, &tm);
           tm.stop();
           if (verbose)
