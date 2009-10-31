@@ -613,12 +613,6 @@ rearrange(xvec_t& xp, int dim)
       double norm = sqrt(dot(xp.at(ex),xp.at(ex)));
       xp.at(ex).scale(1/norm);
     }
-
-#ifdef NASTIFY
-  for(int ex=0; ex<n; ex++) //damage
-    for(int feat=1; feat<dim; feat+=10)
-      xp.at(ex).set(feat, 20 * xp.at(ex).get(feat));
-#endif
 }
 
 
