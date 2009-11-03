@@ -101,7 +101,7 @@
       
       (each (((f alg eta . options) recs))
         (let ((vals (read-log-file (concat-fname "logs" f))))
-          (let ((name (sprintf "%s s=%l" alg eta)))
+          (let ((name (sprintf "%s  eta0=%l" (upcase alg) eta)))
             (print name)
             (graph-xy (nth px vals) (nth py vals) v 
                       `(name name)
