@@ -1821,7 +1821,7 @@ usage()
     << " -r <num> : total number of epochs (50)" << endl
     << " -h <num> : epochs between each testing phase (5)" << endl
     << " -e <cmd> : performance evaluation command (conlleval -q)" << endl
-    << " -s <num> : initial learning rate" << endl
+    << " -s <num> : initial learning rate (auto)" << endl
     << " -q       : silent mode" << endl;
   exit(10);
 }

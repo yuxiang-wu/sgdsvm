@@ -1769,6 +1769,8 @@ int cutoff = 3;
 int epochs = 50;
 int cepochs = 10;
 bool tag = false;
+double eta = 0.1;
+
 
 dataset_t train;
 dataset_t test;
@@ -1788,6 +1790,7 @@ usage()
     << " -r <num> : total number of epochs (50)" << endl
     << " -h <num> : epochs between each testing phase (10)" << endl
     << " -e <cmd> : performance evaluation command (conlleval -q)" << endl
+    << " -s <num> : initial learning rate (0.1)" << endl
     << " -q       : silent mode" << endl;
   exit(10);
 }
@@ -1822,6 +1825,16 @@ parseCmdLine(int argc, char **argv)
                 {
                   cerr << "ERROR: "
                        << "Illegal C value: " << c << endl;
+                  exit(10);
+                }
+            }
+          else if (s[0 ] == 's')
+            {
+              eta = atof(argv[i]);
+              if (eta <= 0)
+                {
+                  cerr << "ERROR: "
+                       << "Illegal initial learning rate: " << s << endl;
                   exit(10);
                 }
             }
@@ -1932,7 +1945,7 @@ main(int argc, char **argv)
         loadSentences(testFile.c_str(), crf.getDict(), test);
       // training
       Timer tm;
-      crf.adjustEta(0.1);
+      crf.adjustEta(eta);
       if (verbose)
         cout << "Initial eta=" << crf.getEta() 
              << " t0=" << crf.getT0() 
@@ -1941,13 +1954,14 @@ main(int argc, char **argv)
       while (crf.getEpoch() < epochs)
         {
           tm.start();
-          crf.train(train, cepochs, &tm);
+          int ce = (crf.getEpoch() < cepochs) ? 1 : cepochs;
+          crf.train(train, ce, &tm);
           tm.stop();
           if (verbose)
             {
-              cout << "Training perf [w]:";
-              crf.testna(train, conlleval);
-              cout << "Training perf [a]:";
+              // cout << "Training perf [w]:";
+              // crf.testna(train, conlleval);
+              cout << "Training perf:";
               crf.test(train, conlleval);
             }
           if (verbose && test.size())
