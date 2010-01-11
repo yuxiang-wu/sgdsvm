@@ -81,6 +81,7 @@
     (let ((recs ()))
       (all ((f (files "logs")))
         (let ((s (regex-extract "crf(.*)-s=([-+0-9e]+)\\.txt" f)))
+        ;;(let ((s (regex-extract "crf(.*)-s=(1e-1)\\.txt" f)))
           (when (and s)
             (setq recs (cons (list f (car s) (val (cadr s))) recs)) ) ) )
       ;; sort
