@@ -80,7 +80,7 @@
     (nconc objects objects)
     (let ((recs ()))
       (all ((f (files "logs")))
-        (let ((s (regex-extract "crf(sgd.*)-s=([-+0-9e]+)\\.txt" f)))
+        (let ((s (regex-extract "crf(.*)-s=([-+0-9e]+)\\.txt" f)))
           (when (and s)
             (setq recs (cons (list f (car s) (val (cadr s))) recs)) ) ) )
       ;; sort
@@ -96,8 +96,16 @@
               (m eta (car objects))
               (setq objects (cdr objects)) )
             (setq r (nconc1 r `(object ,(m eta))))
-            (setq r (nconc1 r (if (= alg "sgd2") `(color-rgb 1 0 0) `(color-rgb 0 1 0))))
-            (setq r (nconc1 r (if (= alg "sgd2") `(linestyle 1) `(linestyle 0)))) ) ) )
+            (selectq alg
+              ("sgd2"
+               (setq r (nconc1 r `(color-rgb 1 0 0)))
+               (setq r (nconc1 r `(linestyle 1))) )
+              ("sgdqn"
+               (setq r (nconc1 r `(color-rgb 0 1 0)))
+               (setq r (nconc1 r `(linestyle 0))) ) 
+              ("asgd"
+               (setq r (nconc1 r `(color-rgb 0 0 1)))
+               (setq r (nconc1 r `(linestyle 0))) ) ) ) ) )
       
       (each (((f alg eta . options) recs))
         (let ((vals (read-log-file (concat-fname "logs" f))))
