@@ -42,7 +42,7 @@ typedef vector<double> yvec_t;
 
 
 // Select loss
-#define LOSS LOGLOSS
+#define LOSS HINGELOSS
 
 // Magic to find loss name
 #define _NAME(x) #x
