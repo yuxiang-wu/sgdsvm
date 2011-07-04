@@ -257,12 +257,13 @@ checkTemplate(string tpl)
         {
           bool okay = false;
           char *n = const_cast<char*>(p);
+          long junk;
           if (n[2]=='[') {
-            strtol(n+3,&n, 10);
+            junk = strtol(n+3,&n, 10);
             while (isspace(n[0]))
               n += 1;
             if (n[0] == ',') {
-              strtol(n+1, &n, 10);
+              junk = strtol(n+1, &n, 10);
               while (isspace(n[0]))
                 n += 1;
               if (n[0] == ']')
