@@ -23,50 +23,13 @@ OPTS=-g -O2
 CXXFLAGS= ${OPTS} -Wall -I$L
 LIBS = -lz -lm
 
-PROGRAMS = preprocess svmsgd svmsgd2 svmcg svmolbfgs svmsgdqn
+PROGRAMS = preprocessrcv1 
 
 all: ${PROGRAMS}
 
 clean:
 	-rm ${PROGRAMS} 2>/dev/null
 	-rm *.o 2>/dev/null
-
-
-preprocess: preprocess.o vectors.o gzstream.o
-	${CXX} ${CXXFLAGS} -o $@ preprocess.o vectors.o gzstream.o ${LIBS}
-
-svmsgd: svmsgd.o vectors.o gzstream.o timer.o
-	${CXX} ${CXXFLAGS} -o $@ svmsgd.o vectors.o gzstream.o timer.o ${LIBS}
-
-svmsgd2: svmsgd2.o vectors.o gzstream.o timer.o
-	${CXX} ${CXXFLAGS} -o $@ svmsgd2.o vectors.o gzstream.o timer.o ${LIBS}
-
-svmolbfgs: svmolbfgs.o vectors.o gzstream.o timer.o
-	${CXX} ${CXXFLAGS} -o $@ svmolbfgs.o vectors.o gzstream.o timer.o ${LIBS}
-
-svmsgdqn: svmsgdqn.o vectors.o gzstream.o timer.o
-	${CXX} ${CXXFLAGS} -o $@ svmsgdqn.o vectors.o gzstream.o timer.o ${LIBS}
-
-svmcg: svmcg.o vectors.o gzstream.o timer.o
-	${CXX} ${CXXFLAGS} -o $@ svmcg.o vectors.o gzstream.o timer.o ${LIBS}
-
-preprocess.o: preprocess.cpp $L/vectors.h  $L/gzstream.h
-	${CXX} ${CXXFLAGS} -c -o $@ preprocess.cpp
-
-svmsgd.o: svmsgd.cpp $L/vectors.h  $L/gzstream.h $L/timer.h
-	${CXX} ${CXXFLAGS} -c -o $@ svmsgd.cpp
-
-svmsgd2.o: svmsgd2.cpp $L/vectors.h  $L/gzstream.h $L/timer.h
-	${CXX} ${CXXFLAGS} -c -o $@ svmsgd2.cpp
-
-svmolbfgs.o: svmolbfgs.cpp $L/vectors.h  $L/gzstream.h $L/timer.h
-	${CXX} ${CXXFLAGS} -c -o $@ svmolbfgs.cpp
-
-svmsgdqn.o: svmsgdqn.cpp $L/vectors.h  $L/gzstream.h $L/timer.h
-	${CXX} ${CXXFLAGS} -c -o $@ svmsgdqn.cpp
-
-svmcg.o: svmcg.cpp $L/vectors.h  $L/gzstream.h $L/timer.h
-	${CXX} ${CXXFLAGS} -c -o $@ svmcg.cpp
 
 vectors.o: $L/vectors.cpp $L/vectors.h  $L/wrapper.h
 	${CXX} ${CXXFLAGS} -c -o $@ $L/vectors.cpp
@@ -76,6 +39,14 @@ gzstream.o: $L/gzstream.cpp $L/gzstream.h
 
 timer.o: $L/timer.cpp $L/timer.h 
 	${CXX} ${CXXFLAGS} -c -o $@ $L/timer.cpp
+
+preprocessrcv1: preprocessrcv1.o vectors.o gzstream.o
+	${CXX} ${CXXFLAGS} -o $@ preprocessrcv1.o vectors.o gzstream.o ${LIBS}
+
+#svmsgd: svmsgd.o vectors.o gzstream.o timer.o
+#	${CXX} ${CXXFLAGS} -o $@ svmsgd.o vectors.o gzstream.o timer.o ${LIBS}
+
+
 
 
 
