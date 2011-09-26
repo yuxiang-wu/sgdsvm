@@ -1,6 +1,6 @@
 // -*- C++ -*-
-// SVM with stochastic gradient
-// Copyright (C) 2007- Leon Bottou
+// SVM with averaged stochastic gradient (ASGD)
+// Copyright (C) 2010- Leon Bottou
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
@@ -16,6 +16,7 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111, USA
 
+#include <algorithm>
 #include <iostream>
 #include <iomanip>
 #include <string>
@@ -55,39 +56,64 @@ using namespace std;
 
 // ---- Plain stochastic gradient descent
 
-class SvmSgd
+class SvmAsgd
 {
 public:
-  SvmSgd(int dim, double lambda);
-  void train(int imin, int imax, const xvec_t &x, const yvec_t &y,
+  SvmAsgd(int dim, double lambda);
+  void renorm();
+  void train(int imin, int imax, 
+             const xvec_t &x, const yvec_t &y,
              const char *prefix = "");
-  void test(int imin, int imax, const xvec_t &x, const yvec_t &y, 
+  void test(int imin, int imax, 
+            const xvec_t &x, const yvec_t &y, 
             const char *prefix = "");
 private:
   double  t;
   double  eta0;
   double  lambda;
+  FVector u;
   FVector w;
-  double  wscale;
-  double  bias;
+  double  ubias;
+  double  wbias;
+  double  alpha;
+  double  beta;
+  double  tau;
+  double  avgstart;
+  double  avgdelay;
+  double  umiss;
+  double  wmiss;
 };
 
 
 
-SvmSgd::SvmSgd(int dim, double l)
-  : t(0), lambda(l), w(dim), wscale(1), bias(0)
+SvmAsgd::SvmAsgd(int dim, double l)
+  : t(0), lambda(l), 
+    u(dim), w(dim), 
+    ubias(0), wbias(0),
+    alpha(1), beta(1), tau(0),
+    avgstart(0), avgdelay(100),
+    umiss(1), wmiss(1)
 {
   // Compute a reasonable initial learning rate.
   // This assumes |x|=1 
-  double maxw = 1.0 / sqrt(lambda);
-  double typw = sqrt(maxw);
-  double tloss = max(LOSS::dloss(typw,-1), LOSS::dloss(-typw,1));
-  eta0 = typw / max(1.0, tloss);
+  //double maxw = 1.0 / sqrt(lambda);
+  //double typw = sqrt(maxw);
+  //eta0 = typw / max(1.0,LOSS::dloss(-typw,1));
+  eta0 = 0.1;
+  cout << "Eta0=" << eta0 << endl;
 }
 
+void 
+SvmAsgd::renorm()
+{
+  w.combine(1/beta, u, tau/beta);
+  u.scale(1/alpha);
+  alpha = beta = 1;
+  tau = 0;
+}
 
 void 
-SvmSgd::train(int imin, int imax, 
+SvmAsgd::train(int imin, int imax, 
               const xvec_t &xp, const yvec_t &yp,
               const char *prefix)
 {
@@ -98,69 +124,87 @@ SvmSgd::train(int imin, int imax,
       // process pattern x
       const SVector &x = xp.at(i);
       double y = yp.at(i);
-      double a = dot(w,x) * wscale + bias;
+      double ux = dot(u,x);
+      double d = LOSS::dloss(ubias + ux / alpha, y);
       // determine gain
-      double eta = eta0 / (1 + lambda * eta0 * t);
-#if BIAS
-      double etab = eta * 0.01; // slower on the bias!
-#endif
-      // update for regularization term
-      wscale *= (1 - eta * lambda);
-      if (wscale < 1e-9)
+      double eta = eta0 / pow(1 + eta0 * lambda * t, 0.75);
+      // determine averaging factor
+      double mu = 1/(avgdelay + max(0.0, t - avgstart));
+      // check whether to start averaging.
+      if (t <= avgstart)
         {
-          w.scale(wscale);
-          wscale = 1;
+          double wx = dot(w,x);
+          double ul = (y * (ubias + ux / alpha) > 0) ? 0 : 1;
+          double wl = (y * (wbias + (wx + ux * tau)) > 0) ? 0 : 1;
+          umiss += (ul - umiss) * mu;
+          wmiss += (wl - wmiss) * mu;
+          if (t < 10 * avgdelay || umiss < wmiss)
+            avgstart += 1; // do not start averaging yet
         }
+      // renorm when multipliers exceed range
+      if (alpha > 1e6 || beta > 1e6)
+        renorm();
+      // sparse asgd procedure
+      alpha = alpha / (1 - lambda * eta);
+      beta = beta / (1 - mu);
+      tau = tau + mu * beta / alpha;
 #if REGULARIZED_BIAS
-      bias *= (1 - etab * lambda);
+      ubias *= (1 - lambda * eta);
 #endif
-      // update for loss term
-      double d = LOSS::dloss(a, y);
       if (d != 0)
         {
-          w.add(x, eta * d / wscale);
+          double etd = alpha * eta * d;
+          u.add(x, etd);
+          w.add(x, - tau * etd);
 #if BIAS
-          bias += etab * d;
+          ubias += eta * d;
+          wbias += (ubias - wbias) * mu;
 #endif
         }
       t += 1;
     }
-  double wnorm =  dot(w,w) * wscale * wscale;
+  // renormalize and display
+  renorm();
   cout << prefix << setprecision(6) 
-       << "Norm: " << wnorm 
+       << "UNorm: " << dot(u,u)
+       << ", WNorm: " << dot(w,w)
 #if BIAS
-       << ", Bias: " << bias 
+       << ", UBias: " << ubias 
+       << ", WBias: " << wbias 
 #endif
        << endl;
 }
 
 
 void 
-SvmSgd::test(int imin, int imax, 
+SvmAsgd::test(int imin, int imax, 
              const xvec_t &xp, const yvec_t &yp, 
              const char *prefix)
 
 {
   cout << prefix << "Testing on [" << imin << ", " << imax << "]." << endl;
   assert(imin <= imax);
+  renorm();
   int nerr = 0;
   double cost = 0;
   for (int i=imin; i<=imax; i++)
     {
       const SVector &x = xp.at(i);
       double y = yp.at(i);
-      double a = dot(w,x) * wscale + bias;
+      double a = dot(w,x) + wbias;
       if (y * a <= 0)
         nerr += 1;
       cost += LOSS::loss(a, y);
     }
   int n = imax - imin + 1;
-  double wnorm =  dot(w,w) * wscale * wscale;
-  cost = cost / n + 0.5 * lambda * wnorm;
+  double loss = cost / n;
+  cost = loss + 0.5 * lambda * dot(w,w);
   cout << prefix << setprecision(4)
        << "Misclassification: " << (double)nerr * 100.0 / n << "%." << endl;
   cout << prefix << setprecision(12) 
        << "Cost: " << cost << "." << endl;
+  cout << prefix << setprecision(12) 
+       << "Loss: " << loss << "." << endl;
 }
 
 
@@ -172,7 +216,7 @@ const char *trainfile = 0;
 const char *testfile = 0;
 bool normalize = true;
 double lambda = 1e-5;
-int epochs = 5;
+int epochs = 2;
 
 void
 usage(const char *progname)
@@ -277,7 +321,7 @@ int main(int argc, const char **argv)
     load_datafile(testfile, xtest, ytest, dim, normalize);
   cout << "# Number of features " << dim << "." << endl;
   // train
-  SvmSgd svm(dim, lambda);
+  SvmAsgd svm(dim, lambda);
   Timer timer;
   int imin = 0;
   int imax = xtrain.size() - 1;

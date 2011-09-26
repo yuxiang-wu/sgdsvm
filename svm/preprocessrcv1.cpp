@@ -337,10 +337,10 @@ main(int, const char**)
   listKeys(test, testid);
   computeNormalizedTfIdf();
 
-  saveBinary("train.bin.gz", train, trainid);
-  saveSvmLight("train.dat.gz", train, trainid);
-  saveBinary("test.bin.gz", test, testid);
-  saveSvmLight("test.dat.gz", test, testid);
+  saveBinary("rcv1.train.bin.gz", train, trainid);
+  saveSvmLight("rcv1.train.dat.gz", train, trainid);
+  saveBinary("rcv1.test.bin.gz", test, testid);
+  saveSvmLight("rcv1.test.dat.gz", test, testid);
   
   cerr << "# The End." << endl;
 }

@@ -23,7 +23,7 @@ OPTS=-g -O2
 CXXFLAGS= ${OPTS} ${OPT} -Wall -I$L
 LIBS = -lz -lm
 
-PROGRAMS = preprocessrcv1 svmsgd
+PROGRAMS = preprocessrcv1 svmsgd svmasgd
 
 all: ${PROGRAMS}
 
@@ -37,6 +37,7 @@ timer.o: timer.cpp timer.h
 data.o: vectors.h gzstream.h
 preprocessrcv1.o: vectors.h gzstream.h assert.h
 svmsgd.o: data.h loss.h vectors.h timer.h assert.h
+svmasgd.o: data.h loss.h vectors.h timer.h assert.h
 
 preprocessrcv1: preprocessrcv1.o vectors.o gzstream.o
 	${CXX} ${CXXFLAGS} -o $@ $^ ${LIBS}
@@ -44,6 +45,8 @@ preprocessrcv1: preprocessrcv1.o vectors.o gzstream.o
 svmsgd: svmsgd.o data.o vectors.o gzstream.o timer.o
 	${CXX} ${CXXFLAGS} -o $@ $^ ${LIBS}
 
+svmasgd: svmasgd.o data.o vectors.o gzstream.o timer.o
+	${CXX} ${CXXFLAGS} -o $@ $^ ${LIBS}
 
 
 
