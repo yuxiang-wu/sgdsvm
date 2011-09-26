@@ -32,6 +32,7 @@ containing well known datasets.
         pascal/convert.py
 
    These files must then be decoded using the python script convert.py.
+   This can take a while.
         $ cd pascal
         $ ./convert.py alpha -o alpha.txt alpha train
         $ ./convert.py alpha -o webspam.txt webspam train
