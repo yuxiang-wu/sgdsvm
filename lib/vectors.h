@@ -18,13 +18,10 @@
 
 
 
-// $Id$
-
 #ifndef VECTORS_H
 #define VECTORS_H 1
 
 #include <cstring>
-#include <cassert>
 #include <iostream>
 #include "wrapper.h"
 

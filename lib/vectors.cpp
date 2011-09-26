@@ -18,14 +18,11 @@
 
 
 
-// $Id$
-
-
+#include "assert.h"
 #include "vectors.h"
 #include <ios>
 #include <iomanip>
 #include <iostream>
-#include <cassert>
 #include <cstring>
 #include <cctype>
 

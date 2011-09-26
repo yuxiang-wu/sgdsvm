@@ -24,7 +24,6 @@
 #define MATRICES_H 1
 
 #include <cstring>
-#include <cassert>
 #include <iostream>
 #include <vector>
 #include "wrapper.h"

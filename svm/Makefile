@@ -16,14 +16,14 @@
 
 
 L=../lib
-
-
+VPATH=$L
 CXX=g++
+OPT=
 OPTS=-g -O2
-CXXFLAGS= ${OPTS} -Wall -I$L
+CXXFLAGS= ${OPTS} ${OPT} -Wall -I$L
 LIBS = -lz -lm
 
-PROGRAMS = preprocessrcv1 
+PROGRAMS = preprocessrcv1 svmsgd
 
 all: ${PROGRAMS}
 
@@ -31,22 +31,18 @@ clean:
 	-rm ${PROGRAMS} 2>/dev/null
 	-rm *.o 2>/dev/null
 
-vectors.o: $L/vectors.cpp $L/vectors.h  $L/wrapper.h
-	${CXX} ${CXXFLAGS} -c -o $@ $L/vectors.cpp
-
-gzstream.o: $L/gzstream.cpp $L/gzstream.h 
-	${CXX} ${CXXFLAGS} -c -o $@ $L/gzstream.cpp
-
-timer.o: $L/timer.cpp $L/timer.h 
-	${CXX} ${CXXFLAGS} -c -o $@ $L/timer.cpp
+vectors.o: vectors.cpp vectors.h wrapper.h assert.h
+gzstream.o: gzstream.cpp gzstream.h 
+timer.o: timer.cpp timer.h 
+data.o: vectors.h gzstream.h
+preprocessrcv1.o: vectors.h gzstream.h assert.h
+svmsgd.o: data.h loss.h vectors.h timer.h assert.h
 
 preprocessrcv1: preprocessrcv1.o vectors.o gzstream.o
-	${CXX} ${CXXFLAGS} -o $@ preprocessrcv1.o vectors.o gzstream.o ${LIBS}
+	${CXX} ${CXXFLAGS} -o $@ $^ ${LIBS}
 
-#svmsgd: svmsgd.o vectors.o gzstream.o timer.o
-#	${CXX} ${CXXFLAGS} -o $@ svmsgd.o vectors.o gzstream.o timer.o ${LIBS}
-
-
+svmsgd: svmsgd.o data.o vectors.o gzstream.o timer.o
+	${CXX} ${CXXFLAGS} -o $@ $^ ${LIBS}
 
 
 

@@ -35,7 +35,6 @@
 
 using namespace std;
 
-
 typedef vector<SVector> xvec_t;
 typedef vector<double> yvec_t;
 

@@ -21,16 +21,17 @@
 // $Id$
 
 
-#include "vectors.h"
-#include "gzstream.h"
 #include <iostream>
 #include <string>
 #include <map>
 #include <vector>
 #include <algorithm>
-#include <cassert>
 #include <cstdlib>
 #include <cmath>
+
+#include "assert.h"
+#include "vectors.h"
+#include "gzstream.h"
 
 
 using namespace std;
@@ -59,15 +60,11 @@ classes_t classes;
 void
 readClasses(const char *fname)
 {
-  cerr << "# Reading " << fname << endl;
-
+  cout << "# Reading " << fname << endl;
   igzstream f;
   f.open(fname);
-  if (! f.good()) {
-    cerr << "ERROR: cannot open file " << fname << endl;
-    ::exit(10);
-  }
-
+  if (! f.good())
+    assertfail("Cannot open file " << fname);
   classes.clear();
   for(;;) {
     string topic;
@@ -80,11 +77,8 @@ readClasses(const char *fname)
     else if (classes.find(id) == classes.end())
       classes[id] = false;
   }
-  if (!f.eof()) {
-    cerr << "ERROR: failed reading " << fname << endl;
-    ::exit(10);
-  }
-  
+  if (!f.eof())
+    assertfail("Failed reading " << fname);
   int pcount = 0;
   int ncount = 0;
   for (classes_t::const_iterator it=classes.begin(); it!=classes.end(); it++)
@@ -92,8 +86,7 @@ readClasses(const char *fname)
       pcount++;
     else
       ncount++;
-
-  cerr << "# Done reading " 
+  cout << "# Done reading " 
        << pcount << " positives and " 
        << ncount << " negatives. " << endl;
 }
@@ -115,18 +108,12 @@ readDocs(const char *fname, docs_t &docs, bool freezedico=false)
 
   igzstream f;
   f.open(fname);
-  if (! f.good()) {
-    cerr << "ERROR: cannot open file " << fname << endl;
-    ::exit(10);
-  }
-  
+  if (! f.good())
+    assertfail("Cannot open file " << fname);
   string token;
   f >> token;
   if (token != ".I")
-    {
-      cerr << "ERROR: Cannot read initial .I in " << fname << endl;
-      ::exit(10);
-    }
+    assertfail("Cannot read initial .I in " << fname);
   int id = 0;
   int count = 0;
   while(f.good())
@@ -134,11 +121,7 @@ readDocs(const char *fname, docs_t &docs, bool freezedico=false)
       f >> id >> token;
       count += 1;
       if (! f.good() || token != ".W")
-        {
-          cerr << "ERROR (" << id << "): "
-               << "Cannot read \"<id> .W\"." << endl;
-          ::exit(10);
-        }
+        assertfail("Cannot read \"<id> .W\".");
       int wid = -1;
       string otoken;
       SVector s;
@@ -164,20 +147,11 @@ readDocs(const char *fname, docs_t &docs, bool freezedico=false)
           s.set(wid, s.get(wid)+1.0);
         }
       if (s.npairs() <= 0)
-        {
-          cerr << "ERROR (" << id << "): "
-               << "Empty vector " << id << "?" << endl;
-          ::exit(10);
-        }
+        assertfail("Empty vector " << id << "?");
       docs[id] = s;
     }
   if (!f.eof())
-    {
-      cerr << "ERROR (" << id << "): "
-           << "Failed reading words" << endl;
-      ::exit(10);
-    }
-
+    assertfail("Failed reading words");
   cerr << "# Done reading " << count << " documents." << endl;
 }
 
