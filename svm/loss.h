@@ -71,8 +71,11 @@ struct SquaredHingeLoss
   static double loss(double a, double y)
   {
     double z = a * y;
+    if (z > 1)
+      return 0;
     double d = 1 - z;
     return 0.5 * d * d;
+    
   }
   // -dloss(a,y)/da
   static double dloss(double a, double y)

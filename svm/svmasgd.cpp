@@ -69,7 +69,9 @@ public:
             const char *prefix = "");
 private:
   double  t;
+  double  tstart;
   double  eta0;
+  double  eta1;
   double  lambda;
   FVector u;
   FVector w;
@@ -78,29 +80,26 @@ private:
   double  alpha;
   double  beta;
   double  tau;
-  double  avgstart;
   double  avgdelay;
   double  umiss;
   double  wmiss;
+  static const double mu0 = 0.001;
+  static const double sgd0 = 0.25;
 };
 
 
 
 SvmAsgd::SvmAsgd(int dim, double l)
-  : t(0), lambda(l), 
-    u(dim), w(dim), 
-    ubias(0), wbias(0),
-    alpha(1), beta(1), tau(0),
-    avgstart(0), avgdelay(100),
-    umiss(1), wmiss(1)
+  : t(0), tstart(0),
+    lambda(l), u(dim), w(dim), ubias(0), wbias(0),
+    alpha(1), beta(1), tau(0), 
+    umiss(0), wmiss(0)
 {
   // Compute a reasonable initial learning rate.
   // This assumes |x|=1 
-  //double maxw = 1.0 / sqrt(lambda);
-  //double typw = sqrt(maxw);
-  //eta0 = typw / max(1.0,LOSS::dloss(-typw,1));
-  eta0 = 0.1;
-  cout << "Eta0=" << eta0 << endl;
+  double maxw = 1.0 / sqrt(lambda);
+  double typw = sqrt(maxw);
+  eta0 = typw / max(1.0,LOSS::dloss(-typw,1));
 }
 
 void 
@@ -119,6 +118,7 @@ SvmAsgd::train(int imin, int imax,
 {
   cout << prefix << "Training on [" << imin << ", " << imax << "]." << endl;
   assert(imin <= imax);
+  tstart = sgd0 * (imax - imin + 1);
   for (int i=imin; i<=imax; i++)
     {
       // process pattern x
@@ -126,25 +126,35 @@ SvmAsgd::train(int imin, int imax,
       double y = yp.at(i);
       double ux = dot(u,x);
       double d = LOSS::dloss(ubias + ux / alpha, y);
-      // determine gain
-      double eta = eta0 / pow(1 + eta0 * lambda * t, 0.75);
-      // determine averaging factor
-      double mu = 1/(avgdelay + max(0.0, t - avgstart));
-      // check whether to start averaging.
-      if (t <= avgstart)
+      double eta, mu;
+      // did we start averaging.
+      if (t <= tstart)
         {
+          mu = mu0;
+          eta = eta1 = eta0 / (1 + eta0 * lambda * t);
+          /*
           double wx = dot(w,x);
-          double ul = (y * (ubias + ux / alpha) > 0) ? 0 : 1;
-          double wl = (y * (wbias + (wx + ux * tau)) > 0) ? 0 : 1;
+          double ul = LOSS::loss(ubias + ux / alpha, y);
+          double wl = LOSS::loss(wbias + (wx + ux * tau) / beta, y);
           umiss += (ul - umiss) * mu;
           wmiss += (wl - wmiss) * mu;
-          if (t < 10 * avgdelay || umiss < wmiss)
-            avgstart += 1; // do not start averaging yet
+          if (t < 10000 || umiss < wmiss)
+            tstart += 1; // do not average yet
+          else
+            cout << "Tstart" 
+                 << ", T=" << t 
+                 << ", Miss=" << umiss << "," << wmiss
+                 << ", Eta=" << eta
+                 << endl;
+          */
         }
-      // renorm when multipliers exceed range
-      if (alpha > 1e6 || beta > 1e6)
-        renorm();
+      else
+        {
+          eta = eta1 / pow(1 + eta1 * lambda * (t - tstart), 0.75);
+          mu = mu0 / (1 + mu0 * (t - tstart));
+        }
       // sparse asgd procedure
+      if (alpha > 1e6 || beta > 1e6 || mu > 1e6) renorm();
       alpha = alpha / (1 - lambda * eta);
       beta = beta / (1 - mu);
       tau = tau + mu * beta / alpha;
@@ -192,21 +202,15 @@ SvmAsgd::test(int imin, int imax,
       const SVector &x = xp.at(i);
       double y = yp.at(i);
       double a = dot(w,x) + wbias;
-      if (y * a <= 0)
-        nerr += 1;
+      nerr += (y * a <= 0) ? 1 : 0;
       cost += LOSS::loss(a, y);
     }
   int n = imax - imin + 1;
-  double loss = cost / n;
-  cost = loss + 0.5 * lambda * dot(w,w);
   cout << prefix << setprecision(4)
        << "Misclassification: " << (double)nerr * 100.0 / n << "%." << endl;
   cout << prefix << setprecision(12) 
-       << "Cost: " << cost << "." << endl;
-  cout << prefix << setprecision(12) 
-       << "Loss: " << loss << "." << endl;
+       << "Cost: " << cost / n + 0.5 * lambda * dot(w,w)  << "." << endl;
 }
-
 
 
 
