@@ -79,7 +79,7 @@ saveBinary(const char *fname, xvec_t &xp, yvec_t &yp,
       int i = index[ii];
       double y = yp[i];
       SVector x = xp[i];
-      f.put( y ? 1 : 0);
+      f.put((y >= 0) ? 1 : 0);
       x.save(f);
       count += 1;
     }
