@@ -34,6 +34,6 @@ containing well known datasets.
    These files must then be decoded using the python script convert.py.
    This can take a while.
         $ cd pascal
-        $ ./convert.py alpha -o alpha.txt alpha train
-        $ ./convert.py alpha -o webspam.txt webspam train
+        $ ./convert.py -o alpha.txt alpha train
+        $ ./convert.py -o webspam.txt webspam train
 
