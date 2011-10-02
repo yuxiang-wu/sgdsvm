@@ -37,7 +37,7 @@ using namespace std;
 // Compile with -DLOSS=xxxx to define the loss function.
 // Loss functions are defined in file loss.h)
 #ifndef LOSS
-# define LOSS HingeLoss
+# define LOSS LogLoss
 #endif
 
 // ---- Bias term
@@ -127,9 +127,9 @@ SvmSgd::train(int imin, int imax,
     }
   double wnorm =  dot(w,w) * wscale * wscale;
   cout << prefix << setprecision(6) 
-       << "Norm: " << wnorm 
+       << "Norm=" << wnorm 
 #if BIAS
-       << ", Bias: " << bias 
+       << " Bias=" << bias 
 #endif
        << endl;
 }
@@ -143,24 +143,24 @@ SvmSgd::test(int imin, int imax,
 {
   cout << prefix << "Testing on [" << imin << ", " << imax << "]." << endl;
   assert(imin <= imax);
-  int nerr = 0;
-  double cost = 0;
+  double nerr = 0;
+  double loss = 0;
   for (int i=imin; i<=imax; i++)
     {
       const SVector &x = xp.at(i);
       double y = yp.at(i);
       double a = dot(w,x) * wscale + bias;
-      if (y * a <= 0)
-        nerr += 1;
-      cost += LOSS::loss(a, y);
+      nerr += (y * a <= 0) ? 1 : 0;
+      loss += LOSS::loss(a, y);
     }
-  int n = imax - imin + 1;
-  double wnorm =  dot(w,w) * wscale * wscale;
-  cost = cost / n + 0.5 * lambda * wnorm;
-  cout << prefix << setprecision(4)
-       << "Misclassification: " << (double)nerr * 100.0 / n << "%." << endl;
-  cout << prefix << setprecision(12) 
-       << "Cost: " << cost << "." << endl;
+  nerr = nerr / (imax - imin + 1);
+  loss = loss / (imax - imin + 1);
+  double cost = loss + 0.5 * lambda * dot(w,w) * wscale * wscale;
+  cout << prefix 
+       << "Loss=" << setprecision(12) << loss
+       << " Cost=" << setprecision(12) << cost 
+       << " Misclassification=" << setprecision(4) << 100 * nerr << "%." 
+       << endl;
 }
 
 
@@ -173,6 +173,8 @@ const char *testfile = 0;
 bool normalize = true;
 double lambda = 1e-5;
 int epochs = 5;
+int maxtrain = -1;
+
 
 void
 usage(const char *progname)
@@ -188,7 +190,9 @@ usage(const char *progname)
        << NAM("-epochs n")
        << "Number of training epochs" << DEF(epochs) << endl
        << NAM("-dontnormalize")
-       << "Do not normalize the L2 norm of patterns." << endl;
+       << "Do not normalize the L2 norm of patterns." << endl
+       << NAM("-maxtrain n")
+       << "Restrict training set to n examples." << endl;
 #undef NAM
 #undef DEF
   ::exit(10);
@@ -228,6 +232,11 @@ parse(int argc, const char **argv)
             {
               normalize = false;
             }
+          else if (opt == "maxtrain" && i+1 < argc)
+            {
+              maxtrain = atoi(argv[++i]);
+              assert(maxtrain > 0);
+            }
           else
             {
               cerr << "Option " << argv[i] << " not recognized." << endl;
@@ -243,19 +252,18 @@ parse(int argc, const char **argv)
 void 
 config(const char *progname)
 {
+  cout << "# Running: " << progname;
+  cout << " -lambda " << lambda;
+  cout << " -epochs " << epochs;
+  if (! normalize) cout << " -dontnormalize";
+  if (maxtrain > 0) cout << " -maxtrain " << maxtrain;
+  cout << endl;
 #define NAME(x) #x
 #define NAME2(x) NAME(x)
-  cout << "# Running: " << progname
-       << " -lambda " << lambda
-       << " -epochs " << epochs
-       << (!normalize ? "-dontnormalize" : "")
-       << endl;
   cout << "# Compiled with: "
        << " -DLOSS=" << NAME2(LOSS)
        << " -DBIAS=" << BIAS
-#if BIAS
        << " -DREGULARIZED_BIAS=" << REGULARIZED_BIAS
-#endif
        << endl;
 }
 
@@ -272,7 +280,7 @@ int main(int argc, const char **argv)
   parse(argc, argv);
   config(argv[0]);
   if (trainfile)
-    load_datafile(trainfile, xtrain, ytrain, dim, normalize);
+    load_datafile(trainfile, xtrain, ytrain, dim, normalize, maxtrain);
   if (testfile)
     load_datafile(testfile, xtest, ytest, dim, normalize);
   cout << "# Number of features " << dim << "." << endl;

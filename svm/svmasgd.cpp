@@ -38,7 +38,7 @@ using namespace std;
 // Compile with -DLOSS=xxxx to define the loss function.
 // Loss functions are defined in file loss.h)
 #ifndef LOSS
-# define LOSS HingeLoss
+# define LOSS LogLoss
 #endif
 
 // ---- Bias term
@@ -69,7 +69,6 @@ public:
             const char *prefix = "");
 private:
   double  t;
-  double  tstart;
   double  eta0;
   double  eta1;
   double  lambda;
@@ -80,26 +79,22 @@ private:
   double  alpha;
   double  beta;
   double  tau;
-  double  avgdelay;
-  double  umiss;
-  double  wmiss;
-  static const double mu0 = 0.001;
-  static const double sgd0 = 0.25;
+  double  tstart;
+  double  mu0;
 };
 
 
 
 SvmAsgd::SvmAsgd(int dim, double l)
-  : t(0), tstart(0),
+  : t(0),
     lambda(l), u(dim), w(dim), ubias(0), wbias(0),
-    alpha(1), beta(1), tau(0), 
-    umiss(0), wmiss(0)
+    alpha(1), beta(1), tau(0), tstart(10000), mu0(0.01)
 {
   // Compute a reasonable initial learning rate.
   // This assumes |x|=1 
   double maxw = 1.0 / sqrt(lambda);
   double typw = sqrt(maxw);
-  eta0 = typw / max(1.0,LOSS::dloss(-typw,1));
+  eta0 = eta1 = typw / max(1.0,LOSS::dloss(-typw,1));
 }
 
 void 
@@ -118,7 +113,6 @@ SvmAsgd::train(int imin, int imax,
 {
   cout << prefix << "Training on [" << imin << ", " << imax << "]." << endl;
   assert(imin <= imax);
-  tstart = sgd0 * (imax - imin + 1);
   for (int i=imin; i<=imax; i++)
     {
       // process pattern x
@@ -126,61 +120,61 @@ SvmAsgd::train(int imin, int imax,
       double y = yp.at(i);
       double ux = dot(u,x);
       double d = LOSS::dloss(ubias + ux / alpha, y);
-      double eta, mu;
-      // did we start averaging.
-      if (t <= tstart)
+      if (t < tstart)
         {
-          mu = mu0;
-          eta = eta1 = eta0 / (1 + eta0 * lambda * t);
-          /*
-          double wx = dot(w,x);
-          double ul = LOSS::loss(ubias + ux / alpha, y);
-          double wl = LOSS::loss(wbias + (wx + ux * tau) / beta, y);
-          umiss += (ul - umiss) * mu;
-          wmiss += (wl - wmiss) * mu;
-          if (t < 10000 || umiss < wmiss)
-            tstart += 1; // do not average yet
-          else
-            cout << "Tstart" 
-                 << ", T=" << t 
-                 << ", Miss=" << umiss << "," << wmiss
-                 << ", Eta=" << eta
-                 << endl;
-          */
+          // PLAIN SGD
+          double eta = eta0 / (1 + eta0 * lambda * t);
+          double etab = eta * 0.01;
+          alpha = alpha / (1 - lambda * eta);
+#if REGULARIZED_BIAS
+          ubias *= (1 - lambda * etab);
+#endif
+          if (d != 0)
+            u.add(x, alpha * eta * d);
+#if BIAS
+          ubias += etab * d;
+#endif
+          // copy into averaged vector
+          w = u;
+          wbias = ubias;
+          beta = alpha;
+          tau = 0;
+          eta1 = eta0;
         }
       else
         {
-          eta = eta1 / pow(1 + eta1 * lambda * (t - tstart), 0.75);
-          mu = mu0 / (1 + mu0 * (t - tstart));
+          // continue with asgd
+          double eta = eta1 / pow(1 + eta1 * lambda * (t - tstart), 0.75);
+          double mu = mu0 / (1 + mu0 * (t - tstart));
+          if (alpha > 1e6 || beta > 1e6 || mu > 1e6) renorm();
+          alpha = alpha / (1 - lambda * eta);
+          beta = beta / (1 - mu);
+          tau = tau + mu * beta / alpha;
+#if REGULARIZED_BIAS
+          ubias *= (1 - lambda * eta);
+#endif
+          if (d != 0)
+            {
+              double etd = alpha * eta * d;
+              u.add(x, etd);
+              w.add(x, - tau * etd);
+#if BIAS
+              ubias += eta * d;
+              wbias += (ubias - wbias) * mu;
+#endif
+            }
         }
       // sparse asgd procedure
-      if (alpha > 1e6 || beta > 1e6 || mu > 1e6) renorm();
-      alpha = alpha / (1 - lambda * eta);
-      beta = beta / (1 - mu);
-      tau = tau + mu * beta / alpha;
-#if REGULARIZED_BIAS
-      ubias *= (1 - lambda * eta);
-#endif
-      if (d != 0)
-        {
-          double etd = alpha * eta * d;
-          u.add(x, etd);
-          w.add(x, - tau * etd);
-#if BIAS
-          ubias += eta * d;
-          wbias += (ubias - wbias) * mu;
-#endif
-        }
       t += 1;
     }
   // renormalize and display
   renorm();
   cout << prefix << setprecision(6) 
-       << "UNorm: " << dot(u,u)
-       << ", WNorm: " << dot(w,w)
+       << "UNorm=" << dot(u,u)
+       << " WNorm=" << dot(w,w)
 #if BIAS
-       << ", UBias: " << ubias 
-       << ", WBias: " << wbias 
+       << " UBias=" << ubias 
+       << " WBias=" << wbias 
 #endif
        << endl;
 }
@@ -195,21 +189,24 @@ SvmAsgd::test(int imin, int imax,
   cout << prefix << "Testing on [" << imin << ", " << imax << "]." << endl;
   assert(imin <= imax);
   renorm();
-  int nerr = 0;
-  double cost = 0;
+  double nerr = 0;
+  double loss = 0;
   for (int i=imin; i<=imax; i++)
     {
       const SVector &x = xp.at(i);
       double y = yp.at(i);
       double a = dot(w,x) + wbias;
       nerr += (y * a <= 0) ? 1 : 0;
-      cost += LOSS::loss(a, y);
+      loss += LOSS::loss(a, y);
     }
-  int n = imax - imin + 1;
-  cout << prefix << setprecision(4)
-       << "Misclassification: " << (double)nerr * 100.0 / n << "%." << endl;
-  cout << prefix << setprecision(12) 
-       << "Cost: " << cost / n + 0.5 * lambda * dot(w,w)  << "." << endl;
+  nerr = nerr / (imax - imin + 1);
+  loss = loss / (imax - imin + 1);
+  double cost = loss + 0.5 * lambda * dot(w,w);
+  cout << prefix 
+       << "Loss=" << setprecision(12) << loss
+       << " Cost=" << setprecision(12) << cost 
+       << " Misclassification: " << setprecision(4) << 100 * nerr << "%." 
+       << endl;
 }
 
 
@@ -221,6 +218,8 @@ const char *testfile = 0;
 bool normalize = true;
 double lambda = 1e-5;
 int epochs = 2;
+int maxtrain = -1;
+
 
 void
 usage(const char *progname)
@@ -236,7 +235,9 @@ usage(const char *progname)
        << NAM("-epochs n")
        << "Number of training epochs" << DEF(epochs) << endl
        << NAM("-dontnormalize")
-       << "Do not normalize the L2 norm of patterns." << endl;
+       << "Do not normalize the L2 norm of patterns." << endl
+       << NAM("-maxtrain n")
+       << "Restrict training set to n examples." << endl;
 #undef NAM
 #undef DEF
   ::exit(10);
@@ -276,6 +277,11 @@ parse(int argc, const char **argv)
             {
               normalize = false;
             }
+          else if (opt == "maxtrain" && i+1 < argc)
+            {
+              maxtrain = atoi(argv[++i]);
+              assert(maxtrain > 0);
+            }
           else
             {
               cerr << "Option " << argv[i] << " not recognized." << endl;
@@ -291,19 +297,18 @@ parse(int argc, const char **argv)
 void 
 config(const char *progname)
 {
+  cout << "# Running: " << progname;
+  cout << " -lambda " << lambda;
+  cout << " -epochs " << epochs;
+  if (! normalize) cout << " -dontnormalize";
+  if (maxtrain > 0) cout << " -maxtrain " << maxtrain;
+  cout << endl;
 #define NAME(x) #x
 #define NAME2(x) NAME(x)
-  cout << "# Running: " << progname
-       << " -lambda " << lambda
-       << " -epochs " << epochs
-       << (!normalize ? "-dontnormalize" : "")
-       << endl;
   cout << "# Compiled with: "
        << " -DLOSS=" << NAME2(LOSS)
        << " -DBIAS=" << BIAS
-#if BIAS
        << " -DREGULARIZED_BIAS=" << REGULARIZED_BIAS
-#endif
        << endl;
 }
 
@@ -320,7 +325,7 @@ int main(int argc, const char **argv)
   parse(argc, argv);
   config(argv[0]);
   if (trainfile)
-    load_datafile(trainfile, xtrain, ytrain, dim, normalize);
+    load_datafile(trainfile, xtrain, ytrain, dim, normalize, maxtrain);
   if (testfile)
     load_datafile(testfile, xtest, ytest, dim, normalize);
   cout << "# Number of features " << dim << "." << endl;

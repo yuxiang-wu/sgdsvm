@@ -16,11 +16,6 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111, USA
 
-
-
-// $Id$
-
-
 #include <iostream>
 #include <string>
 #include <map>
@@ -228,15 +223,10 @@ void
 saveBinary(const char *fname, docs_t &docs, intvector_t &ids)
 {
   cerr << "# Writing " << fname << "."  << endl;
-  
   ogzstream f;
   f.open(fname);
   if (! f.good())
-    {
-      cerr << "ERROR: cannot open " << fname << " for writing." << endl;
-      ::exit(10);
-    }
-  
+    assertfail("ERROR: cannot open " << fname << " for writing.");
   int pcount = 0;
   int ncount = 0;
   int npairs = 0;
@@ -248,7 +238,6 @@ saveBinary(const char *fname, docs_t &docs, intvector_t &ids)
         pcount += 1;
       else
         ncount += 1;
-
       SVector s = docs[id];
       int p = s.npairs();
       npairs += p;
@@ -278,15 +267,10 @@ void
 saveSvmLight(const char *fname, docs_t &docs, intvector_t &ids)
 {
   cerr << "# Writing " << fname << "."  << endl;
-  
   ogzstream f;
   f.open(fname);
   if (! f.good())
-    {
-      cerr << "ERROR: cannot open " << fname << " for writing." << endl;
-      ::exit(10);
-    }
-  
+    assertfail("ERROR: cannot open " << fname << " for writing.");
   for(int i=0; i<(int)ids.size(); i++)
     {
       int id = ids[i];
@@ -312,22 +296,24 @@ saveSvmLight(const char *fname, docs_t &docs, intvector_t &ids)
 
 
 
+#define DATADIR "../data/rcv1/"
 
 int 
 main(int, const char**)
 {
-  readClasses("../data/rcv1/rcv1-v2.topics.qrels.gz");
+  readClasses(DATADIR "rcv1-v2.topics.qrels.gz");
 
-  readDocs("../data/rcv1/lyrl2004_tokens_train.dat.gz", test);
+  readDocs(DATADIR "lyrl2004_tokens_train.dat.gz", test);
   cerr << "# Dictionary size (so far) " << dico.size() << endl;
 
   // We freeze the dictionary at this point.
-  // As a result we only use features common to both the training and testing set.
+  // As a result we only use features common 
+  // to both the training and testing set.
   // This is consistent with joachims svmperf experiments.
-  readDocs("../data/rcv1/lyrl2004_tokens_test_pt0.dat.gz", train, true);
-  readDocs("../data/rcv1/lyrl2004_tokens_test_pt1.dat.gz", train, true);
-  readDocs("../data/rcv1/lyrl2004_tokens_test_pt2.dat.gz", train, true);
-  readDocs("../data/rcv1/lyrl2004_tokens_test_pt3.dat.gz", train, true);
+  readDocs(DATADIR "lyrl2004_tokens_test_pt0.dat.gz", train, true);
+  readDocs(DATADIR "lyrl2004_tokens_test_pt1.dat.gz", train, true);
+  readDocs(DATADIR "lyrl2004_tokens_test_pt2.dat.gz", train, true);
+  readDocs(DATADIR "lyrl2004_tokens_test_pt3.dat.gz", train, true);
   
   cerr << "# Got " << test.size() << " testing documents." << endl;
   cerr << "# Got " << train.size() << " training documents." << endl;
@@ -338,9 +324,10 @@ main(int, const char**)
   computeNormalizedTfIdf();
 
   saveBinary("rcv1.train.bin.gz", train, trainid);
-  saveSvmLight("rcv1.train.dat.gz", train, trainid);
   saveBinary("rcv1.test.bin.gz", test, testid);
-  saveSvmLight("rcv1.test.dat.gz", test, testid);
-  
+#ifdef PREP_SVMLIGHT
+  saveSvmLight("rcv1.train.txt.gz", train, trainid);
+  saveSvmLight("rcv1.test.txt.gz", test, testid);
+#endif
   cerr << "# The End." << endl;
 }

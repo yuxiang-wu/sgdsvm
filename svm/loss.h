@@ -31,7 +31,7 @@ struct LogLoss
       return exp(-z);
     if (z < -18)
       return -z;
-    return log(1 - exp(-z));
+    return log(1 + exp(-z));
   }
   // -dloss(a,y)/da
   static double dloss(double a, double y)

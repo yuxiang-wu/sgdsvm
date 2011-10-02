@@ -23,7 +23,7 @@ OPTS=-g -O2
 CXXFLAGS= ${OPTS} ${OPT} -Wall -I$L
 LIBS = -lz -lm
 
-PROGRAMS = preprocessrcv1 svmsgd svmasgd
+PROGRAMS = prep_rcv1 prep_alpha prep_webspam svmsgd svmasgd
 
 all: ${PROGRAMS}
 
@@ -35,16 +35,21 @@ vectors.o: vectors.cpp vectors.h wrapper.h assert.h
 gzstream.o: gzstream.cpp gzstream.h 
 timer.o: timer.cpp timer.h 
 data.o: vectors.h gzstream.h
-preprocessrcv1.o: vectors.h gzstream.h assert.h
+prep_rcv1.o: vectors.h gzstream.h assert.h
+prep_alpha.o: vectors.h gzstream.h assert.h
+prep_webspam.o: vectors.h gzstream.h assert.h
 svmsgd.o: data.h loss.h vectors.h timer.h assert.h
 svmasgd.o: data.h loss.h vectors.h timer.h assert.h
 
-preprocessrcv1: preprocessrcv1.o vectors.o gzstream.o
+prep_rcv1: prep_rcv1.o vectors.o gzstream.o
+	${CXX} ${CXXFLAGS} -o $@ $^ ${LIBS}
+prep_alpha: prep_alpha.o vectors.o gzstream.o
+	${CXX} ${CXXFLAGS} -o $@ $^ ${LIBS}
+prep_webspam: prep_webspam.o vectors.o gzstream.o
 	${CXX} ${CXXFLAGS} -o $@ $^ ${LIBS}
 
 svmsgd: svmsgd.o data.o vectors.o gzstream.o timer.o
 	${CXX} ${CXXFLAGS} -o $@ $^ ${LIBS}
-
 svmasgd: svmasgd.o data.o vectors.o gzstream.o timer.o
 	${CXX} ${CXXFLAGS} -o $@ $^ ${LIBS}
 

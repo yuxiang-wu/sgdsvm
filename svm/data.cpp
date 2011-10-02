@@ -33,17 +33,16 @@
 using namespace std;
 
 static void
-load_datafile_sub(istream &f, bool binary,
-                  const char *fname, 
+load_datafile_sub(istream &f, bool binary, const char *fname, 
                   xvec_t &xp, yvec_t &yp, int &maxdim,
-                  bool normalize)
+                  bool normalize, int maxrows)
 {
   cout << "# Reading file " << fname << endl;
   if (! f.good())
     assertfail("Cannot open " << fname);
   int ncount = 0;
   int pcount = 0;
-  while (f.good())
+  while (f.good() && maxrows--)
     {
       SVector x;
       double y;
@@ -84,34 +83,36 @@ load_datafile_sub(istream &f, bool binary,
 void
 load_datafile(const char *fname, 
               xvec_t &xp, yvec_t &yp, int &maxdim,
-              bool normalize)
+              bool normalize, int maxrows)
 {
   bool binary = false;
   bool compressed = false;
   string filename = fname;
   int len = filename.size();
-  if (len > 7 && filename.substr(len-7) == ".dat.gz")
+  if (len > 7 && filename.substr(len-7) == ".txt.gz")
     compressed = true;
   else if (len > 7 && filename.substr(len-7) == ".bin.gz")
     compressed = binary = true;
   else if (len > 4 && filename.substr(len-4) == ".bin")
     binary = true;
-  else if (len > 4 && filename.substr(len-4) == ".dat")
+  else if (len > 4 && filename.substr(len-4) == ".txt")
     binary = false;
   else
     assertfail("Filename suffix should be one of: "
-               << ".bin, .dat, .bin.gz, .dat.gz");
+               << ".bin, .txt, .bin.gz, .txt.gz");
   if (compressed)
     {
       igzstream f;
       f.open(fname);
-      return load_datafile_sub(f, binary, fname, xp, yp, maxdim, normalize);
+      return load_datafile_sub(f, binary, fname, xp, yp, 
+                               maxdim, normalize, maxrows);
     }
   else
     {
       ifstream f;
       f.open(fname);
-      return load_datafile_sub(f, binary, fname, xp, yp, maxdim, normalize);
+      return load_datafile_sub(f, binary, fname, xp, yp, 
+                               maxdim, normalize, maxrows);
     }
 }
 

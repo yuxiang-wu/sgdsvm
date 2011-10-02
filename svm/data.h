@@ -27,6 +27,7 @@ typedef std::vector<double>  yvec_t;
 
 void load_datafile(const char *filename, 
                    xvec_t &xp, yvec_t &yp, int &maxdim,
-                   bool normalize = true);
+                   bool normalize = true,
+                   int maxrows = -1);
 
 #endif
