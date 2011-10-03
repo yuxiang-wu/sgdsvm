@@ -1605,7 +1605,7 @@ CrfSgd::findObjBySampling(const dataset_t &data, const ivec_t &sample, Weights &
       loss += scorer.scoreForward() - scorer.scoreCorrect();
     }
   double wnorm = dot(weights.w, weights.w) / (weights.wDivisor * weights.wDivisor);
-  return loss + 0.5 * wnorm * lambda * n;
+  return loss / n + 0.5 * wnorm * lambda;
 }
 
 
@@ -1617,10 +1617,11 @@ CrfSgd::tryEtaBySampling(const dataset_t &data, const ivec_t &sample, double eta
   for (i=0; i<n; i++)
     {
       int j = sample[i];
-      TScorer scorer(data[j], dict, weights, eta, 0);
+      TScorer scorer(data[j], dict, weights, eta, 1);
+      scorer.computeScores();
+      weights.wDivisor = weights.wDivisor / (1 - eta * lambda);
       scorer.gradCorrect(+1);
       scorer.gradForward(-1);
-      weights.wDivisor = weights.wDivisor / (1 - eta * lambda);
     }
   return findObjBySampling(data, sample, weights);
 }
@@ -1638,6 +1639,8 @@ double
 CrfSgd::adjustEta(double eta)
 {
   eta0 = eta;
+  if (verbose)
+    cout << " taking eta0=" << eta0;
   return eta0;
 }
 
@@ -1660,7 +1663,7 @@ CrfSgd::adjustEta(const dataset_t &data, int samples, double seta, Timer *tm)
       sample.push_back(i);
   // initial obj
   double sobj = findObjBySampling(data, sample, ww);
-  cout << "  initial objective: " << sobj << endl;
+  cout << " initial objective=" << sobj << endl;
   // empirically find eta that works best
   double besteta = 1;
   double bestobj = sobj;
@@ -1674,7 +1677,7 @@ CrfSgd::adjustEta(const dataset_t &data, int samples, double seta, Timer *tm)
       bool okay = (obj < sobj);
       if (verbose)
         {
-          cout << "  trying eta=" << eta << "  obj=" << obj;
+          cout << " trying eta=" << eta << "  obj=" << obj;
           if (okay)
             cout << " (possible)" << endl;
           else
@@ -1706,7 +1709,7 @@ CrfSgd::adjustEta(const dataset_t &data, int samples, double seta, Timer *tm)
   adjustEta(besteta);
   // message
   if  (tm && verbose)
-    cout << "  total time: " << tm->elapsed() << " seconds";
+    cout << " time=" << tm->elapsed() << "s.";
   if (verbose)
     cout << endl;
   return eta0;
@@ -1731,6 +1734,8 @@ CrfSgd::trainOnce(const Sentence &sentence, double eta, double mu)
     }
   else
     {
+      if (! ww.a.size())
+        ww.normalize();
       scorer.gradCorrect(+1);
       scorer.gradForward(-1);
       ww.aDivisor /= (1 - mu);
@@ -1775,9 +1780,9 @@ CrfSgd::train(const dataset_t &data, int epochs, Timer *tm)
       ww.normalize();
       double wnorm = dot(ww.w,ww.w);
       double anorm = dot(ww.a,ww.a);
-      cout << "  wnorm: " << wnorm << "  anorm: " << anorm;
+      cout << " wnorm=" << wnorm << " anorm=" << anorm;
       if (tm && verbose)
-        cout << "  total time: " << tm->elapsed() << " seconds";
+        cout << " time=" << tm->elapsed() << "s.";
       if (verbose)
         cout << endl;
     }
@@ -1798,7 +1803,7 @@ CrfSgd::test(const dataset_t &data, const char *conlleval, Timer *tm)
    if (conlleval && conlleval[0] && verbose)
      f.open(conlleval);
    if (verbose)
-     cout << " sentences: " << data.size();
+     cout << " sentences=" << data.size();
    double obj = 0;
    int errors = 0;
    int total = 0;
@@ -1814,17 +1819,18 @@ CrfSgd::test(const dataset_t &data, const char *conlleval, Timer *tm)
          errors += scorer.test();
        total += data[i].size();
      }
+   obj = obj / data.size();
    if (verbose)
-     cout << "  loss: " << obj;
+     cout << " loss=" << obj;
    double anorm = dot(ww.a,ww.a);
-   obj += 0.5 * anorm * lambda * data.size();
+   obj += 0.5 * anorm * lambda;
    double misrate = (double)(errors*100)/(total ? total : 1);
    misrate = ((int)(misrate*100))/100.0;
    if (verbose)
-     cout << "  obj*n: " << obj  
-          << "  miss: " << errors << " (" << misrate << "%)";
+     cout << " obj=" << obj  
+          << " err=" << errors << " (" << misrate << "%)";
    if (tm && verbose)
-     cout << "  total time: " << tm->elapsed() << " seconds";
+     cout << " time=" << tm->elapsed() << "s.";
    if (verbose)
      cout << endl;
 }
@@ -1844,7 +1850,7 @@ CrfSgd::testna(const dataset_t &data, const char *conlleval, Timer *tm)
    if (conlleval && conlleval[0] && verbose)
      f.open(conlleval);
    if (verbose)
-     cout << " sentences: " << data.size();
+     cout << " sentences=" << data.size();
    double obj = 0;
    int errors = 0;
    int total = 0;
@@ -1860,17 +1866,18 @@ CrfSgd::testna(const dataset_t &data, const char *conlleval, Timer *tm)
          errors += scorer.test();
        total += data[i].size();
      }
+   obj = obj / data.size();
    if (verbose)
-     cout << "  loss: " << obj;
+     cout << " loss=" << obj;
    double wnorm = dot(ww.w,ww.w);
-   obj += 0.5 * wnorm * lambda * data.size();
+   obj += 0.5 * wnorm * lambda;
    double misrate = (double)(errors*100)/(total ? total : 1);
    misrate = ((int)(misrate*100))/100.0;
    if (verbose)
-     cout << "  obj*n: " << obj  
-          << "  miss: " << errors << " (" << misrate << "%)";
+     cout << " obj=" << obj  
+          << " miss=" << errors << " (" << misrate << "%)";
    if (tm && verbose)
-     cout << "  total time: " << tm->elapsed() << " seconds";
+     cout << " time=" << tm->elapsed() << "s.";
    if (verbose)
      cout << endl;
 }
@@ -1891,11 +1898,11 @@ string testFile;
 const char *conlleval = "./conlleval -q";
 
 double c = 1;
+double eta = 0;
 int cutoff = 3;
 int epochs = 50;
 int cepochs = 10;
 bool tag = false;
-
 
 dataset_t train;
 dataset_t test;
@@ -1915,6 +1922,7 @@ usage()
     << " -r <num> : total number of epochs (50)" << endl
     << " -h <num> : epochs between each testing phase (10)" << endl
     << " -e <cmd> : performance evaluation command (conlleval -q)" << endl
+    << " -s <eta> : initial learning rate (default: auto)" << endl
     << " -q       : silent mode" << endl;
   exit(10);
 }
@@ -1949,6 +1957,16 @@ parseCmdLine(int argc, char **argv)
                 {
                   cerr << "ERROR: "
                        << "Illegal C value: " << c << endl;
+                  exit(10);
+                }
+            }
+         else if (s[0 ] == 's')
+            {
+              eta = atof(argv[i]);
+              if (eta <= 0)
+                {
+                  cerr << "ERROR: "
+                       << "Illegal initial learning rate: " << s << endl;
                   exit(10);
                 }
             }
@@ -2059,12 +2077,13 @@ main(int argc, char **argv)
         loadSentences(testFile.c_str(), crf.getDict(), test);
       // training
       Timer tm;
-      crf.adjustEta(train, 5000, 0.1, &tm);
+      tm.start();
+      if (eta > 0)
+        crf.adjustEta(eta);
+      else
+        crf.adjustEta(train, 1000, 0.1, &tm);
       crf.adjustTstart(max(min((int)train.size(),1000),(int)train.size()/5)); 
-      if (verbose)
-        cout << "Eta0=" << crf.getEta0() 
-             << "TStart=" << crf.getTstart()
-             << " total time: " << tm.elapsed() << " seconds" << endl;
+      tm.stop();
       while (crf.getEpoch() < epochs)
         {
           tm.start();

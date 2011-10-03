@@ -1493,7 +1493,7 @@ CrfSgd::findObjBySampling(const dataset_t &data, const ivec_t &sample)
       Scorer scorer(data[j], dict, w, wscale);
       loss += scorer.scoreForward() - scorer.scoreCorrect();
     }
-  return loss + 0.5 * wnorm * lambda * n;
+  return loss / n + 0.5 * wnorm * lambda;
 }
 
 
@@ -1527,7 +1527,7 @@ CrfSgd::adjustEta(double eta)
 {  
   t = 1 / (eta * lambda);
   if (verbose)
-    cout << "  taking eta=" << eta << "  t0=" << t;
+    cout << " taking eta=" << eta << "  t0=" << t;
 }
 
 
@@ -1550,7 +1550,7 @@ CrfSgd::adjustEta(const dataset_t &data, int samples,
       sample.push_back(i);
   // initial obj
   double sobj = findObjBySampling(data, sample);
-  cout << "  initial objective: " << sobj << endl;
+  cout << " initial objective=" << sobj << endl;
   // empirically find eta that works best
   double besteta = 1;
   double bestobj = sobj;
@@ -1564,7 +1564,7 @@ CrfSgd::adjustEta(const dataset_t &data, int samples,
       bool okay = (obj < sobj);
       if (verbose)
         {
-          cout << "  trying eta=" << eta << "  obj=" << obj;
+          cout << " trying eta=" << eta << "  obj=" << obj;
           if (okay)
             cout << " (possible)" << endl;
           else
@@ -1596,7 +1596,7 @@ CrfSgd::adjustEta(const dataset_t &data, int samples,
   adjustEta(besteta);
   // message
   if  (tm && verbose)
-    cout << "  total time: " << tm->elapsed() << " seconds";
+    cout << " time=" << tm->elapsed() << "s.";
   if (verbose)
     cout << endl;
 }
@@ -1640,9 +1640,9 @@ CrfSgd::train(const dataset_t &data, int epochs, Timer *tm)
       if (wscale < 1e-6)
         rescale();
       wnorm = dot(w,w) * wscale * wscale;
-      cout << "  wnorm: " << wnorm;
+      cout << " wnorm=" << wnorm;
       if (tm && verbose)
-        cout << "  total time: " << tm->elapsed() << " seconds";
+        cout << " time=" << tm->elapsed() << "s.";
       if (verbose)
         cout << endl;
     }
@@ -1665,7 +1665,7 @@ CrfSgd::test(const dataset_t &data, const char *conlleval, Timer *tm)
    if (conlleval && conlleval[0] && verbose)
      f.open(conlleval);
    if (verbose)
-     cout << "  sentences: " << data.size();
+     cout << " sentences=" << data.size();
    double obj = 0;
    int errors = 0;
    int total = 0;
@@ -1681,16 +1681,16 @@ CrfSgd::test(const dataset_t &data, const char *conlleval, Timer *tm)
          errors += scorer.test();
        total += data[i].size();
      }
+   obj = obj / data.size();
    if (verbose)
-     cout << "  loss: " << obj;
-   obj += 0.5 * wnorm * lambda * data.size();
+     cout << " loss=" << obj;
+   obj += 0.5 * wnorm * lambda;
    double misrate = (double)(errors*100)/(total ? total : 1);
    if (verbose)
-     cout << "  objective*n: " << obj << endl
-          << "  misclassifications: " << errors 
-          << "(" << misrate << "%)";
+     cout << " obj=" << obj 
+          << " err=" << errors << " (" << misrate << "%)";
    if (tm && verbose)
-     cout << "  total time: " << tm->elapsed() << " seconds";
+     cout << " time=" << tm->elapsed() << "s";
    if (verbose)
      cout << endl;
 }
