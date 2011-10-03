@@ -135,17 +135,23 @@ FVector::zero()
 void 
 FVector::clear()
 {
-  w.detach();
-  rep()->resize(0);
+  if (rep()->size > 0)
+    {
+      w.detach();
+      rep()->resize(0);
+    }
 }
 
 
 void 
 FVector::resize(int n)
 {
-  w.detach();
-  assert(n >= 0);
-  rep()->resize(n);
+  if (rep()->size != n)
+    {
+      w.detach();
+      assert(n >= 0);
+      rep()->resize(n);
+    }
 }
 
 
