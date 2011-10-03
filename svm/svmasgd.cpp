@@ -394,7 +394,7 @@ int main(int argc, const char **argv)
   int imax = xtrain.size() - 1;
   int tmin = 0;
   int tmax = xtest.size() - 1;
-  int tstart = max(1000, (imax - imin + 1) / 5); // plain sgd on 20% of the data
+  int tstart = max(min(imax-imin+1,1000),(imax-imin+1)/5); // plain sgd on 20% of the data
   SvmAsgd svm(dims, lambda, tstart);
   Timer timer;
   // determine eta0 using sample
