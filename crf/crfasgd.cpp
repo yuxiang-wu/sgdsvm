@@ -871,6 +871,8 @@ Weights::normalize() const
 void 
 Weights::normalize()
 {
+  if (! a.size())
+    a.resize(w.size());
   for (int i=0; i < w.size(); i++)
     {
       a[i] = (wFraction * w[i] + a[i]) / aDivisor;
@@ -1901,7 +1903,7 @@ double c = 1;
 double eta = 0;
 int cutoff = 3;
 int epochs = 50;
-int cepochs = 10;
+int cepochs = 5;
 bool tag = false;
 
 dataset_t train;

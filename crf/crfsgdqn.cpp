@@ -1518,8 +1518,8 @@ CrfSgd::findObjBySampling(const dataset_t &data, const ivec_t &sample)
       Scorer scorer(data[j], dict, ww);
       loss += scorer.scoreForward() - scorer.scoreCorrect();
     }
-  double wnorm = dot(ww.w, ww.w);
-  return loss + 0.5 * wnorm * lambda * n;
+  double wnorm = dot(ww.w, ww.w) / n;
+  return loss + 0.5 * wnorm * lambda;
 }
 
 
@@ -1579,7 +1579,6 @@ CrfSgd::adjustEta(const dataset_t &data, int samples, double eta)
       objb = objc;
       objc = tryEtaBySampling(data, sample, eta/2);
     }
-  
   // set b and t0
   return adjustEta(eta); 
 }
@@ -1703,11 +1702,13 @@ CrfSgd::train(const dataset_t &data, int epochs, Timer *tm)
         trainOnce(data[shuffle[i]]);
       // epoch done
       double wnorm = dot(ww.w,ww.w);
-      cout << "  wnorm: " << wnorm;
+      cout << " wnorm=" << wnorm;
       if (tm && verbose)
-        cout << "  total time: " << tm->elapsed() << " seconds" << endl;
+        cout << " time=" << tm->elapsed() << "s.";
+      if (verbose)
+        cout << endl;
       // check b
-      if (tm && verbose)
+      if (tm && verbose && false)
         {
           double bmin = 1e38;
           double bmax = -1e38;
@@ -1728,10 +1729,9 @@ CrfSgd::train(const dataset_t &data, int epochs, Timer *tm)
             }
           cout << "\tbmin: " << bmin << " (" << (int)(100.0*nmin/n) << "%)"
                << "  bmax: " << bmax << " (" << (int)(100.0*nmax/n) << "%)"
-               << "  mgain: " << 1.0 / getLambda() / (getT0() + getT());
+               << "  mgain: " << 1.0 / getLambda() / (getT0() + getT())
+               << endl;
         }
-      if (verbose)
-        cout << endl;
     }
 }
 
@@ -1750,7 +1750,7 @@ CrfSgd::test(const dataset_t &data, const char *conlleval, Timer *tm)
    if (conlleval && conlleval[0] && verbose)
      f.open(conlleval);
    if (verbose)
-     cout << "  sentences: " << data.size();
+     cout << " sentences=" << data.size();
    double obj = 0;
    int errors = 0;
    int total = 0;
@@ -1766,18 +1766,18 @@ CrfSgd::test(const dataset_t &data, const char *conlleval, Timer *tm)
          errors += scorer.test();
        total += data[i].size();
      }
+   obj = obj / data.size();
    if (verbose)
-     cout << "  loss: " << obj;
+     cout << " loss=" << obj;
    double wnorm = dot(ww.w,ww.w);
-   obj += 0.5 * wnorm * lambda * data.size();
+   obj += 0.5 * wnorm * lambda;
    double misrate = (double)(errors*100)/(total ? total : 1);
    misrate = (int)(misrate*100)/100.0;
    if (verbose)
-     cout << "  obj*n: " << obj 
-          << "  misses: " << errors 
-          << "(" << misrate << "%)";
+     cout << " obj=" << obj 
+          << " err=" << errors << " (" << misrate << "%)";
    if (tm && verbose)
-     cout << "  total time: " << tm->elapsed() << " seconds";
+     cout << " time=" << tm->elapsed() << "s.";
    if (verbose)
      cout << endl;
 }
@@ -1990,7 +1990,7 @@ main(int argc, char **argv)
       while (crf.getEpoch() < epochs)
         {
           tm.start();
-          int ce = cepochs; // (crf.getEpoch() < cepochs) ? 1 : cepochs;
+          int ce = (crf.getEpoch() < cepochs) ? 1 : cepochs;
           crf.train(train, ce, &tm);
           tm.stop();
           if (verbose)

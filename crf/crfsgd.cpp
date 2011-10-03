@@ -1714,7 +1714,7 @@ double c = 1;
 double eta = 0;
 int cutoff = 3;
 int epochs = 50;
-int cepochs = 10;
+int cepochs = 5;
 bool tag = false;
 
 dataset_t train;
@@ -1899,7 +1899,8 @@ main(int argc, char **argv)
       while (crf.getEpoch() < epochs)
         {
           tm.start();
-          crf.train(train, cepochs, &tm);
+          int ce = (crf.getEpoch() < cepochs) ? 1 : cepochs;
+          crf.train(train, ce, &tm);
           tm.stop();
           if (verbose)
             {
