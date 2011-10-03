@@ -23,7 +23,7 @@ OPTS=-g -O2
 CXXFLAGS= ${OPTS} -Wall -I$L
 LIBS = -lz -lm
 
-PROGRAMS = crfsgd crfsgd2 crfasgd crfsgdqn
+PROGRAMS = crfsgd crfasgd crfsgdqn
 
 OBJS = vectors.o matrices.o gzstream.o pstream.o timer.o
 
@@ -37,10 +37,6 @@ crfsgd: crfsgd.o ${OBJS}
 	-rm $@ 2>/dev/null
 	${CXX} ${CXXFLAGS} -o $@ crfsgd.o ${OBJS} ${LIBS}
 
-crfsgd2: crfsgd2.o ${OBJS}
-	-rm $@ 2>/dev/null
-	${CXX} ${CXXFLAGS} -o $@ crfsgd2.o ${OBJS} ${LIBS}
-
 crfasgd: crfasgd.o ${OBJS}
 	-rm $@ 2>/dev/null
 	${CXX} ${CXXFLAGS} -o $@ crfasgd.o ${OBJS} ${LIBS}
@@ -52,25 +48,22 @@ crfsgdqn: crfsgdqn.o ${OBJS}
 crfsgd.o: crfsgd.cpp $L/vectors.h  $L/gzstream.h $L/timer.h
 	${CXX} ${CXXFLAGS} -c -o $@ crfsgd.cpp
 
-crfsgd2.o: crfsgd2.cpp $L/vectors.h  $L/gzstream.h $L/timer.h
-	${CXX} ${CXXFLAGS} -c -o $@ crfsgd2.cpp
-
 crfasgd.o: crfasgd.cpp $L/vectors.h  $L/gzstream.h $L/timer.h
 	${CXX} ${CXXFLAGS} -c -o $@ crfasgd.cpp
 
-vectors.o: $L/vectors.cpp $L/vectors.h  $L/wrapper.h
+vectors.o: $L/vectors.cpp $L/vectors.h  $L/wrapper.h $L/assert.h
 	${CXX} ${CXXFLAGS} -c -o $@ $L/vectors.cpp
 
-matrices.o: $L/matrices.cpp $L/matrices.h $L/vectors.h  $L/wrapper.h
+matrices.o: $L/matrices.cpp $L/matrices.h $L/vectors.h  $L/wrapper.h $L/assert.h
 	${CXX} ${CXXFLAGS} -c -o $@ $L/matrices.cpp
 
-gzstream.o: $L/gzstream.cpp $L/gzstream.h 
+gzstream.o: $L/gzstream.cpp $L/gzstream.h $L/assert.h
 	${CXX} ${CXXFLAGS} -c -o $@ $L/gzstream.cpp
 
-pstream.o: $L/pstream.cpp $L/pstream.h 
+pstream.o: $L/pstream.cpp $L/pstream.h $L/assert.h
 	${CXX} ${CXXFLAGS} -c -o $@ $L/pstream.cpp
 
-timer.o: $L/timer.cpp $L/timer.h 
+timer.o: $L/timer.cpp $L/timer.h $L/assert.h
 	${CXX} ${CXXFLAGS} -c -o $@ $L/timer.cpp
 
 

@@ -16,7 +16,6 @@
 
 
 L=../lib
-VPATH=$L
 CXX=g++
 OPT=
 OPTS=-g -O2
@@ -25,33 +24,56 @@ LIBS = -lz -lm
 
 PROGRAMS = prep_rcv1 prep_alpha prep_webspam svmsgd svmasgd
 
+OBJS = vectors.o gzstream.o timer.o
+INCS = $L/vectors.h $L/gzstream.h $L/timer.h $L/wrapper.h $L/assert.h
+
 all: ${PROGRAMS}
 
 clean:
 	-rm ${PROGRAMS} 2>/dev/null
 	-rm *.o 2>/dev/null
 
-vectors.o: vectors.cpp vectors.h wrapper.h assert.h
-gzstream.o: gzstream.cpp gzstream.h 
-timer.o: timer.cpp timer.h 
-data.o: vectors.h gzstream.h
-prep_rcv1.o: vectors.h gzstream.h assert.h
-prep_alpha.o: vectors.h gzstream.h assert.h
-prep_webspam.o: vectors.h gzstream.h assert.h
-svmsgd.o: data.h loss.h vectors.h timer.h assert.h
-svmasgd.o: data.h loss.h vectors.h timer.h assert.h
+vectors.o: $L/vectors.cpp ${INCS}
+	${CXX} ${CXXFLAGS} -c -o $@ $L/vectors.cpp
 
-prep_rcv1: prep_rcv1.o vectors.o gzstream.o
-	${CXX} ${CXXFLAGS} -o $@ $^ ${LIBS}
-prep_alpha: prep_alpha.o vectors.o gzstream.o
-	${CXX} ${CXXFLAGS} -o $@ $^ ${LIBS}
-prep_webspam: prep_webspam.o vectors.o gzstream.o
-	${CXX} ${CXXFLAGS} -o $@ $^ ${LIBS}
+gzstream.o: $L/gzstream.cpp ${INCS}
+	${CXX} ${CXXFLAGS} -c -o $@ $L/gzstream.cpp
 
-svmsgd: svmsgd.o data.o vectors.o gzstream.o timer.o
-	${CXX} ${CXXFLAGS} -o $@ $^ ${LIBS}
-svmasgd: svmasgd.o data.o vectors.o gzstream.o timer.o
-	${CXX} ${CXXFLAGS} -o $@ $^ ${LIBS}
+timer.o: $L/timer.cpp ${INCS}
+	${CXX} ${CXXFLAGS} -c -o $@ $L/timer.cpp
+
+data.o: data.cpp ${INCS}
+	${CXX} ${CXXFLAGS} -c -o $@ data.cpp
+
+prep_rcv1.o: prep_rcv1.cpp ${INCS}
+	${CXX} ${CXXFLAGS} -c -o $@ prep_rcv1.cpp
+
+prep_alpha.o: prep_alpha.cpp ${INCS}
+	${CXX} ${CXXFLAGS} -c -o $@ prep_alpha.cpp
+
+prep_webspam.o: prep_webspam.cpp ${INCS}
+	${CXX} ${CXXFLAGS} -c -o $@ prep_webspam.cpp
+
+svmsgd.o: data.h loss.h ${INCS}
+	${CXX} ${CXXFLAGS} -c -o $@ svmsgd.cpp
+
+svmasgd.o: data.h loss.h $L/vectors.h $L/gzstream.h $L/timer.h $L/wrapper.h $L/assert.h
+	${CXX} ${CXXFLAGS} -c -o $@ svmasgd.cpp
+
+prep_rcv1: prep_rcv1.o ${OBJS}
+	${CXX} ${CXXFLAGS} -o $@ prep_rcv1.o ${OBJS} ${LIBS}
+
+prep_alpha: prep_alpha.o ${OBJS}
+	${CXX} ${CXXFLAGS} -o $@ prep_alpha.o ${OBJS} ${LIBS}
+
+prep_webspam: prep_webspam.o ${OBJS}
+	${CXX} ${CXXFLAGS} -o $@ prep_webspam.o ${OBJS} ${LIBS}
+
+svmsgd: svmsgd.o data.o ${OBJS}
+	${CXX} ${CXXFLAGS} -o $@ svmsgd.o data.o ${OBJS} ${LIBS}
+
+svmasgd: svmasgd.o data.o ${OBJS}
+	${CXX} ${CXXFLAGS} -o $@ svmasgd.o data.o ${OBJS} ${LIBS}
 
 
 

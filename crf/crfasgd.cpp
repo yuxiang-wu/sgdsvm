@@ -1356,17 +1356,17 @@ class TScorer : public Scorer
 {
 private:
   double eta;
-  double gamma;
+  double mu;
 public:
-  TScorer(const Sentence &s_, const Dictionary &d_, Weights &ww_, double eta_, double gamma_);
+  TScorer(const Sentence &s_, const Dictionary &d_, Weights &ww_, double eta_, double mu_);
   virtual void uGradients(const VFloat *g, int pos, int fy, int ny);
   virtual void bGradients(const VFloat *g, int pos, int fy, int ny, int y);
 };
 
 
 TScorer::TScorer(const Sentence &s_, const Dictionary &d_, Weights &ww_, 
-                 double eta_, double gamma_ )
-  : Scorer(s_,d_,ww_), eta(eta_), gamma(gamma_)
+                 double eta_, double mu_ )
+  : Scorer(s_,d_,ww_), eta(eta_), mu(mu_)
 {
 }
 
@@ -1389,7 +1389,8 @@ TScorer::uGradients(const VFloat *g, int pos, int fy, int ny)
       {
         VFloat dw = g[j] * p->v * gain;
         w[p->i + off + j] += dw;
-        a[p->i + off + j] -= dw * wfrac;
+        if (wfrac) 
+          a[p->i + off + j] -= dw * wfrac;
       }
 }
 
@@ -1413,7 +1414,8 @@ TScorer::bGradients(const VFloat *g, int pos, int fy, int ny, int y)
       {
         VFloat dw = g[j] * p->v * gain;
         w[p->i + off + j] += dw;
-        a[p->i + off + j] -= dw * wfrac;
+        if (wfrac) 
+          a[p->i + off + j] -= dw * wfrac;
       }
 }
 
@@ -1431,15 +1433,16 @@ class CrfSgd
   Dictionary dict;
   Weights ww;
   double lambda;
-  double etop;
+  double eta0;
+  double mu0;
   double t;
-  double t0;
+  double tstart;
   int epoch;
   
   void load(istream &f);
   void save(ostream &f) const;
-  void trainOnce(const Sentence &sentence, double eta, double gamma);
-  double findObjBySampling(const dataset_t &data, const ivec_t &sample);
+  void trainOnce(const Sentence &sentence, double eta, double mu);
+  double findObjBySampling(const dataset_t &data, const ivec_t &sample, Weights &w);
   double tryEtaBySampling(const dataset_t &data, const ivec_t &sample, double eta);
   
 public:
@@ -1449,10 +1452,9 @@ public:
   int getEpoch() const { return epoch; }
   const Dictionary& getDict() const { return dict; }
   double getLambda() const { return lambda; }
-  double getEta() const { return etop * pow(t0 + t, -0.75); }
-  double getEtop() const { return etop; }
+  double getEta0() const { return eta0; }
   double getT() const { return t; }
-  double getT0() const { return t0; }
+  double getTstart() const { return tstart; }
   FVector getW() const { return ww.real_w(); }
   FVector getA() const { return ww.real_a(); }
   
@@ -1462,8 +1464,9 @@ public:
                   double c = 4,
                   int cutoff = 3);
   
+  double adjustTstart(double t);
   double adjustEta(double eta);
-  double adjustEta(const dataset_t &data, int sample=5000, double eta=1);
+  double adjustEta(const dataset_t &data, int sample=5000, double eta=1, Timer *tm=0);
 
   void train(const dataset_t &data, int epochs=1, Timer *tm=0);
 
@@ -1476,7 +1479,7 @@ public:
 
 
 CrfSgd::CrfSgd()
-  : lambda(0), etop(0), t(0), epoch(0)
+  : lambda(0), eta0(0), mu0(1), t(0), tstart(20000), epoch(0)
 {
 }
 
@@ -1485,8 +1488,7 @@ void
 CrfSgd::load(istream &f)
 {
   f >> dict;
-  etop = 0;
-  t = t0 = 0;
+  t = 0;
   epoch = 0;
   ww.clear();
   ww.resize(dict.nParams(), dict.nOutputs());
@@ -1578,8 +1580,7 @@ operator<<(ostream &f, const CrfSgd &d)
 
 
 void 
-CrfSgd::initialize(const char *tfname, const char *dfname, 
-                   double c, int cutoff)
+CrfSgd::initialize(const char *tfname, const char *dfname, double c, int cutoff)
 {
   t = 0;
   epoch = 0;
@@ -1593,26 +1594,148 @@ CrfSgd::initialize(const char *tfname, const char *dfname,
 
 
 double 
+CrfSgd::findObjBySampling(const dataset_t &data, const ivec_t &sample, Weights &weights)
+{
+  double loss = 0;
+  int n = sample.size();
+  for (int i=0; i<n; i++)
+    {
+      int j = sample[i];
+      Scorer scorer(data[j], dict, weights);
+      loss += scorer.scoreForward() - scorer.scoreCorrect();
+    }
+  double wnorm = dot(weights.w, weights.w) / (weights.wDivisor * weights.wDivisor);
+  return loss + 0.5 * wnorm * lambda * n;
+}
+
+
+double
+CrfSgd::tryEtaBySampling(const dataset_t &data, const ivec_t &sample, double eta)
+{
+  Weights weights = ww; // copy weights
+  int i, n = sample.size();
+  for (i=0; i<n; i++)
+    {
+      int j = sample[i];
+      TScorer scorer(data[j], dict, weights, eta, 0);
+      scorer.gradCorrect(+1);
+      scorer.gradForward(-1);
+      weights.wDivisor = weights.wDivisor / (1 - eta * lambda);
+    }
+  return findObjBySampling(data, sample, weights);
+}
+
+
+double 
+CrfSgd::adjustTstart(double t)
+{
+  tstart = t;
+  return tstart;
+}
+
+
+double 
 CrfSgd::adjustEta(double eta)
 {
-  t0 = 1.0 / (eta * lambda);
-  t0 = (t0 < 1) ? 1 : t0;
-  etop = pow(t0, -0.25) / lambda;
-  return eta;
+  eta0 = eta;
+  return eta0;
+}
+
+
+double
+CrfSgd::adjustEta(const dataset_t &data, int samples, double seta, Timer *tm)
+{
+  ivec_t sample;
+  if (verbose)
+    cout << "[Calibrating] --  " << samples << " samples" << endl;
+  assert(samples > 0);
+  assert(dict.nOutputs() > 0);
+  // choose sample
+  int datasize = data.size();
+  if (samples < datasize)
+    for (int i=0; i<samples; i++)
+      sample.push_back((int)((double)rand()*datasize/RAND_MAX));
+  else
+    for (int i=0; i<datasize; i++)
+      sample.push_back(i);
+  // initial obj
+  double sobj = findObjBySampling(data, sample, ww);
+  cout << "  initial objective: " << sobj << endl;
+  // empirically find eta that works best
+  double besteta = 1;
+  double bestobj = sobj;
+  double eta = seta;
+  int totest = 10;
+  double factor = 2;
+  bool phase2 = false;
+  while (totest > 0 || !phase2)
+    {
+      double obj = tryEtaBySampling(data, sample, eta);
+      bool okay = (obj < sobj);
+      if (verbose)
+        {
+          cout << "  trying eta=" << eta << "  obj=" << obj;
+          if (okay)
+            cout << " (possible)" << endl;
+          else
+            cout << " (too large)" << endl;
+        }
+      if (okay)
+        {
+          totest -= 1;
+          if (obj < bestobj) {
+            bestobj = obj;
+            besteta = eta;
+          }
+        }
+      if (! phase2)
+        {
+          if (okay)
+            eta = eta * factor;
+          else {
+            phase2 = true;
+            eta = seta;
+          }
+        }
+      if (phase2)
+        eta = eta / factor;
+    }
+  // take it on the safe side (implicit regularization)
+  besteta /= factor;
+  // set initial t
+  adjustEta(besteta);
+  // message
+  if  (tm && verbose)
+    cout << "  total time: " << tm->elapsed() << " seconds";
+  if (verbose)
+    cout << endl;
+  return eta0;
 }
 
 
 
 void
-CrfSgd::trainOnce(const Sentence &sentence, double eta, double gamma)
+CrfSgd::trainOnce(const Sentence &sentence, double eta, double mu)
 {
-  TScorer scorer(sentence, dict, ww, eta, gamma);
+  TScorer scorer(sentence, dict, ww, eta, mu);
   scorer.computeScores();
   ww.wDivisor /= (1 - eta * lambda);
-  scorer.gradCorrect(+1);
-  scorer.gradForward(-1);
-  ww.aDivisor /= (1 - gamma);
-  ww.wFraction += gamma * ww.aDivisor / ww.wDivisor;
+  if (mu >= 1.0)
+    {
+      ww.wFraction = 0;
+      scorer.gradCorrect(+1);
+      scorer.gradForward(-1);
+      ww.a.clear();
+      ww.aDivisor = ww.wDivisor;
+      ww.wFraction = 1;
+    }
+  else
+    {
+      scorer.gradCorrect(+1);
+      scorer.gradForward(-1);
+      ww.aDivisor /= (1 - mu);
+      ww.wFraction += mu * ww.aDivisor / ww.wDivisor;
+    }
   if (ww.wDivisor > 1e15 || ww.aDivisor > 1e15)
     ww.normalize();
   t += 1;
@@ -1622,7 +1745,7 @@ CrfSgd::trainOnce(const Sentence &sentence, double eta, double gamma)
 void 
 CrfSgd::train(const dataset_t &data, int epochs, Timer *tm)
 {
-  if (t0 <= 0 || etop <= 0)
+  if (eta0 <= 0)
     {
       cerr << "ERROR (train): "
            << "Must call adjustEta() before train()." << endl;
@@ -1642,10 +1765,12 @@ CrfSgd::train(const dataset_t &data, int epochs, Timer *tm)
       if (verbose)
         cout.flush();
       // perform epoch
-      double tstart = 20000;
       for (unsigned int i=0; i<data.size(); i++)
-        trainOnce(data[shuffle[i]], getEta(), 
-                  (t < tstart+100) ? 0.01 : 1/(t-tstart));
+        {
+          double eta = eta0 / pow(1 + eta0 * lambda * t, 0.75);
+          double mu = (t <= tstart) ? mu0 : mu0 / (1 + mu0 * (t - tstart));
+          trainOnce(data[shuffle[i]], eta, mu);
+        }
       // epoch done
       ww.normalize();
       double wnorm = dot(ww.w,ww.w);
@@ -1770,7 +1895,6 @@ int cutoff = 3;
 int epochs = 50;
 int cepochs = 10;
 bool tag = false;
-double eta = 0.1;
 
 
 dataset_t train;
@@ -1791,7 +1915,6 @@ usage()
     << " -r <num> : total number of epochs (50)" << endl
     << " -h <num> : epochs between each testing phase (10)" << endl
     << " -e <cmd> : performance evaluation command (conlleval -q)" << endl
-    << " -s <num> : initial learning rate (0.1)" << endl
     << " -q       : silent mode" << endl;
   exit(10);
 }
@@ -1826,16 +1949,6 @@ parseCmdLine(int argc, char **argv)
                 {
                   cerr << "ERROR: "
                        << "Illegal C value: " << c << endl;
-                  exit(10);
-                }
-            }
-          else if (s[0 ] == 's')
-            {
-              eta = atof(argv[i]);
-              if (eta <= 0)
-                {
-                  cerr << "ERROR: "
-                       << "Illegal initial learning rate: " << s << endl;
                   exit(10);
                 }
             }
@@ -1946,12 +2059,12 @@ main(int argc, char **argv)
         loadSentences(testFile.c_str(), crf.getDict(), test);
       // training
       Timer tm;
-      crf.adjustEta(eta);
+      crf.adjustEta(train, 5000, 0.1, &tm);
+      crf.adjustTstart(max(min((int)train.size(),1000),(int)train.size()/5)); 
       if (verbose)
-        cout << "Initial eta=" << crf.getEta() 
-             << " t0=" << crf.getT0() 
-             << " etop=" << crf.getEtop()
-             << "  total time: " << tm.elapsed() << " seconds" << endl;
+        cout << "Eta0=" << crf.getEta0() 
+             << "TStart=" << crf.getTstart()
+             << " total time: " << tm.elapsed() << " seconds" << endl;
       while (crf.getEpoch() < epochs)
         {
           tm.start();
