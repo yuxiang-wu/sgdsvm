@@ -35,21 +35,15 @@
 #include <cmath>
 #include <cfloat>
 
-// set this value to 1 if you are not using sparse data
-#define DENSE_DATA 0
-
-#if DENSE_DATA == 1
-#define SVector FVector
-#endif
-
 using namespace std;
-
 
 typedef vector<SVector> xvec_t;
 typedef vector<double> yvec_t;
 
 // Select loss
-#define LOSS SQUAREDHINGELOSS
+#ifndef LOSS
+# define LOSS SQUAREDHINGELOSS
+#endif
 
 // Magic to find loss name
 #define _NAME(x) #x
@@ -62,7 +56,6 @@ const char *lossname = _NAME2(LOSS);
 #define SQUAREDHINGELOSS 3
 #define LOGLOSS 10
 #define LOGLOSSMARGIN 11
-
 
 inline 
 double loss(double z)
@@ -183,23 +176,12 @@ olbfgs::calibrate(int imin, int imax,
   // compute average gradient size
   double n = 0;
   double r = 0;
-
-#if DENSE_DATA==1
-  for (j=imin; j<=imax; j++,n++)
-    {
-      const FVector &x = xp.at(j);
-      n += 1;
-      r += x.size();
-    }
-#else
   for (j=imin; j<=imax; j++,n++)
     {
       const SVector &x = xp.at(j);
       n += 1;
       r += x.npairs();
     }
-#endif
-
   // compute weight decay skip
   skip = (int) ((8 * n * w.size()) / r);
   cout << " using " << n << " examples." << endl;
@@ -451,43 +433,6 @@ load(const char *fname, xvec_t &xp, yvec_t &yp)
 }
 
 
-void
-rearrange(xvec_t& xp, int dim)
-{
-  double n = xp.size();
-  FVector sum(dim);
-  FVector var(dim);
-
-  for(int ex=0; ex<n; ex++) //compute means
-    sum.add(xp.at(ex));
-  sum.scale(1/n);
-
-  for(int ex=0; ex<n; ex++) //compute standard deviations
-    for(int feat=1; feat<dim; feat++)
-      {
-	double old_var= var.get(feat);
-	double val = (xp.at(ex).get(feat)-sum.get(feat))*(xp.at(ex).get(feat)-sum.get(feat));
-	var.set(feat, old_var+val);
-      }
-  var.scale(1/n);
-
-  for(int ex=0; ex<n; ex++) //normalize
-    xp.at(ex).add(sum,-1);
-
-  for(int ex=0; ex<n; ex++) //center
-    for(int feat=1; feat<dim; feat++)
-      {
-	double old_x = xp.at(ex).get(feat);
-	xp.at(ex).set(feat, old_x/sqrt(var.get(feat)));
-      }
-
-  for(int ex=0; ex<n; ex++) //|x|=1
-    {
-      double norm = sqrt(dot(xp.at(ex),xp.at(ex)));
-      xp.at(ex).scale(1/norm);
-    }
-}
-
 int 
 main(int argc, const char **argv)
 {
@@ -500,9 +445,6 @@ main(int argc, const char **argv)
 
   // load training set
   load(trainfile.c_str(), xtrain, ytrain);
-#if DENSE_DATA==1
-  rearrange(xtrain, dim);
-#endif
   cout << "Number of features " << dim << "." << endl;
   int imin = 0;
   int imax = xtrain.size() - 1;
@@ -515,19 +457,12 @@ main(int argc, const char **argv)
 
   // load testing set
   if (! testfile.empty())
-    {
-      load(testfile.c_str(), xtest, ytest);
-#if DENSE_DATA==1
-    rearrange(xtest, dim);
-#endif
-    }
+    load(testfile.c_str(), xtest, ytest);
   int tmin = 0;
   int tmax = xtest.size() - 1;
-  
   svm.calibrate(imin, imax, xtrain, ytrain);
   for(int i=0; i<epochs; i++)
     {
-      
       cout << "--------- Epoch " << i+1 << "." << endl;
       timer.start();
       svm.train(imin, imax, xtrain, ytrain, "train: ");

@@ -40,7 +40,7 @@ struct LogLoss
     if (z > 18) 
       return y * exp(-z);
     if (z < -18)
-      return 1;
+      return y;
     return y / (1 + exp(z));
   }
 };

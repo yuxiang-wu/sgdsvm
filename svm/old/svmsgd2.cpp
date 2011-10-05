@@ -40,9 +40,10 @@ using namespace std;
 typedef vector<SVector> xvec_t;
 typedef vector<double> yvec_t;
 
-
 // Select loss
-#define LOSS HINGELOSS
+#ifndef LOSS
+# define LOSS HINGELOSS
+#endif
 
 // Magic to find loss name
 #define _NAME(x) #x

@@ -114,19 +114,21 @@ compute_inverse_ratio_and_clip(FVector &w,
 
 
 
-#ifndef DENSE_DATA
-// set this value to 1 if you are not using sparse data
-# define DENSE_DATA 1
-#endif
-#if DENSE_DATA
-#define SVector FVector
-#endif
-
 using namespace std;
 
 typedef vector<SVector> xvec_t;
 typedef vector<double> yvec_t;
 
+
+// Select loss
+#ifndef LOSS
+# define LOSS SQUAREDHINGELOSS
+#endif
+
+// Magic to find loss name
+#define _NAME(x) #x
+#define _NAME2(x) _NAME(x)
+const char *lossname = _NAME2(LOSS);
 
 // Available losses
 #define HINGELOSS 1
@@ -134,10 +136,6 @@ typedef vector<double> yvec_t;
 #define SQUAREDHINGELOSS 3
 #define LOGLOSS 10
 #define LOGLOSSMARGIN 11
-
-// Select loss
-#define LOSS SQUAREDHINGELOSS
-
 
 inline 
 double loss(double z)
@@ -297,21 +295,12 @@ SgdQn::calibrate(int imin, int imax,
   double n = 0;
   double s = 0;
   
-#if DENSE_DATA
-  for (j=imin; j<=imax; j++,n++)
-    {
-      const FVector &x = xp.at(j);
-      n += 1;
-      s += x.size();
-    }
-#else
   for (j=imin; j<=imax; j++,n++)
     {
       const SVector &x = xp.at(j);
       n += 1;
       s += x.npairs();
     }
-#endif    
   
   // compute weight decay skip
   skip = (int) ((8 * n * w.size()) / s);
@@ -364,7 +353,7 @@ SgdQn::train(int imin, int imax,
         {
           w_1 = w;
           updateB = true;
-          w.add(w,-skip*lambda,Bc);
+          w.add(w, -skip*lambda, Bc);
           count = skip;
         }      
 #if LOSS < LOGLOSS
@@ -574,48 +563,6 @@ load(const char *fname, xvec_t &xp, yvec_t &yp)
        << "=" << pcount + ncount << " examples." << endl;
 }
 
-
-void
-rearrange(xvec_t& xp, int dim)
-{
-  cout << "Preprocessing ..." << endl;
-  double n = xp.size();
-
-  FVector sum(dim);
-  FVector var(dim);
-
-  for(int ex=0; ex<n; ex++) //compute means
-    sum.add(xp.at(ex));
-  sum.scale(1/n);
-
-  for(int ex=0; ex<n; ex++) //compute standard deviations
-    for(int feat=1; feat<dim; feat++)
-      {
-	double old_var= var.get(feat);
-	double val = (xp.at(ex).get(feat)-sum.get(feat))*(xp.at(ex).get(feat)-sum.get(feat));
-	var.set(feat, old_var+val);
-      }
-  var.scale(1/n);
-
-  for(int ex=0; ex<n; ex++) //center
-    xp.at(ex).add(sum,-1);
-
-  for(int ex=0; ex<n; ex++) //center
-    for(int feat=1; feat<dim; feat++)
-      {
-	double old_x = xp.at(ex).get(feat);
-        double ratio = 1/sqrt(var.get(feat));
-	xp.at(ex).set(feat, old_x * ratio);
-      }
-
-  for(int ex=0; ex<n; ex++) //|x|=1
-    {
-      double norm = sqrt(dot(xp.at(ex),xp.at(ex)));
-      xp.at(ex).scale(1/norm);
-    }
-}
-
-
 double determine_t0(int imin, int imax, int epochs)
 {  
 
@@ -648,12 +595,14 @@ int
 main(int argc, const char **argv)
 {
   parse(argc, argv);
+  cout << "Loss=" << lossname 
+       << " Bias=" << 0 
+       << " RegBias=" << 0
+       << " Lambda=" << lambda
+       << endl;
 
   // load training set
   load(trainfile.c_str(), xtrain, ytrain);
-#if DENSE_DATA
-  rearrange(xtrain,dim);
-#endif
   cout << "Number of features " << dim << "." << endl;
   int imin = 0;
   int imax = xtrain.size() - 1;
@@ -664,9 +613,6 @@ main(int argc, const char **argv)
   if (! testfile.empty())
     {
       load(testfile.c_str(), xtest, ytest);
-#if DENSE_DATA
-      rearrange(xtest,dim);
-#endif
     }
   int tmin = 0;
   int tmax = xtest.size() - 1;
