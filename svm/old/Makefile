@@ -24,7 +24,7 @@ OPT=
 CXXFLAGS= ${OPTS} ${OPT} -Wall -I$L
 LIBS = -lz -lm
 
-PROGRAMS = svmsgd2 svmcg svmolbfgs
+PROGRAMS = svmsgd2 svmsgdqn svmcg svmolbfgs
 
 all: ${PROGRAMS}
 
@@ -33,6 +33,9 @@ clean:
 	-rm *.o 2>/dev/null
 
 svmsgd2: svmsgd2.o vectors.o gzstream.o timer.o
+	${CXX} ${CXXFLAGS} -o $@ svmsgd2.o vectors.o gzstream.o timer.o ${LIBS}
+
+svmsgdqn: svmsgdqn.o vectors.o gzstream.o timer.o
 	${CXX} ${CXXFLAGS} -o $@ svmsgd2.o vectors.o gzstream.o timer.o ${LIBS}
 
 svmolbfgs: svmolbfgs.o vectors.o gzstream.o timer.o
@@ -46,6 +49,9 @@ preprocess.o: preprocess.cpp $L/vectors.h  $L/gzstream.h
 
 svmsgd2.o: svmsgd2.cpp $L/vectors.h  $L/gzstream.h $L/timer.h
 	${CXX} ${CXXFLAGS} -c -o $@ svmsgd2.cpp
+
+svmsgdqn.o: svmsgdqn.cpp $L/vectors.h  $L/gzstream.h $L/timer.h
+	${CXX} ${CXXFLAGS} -c -o $@ svmsgdqn.cpp
 
 svmolbfgs.o: svmolbfgs.cpp $L/vectors.h  $L/gzstream.h $L/timer.h
 	${CXX} ${CXXFLAGS} -c -o $@ svmolbfgs.cpp
