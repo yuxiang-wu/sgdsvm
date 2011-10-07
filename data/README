@@ -23,7 +23,7 @@ containing well known datasets.
 
 
 * The following PASCAL data available from
-  ftp://largescale.ml.tu-berlin.de/largescale/{alpha,webspam,scripts}
+  ftp://largescale.ml.tu-berlin.de/largescale/ 
 
         pascal/alpha_train.dat.bz2
         pascal/alpha_train.lab.bz2
