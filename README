@@ -123,6 +123,12 @@ and template files and produces tagging files similar to those of Taku Kudo's
 CRF++ program described at <http://crfpp.sourceforge.net/>.  However it takes
 gzipped data files instead of plain files.
 
+Compiling under Unix is achieved using the traditional command "make".
+Microsoft Visual Studio project files are available in the "win" directory.
+You then need to copy the "crfsgd" and "crfasgd" executables into the "crf"
+directory and you need to install Perl if you want to run the standard
+evaluation script "conlleval"
+
 File "crf/README" provides detailed information about these programs and their
 usage. Here is a brief timing comparison of various algorithms for training a
 CRF on this benchmark task.
