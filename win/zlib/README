@@ -1,0 +1,4 @@
+
+This is version 1.2.5 of the zlib library.
+The source code is available from http://zlib.net.
+Compile using  "nmake -f win32\Makefile.msc OBJA=inffast.obj".
