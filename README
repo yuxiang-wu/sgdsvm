@@ -91,75 +91,49 @@ the models include a bias term, whether the bias term is regularized, and
 which loss function should be used.  The default is to use an unregularized
 bias term using the log-loss function L(x,y,w) = log(1+exp(-ywx)).
 
-Under unix, you can compile the programs using the "make" command.
+Compiling under Unix is achieved using the traditional command "make".
 Compilation switches can be conveniently given as follows:
 
 $ make clean; make OPT='-DLOSS=HingeLoss -DBIAS=0'
 
 Microsoft Visual Studio project files are available in the "win" directory.
+You then need to copy the executables into the "svm" directory.
 
-The programs 
+The preprocessing programs "prep_rcv1", "prep_alpha", and "prep_webspam" read
+the original data files and produce binary files readable by the "svmsgd" and
+"svmasgd" programs. See file "svm/README" for details about these programs and
+their usage for each of the datasets. Here is a brief timing comparison of
+various algorithms for training linear svms on the RCV1-V2 task.
 
-
-
-
-function on the classification of RCV1-V2 documents.
-
-The file "data/README" explains how to download
-the datafiles from the RCV1-V2 web site
-<http://jmlr.csail.mit.edu/papers/volume5/lewis04a/lyrl2004_rcv1v2_README.htm>.
-In order to make this a large-scale learning problem,
-we use the official testing set (781,265 documents) as the training set
-and the official training set (23,149 documents) as the testing set.
-
-The file "svm/README" then explains how to preprocess the
-datafiles to recompute the TF/IDF features given the new partition.  
-Two stochastic implementations are provided. Simple definitions 
-in the source code allow for changing the loss functions, etc.
-
-
-Timings:
-
-- stochastic gradient:     ~2 seconds.
+- SGD, ASGD:               ~2 seconds.
 - svmlight:             23642 seconds.
 - svmperf:                 66 seconds.
-- svmlin (log loss):       30 seconds.
+- libsvm(tron):            30 seconds.
+
+Note that recent versions of libsvm implement a dual coordinate ascent
+algorithm that is related to stochastic gradient descent.
 
 
 
+5. CONDITIONAL RANDOM FIELDS
+
+The directory "crf" contains programs for learning the CONLL2000 chunking task
+<http://www.cnts.ua.ac.be/conll2000/chunking>.  This program takes data files
+and template files and produces tagging files similar to those of Taku Kudo's
+CRF++ program described at <http://crfpp.sourceforge.net/>.  However it takes
+gzipped data files instead of plain files.
+
+File "crf/README" provides detailed information about these programs and their
+usage. Here is a brief timing comparison of various algorithms for training a
+CRF on this benchmark task.
 
 
-2) CRF FOR THE CONLL2000 CHUNKING TASK
-
-
-The directory "crf" contains a program for 
-learning the CONLL2000 chunking task
-<http://www.cnts.ua.ac.be/conll2000/chunking>.
-This program takes data files and template files
-and produces tagging files similar to those of 
-Taku Kudo's CRF++ program described at
-<http://crfpp.sourceforge.net/>.
-However it takes gzipped data files 
-instead of plain files.
-
-The file "data/README" explains how to download
-the datafiles from the CONLL2000 Chunking web site
-<http://www.cnts.ua.ac.be/conll2000/chunking>.
-
-The file "crf/README" explains the program usage
-and provides a comparison with the LBFGS optimizer
-implemented by the CRF++ package.
-
-
-Timings:
-
-stochastic gradient:     568 seconds.
 crf++ (lbfgs):          4335 seconds.
+SGD:                     568 seconds.
+ASGD:                    150 seconds.
 
-Note that crf++ implements alternate algorithms (mira)
-that are related to the stochastic gradient descent.
-However these algorithms optimize a different 
-objective function.
+Note that crf++ implements an alternate algorithm (mira) that is related to the
+stochastic gradient descent but optimizes a different loss function.
 
 
 
