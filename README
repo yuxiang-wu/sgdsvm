@@ -77,9 +77,9 @@ The sequence mu_t = 1/t ensures that a is the average of all the previous
 values of w.  This algorithm has been shown to work extremely well (Polyak and
 Juditsky, 1992) provided that the sequence eta_t decreases with exactly the
 right speed.  We follow (Xu, 2010) and choose eta_t = eta_0 / (1 + lambda eta0
-t) ^ 0.75 and we pick eta_0 by trying several gain values on a subset of the
-training data.  In addition, before starting the averaging process, we iterate
-on a substantial fraction of the data using mu=1.
+t) ^ 0.75. We pick eta_0 by trying several gain values on a subset of the
+training data.  In addition, we only start the averaging process after
+processing 20% of the training data.
 
 
 
