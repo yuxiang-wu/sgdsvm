@@ -105,10 +105,10 @@ the original data files and produce binary files readable by the "svmsgd" and
 their usage for each of the datasets. Here is a brief timing comparison of
 various algorithms for training linear svms on the RCV1-V2 task.
 
-- SGD, ASGD:               ~2 seconds.
 - svmlight:             23642 seconds.
 - svmperf:                 66 seconds.
 - libsvm(tron):            30 seconds.
+- SGD, ASGD:               ~2 seconds.
 
 Note that recent versions of libsvm implement a dual coordinate ascent
 algorithm that is related to stochastic gradient descent.
