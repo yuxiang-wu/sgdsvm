@@ -176,6 +176,31 @@ dLogSum(double g, const FVector &v, FVector &r)
 }
 
 
+class ixstream_t
+{
+  bool z;
+  ifstream fn;
+  igzstream fz;
+
+public:
+  ixstream_t(const char *name) 
+  {
+    string fname = name;
+    int len = fname.size();
+    z = fname.substr(len-3) == ".gz";
+    if (z)
+      fz.open(name);
+    else
+      fn.open(name);
+  }
+  istream& stream()
+  {
+    if (z)
+      return fz;
+    else
+      return fn;
+  }
+};
 
 
 // ============================================================
@@ -589,7 +614,8 @@ Dictionary::initFromData(const char *tFile, const char *dFile, int cutoff)
   int oindex = 0;
   int sentences = 0;
   strings_t s;
-  igzstream f(dFile);
+  ixstream_t fx(dFile);
+  istream &f = fx.stream();
   Timer timer;
   timer.start();
   while (readDataSentence(f, s, columns))
@@ -792,7 +818,8 @@ loadSentences(const char *fname, const Dictionary &dict, dataset_t &data)
   int sentences = 0;
   int columns = 0;
   strings_t s;
-  igzstream f(fname);
+  ixstream_t fx(fname);
+  istream &f = fx.stream();
   timer.start();
   while (readDataSentence(f, s, columns))
     {
@@ -1922,7 +1949,7 @@ usage()
     << " -c <num> : capacity control parameter (1.0)" << endl
     << " -f <num> : threshold on the occurences of each feature (3)" << endl
     << " -r <num> : total number of epochs (50)" << endl
-    << " -h <num> : epochs between each testing phase (10)" << endl
+    << " -h <num> : epochs between each testing phase (5)" << endl
     << " -e <cmd> : performance evaluation command (conlleval -q)" << endl
     << " -s <eta> : initial learning rate (default: auto)" << endl
     << " -q       : silent mode" << endl;

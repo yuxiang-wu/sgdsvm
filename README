@@ -120,8 +120,8 @@ algorithm that is related to stochastic gradient descent.
 The directory "crf" contains programs for learning the CONLL2000 chunking task
 <http://www.cnts.ua.ac.be/conll2000/chunking>.  This program takes data files
 and template files and produces tagging files similar to those of Taku Kudo's
-CRF++ program described at <http://crfpp.sourceforge.net/>.  However it takes
-gzipped data files instead of plain files.
+CRF++ program described at <http://crfpp.sourceforge.net/>.  However it also
+accepts gzipped data files instead of plain files.
 
 Compiling under Unix is achieved using the traditional command "make".
 Microsoft Visual Studio project files are available in the "win" directory.
