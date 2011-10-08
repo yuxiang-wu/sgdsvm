@@ -55,10 +55,9 @@ Assume we have an objective function of the form
      Obj(w) = 1/2 lambda w^2  + 1/n sum_i=1^n L(z_i,w)
 
 where w is the parameter, {z_1,...,z_n} are the training examples, 1/2 \lambda
-w^2 a regularization term, and L(z,w) is the loss function.  
-
-Each iteration of the SGD algorithm picks a single example z and updates the
-parameter using the formula
+w^2 a regularization term, and L(z,w) is the loss function. Each iteration of
+the SGD algorithm picks a single example z and updates the parameter vector
+using the formula:
 
     SGD:    w := (1 - lambda eta_t) w - eta_t dL/dw(z,w)
 
@@ -71,22 +70,22 @@ wDivisor, that is, w = W / wDivisor. Each iteration effectively becomes:
     SGD:    wDivisor = wDivisor / (1 - lambda eta_t)
             W = W - eta_t wDivisor dL/dw(z,w)
 
-The ASGD algorithm maintains two parameter vectors. 
-The first parameter vector, w, is updated like the SGD parameter.  
-The second parameter vector, a, computes an average of the previous values of w.
+The ASGD algorithm maintains two parameter vectors. The first parameter
+vector, w, is updated like the SGD parameter. However, the output of the
+algorithm is the second parameter vector, a, which computes an average of 
+all the previous values of w.
 
     ASGD:   w := (1 - lambda eta_t) w - eta_t dL/dw(z,w)
             a := a + mu_t [ w - a ]
 
-The sequence mu_t = 1/t ensures that a is the average of all the previous
-values of w.  This algorithm has been shown to work extremely well (Polyak and
-Juditsky, 1992) provided that the sequence eta_t decreases with exactly the
-right speed.  We follow (Xu, 2010) and choose eta_t = eta_0 / (1 + lambda eta0
-t) ^ 0.75.  We select eta_0 by trying several gain values on a subset of the
-training data, and we start the averaging process after processing 20% of the
-training data. Following (Xu, 2010), sparse training data is treated using the
-substitutions w = W / wDivisor and a = (A + wFraction W) / aDivisor.
-The algorithm effectively becomes:
+This algorithm has been shown to work extremely well (Polyak and Juditsky,
+1992) provided that the sequence eta_t decreases with exactly the right speed.
+We follow (Xu, 2010) and choose eta_t = eta_0 / (1 + lambda eta0 t) ^ 0.75.
+We select eta_0 by trying several gain values on a subset of the training
+data, and we start the averaging process after processing 20% of the training
+data, that is, mu_t = 1/max(1,t-t0). Following (Xu, 2010), sparse training
+data is treated using the substitutions w = W / wDivisor and a = (A +
+wFraction W) / aDivisor.  The algorithm effectively becomes:
 
     ASGD:   wDivisor = wDivisor / (1 - eta_t * lambda)
             W = W - eta_t wDivisor dL/dw(z,w)
