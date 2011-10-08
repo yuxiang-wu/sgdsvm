@@ -60,26 +60,39 @@ w^2 a regularization term, and L(z,w) is the loss function.
 Each iteration of the SGD algorithm picks a single example z and updates the
 parameter using the formula
 
-          SGD:     w := w - eta_t [ w + dL/dw(z,w) ]
+    SGD:    w := (1 - lambda eta_t) w - eta_t dL/dw(z,w)
 
 The trick of course is to choose the gain sequence eta_t wisely.  We use the
 formula eta_t = eta_0 / (1 + lambda eta_0 t), and we pick eta_0 by trying
-several gain values on a subset of the training data.
+several gain values on a subset of the training data.  In order to leverage
+sparse dataset, we represent vector w as the ratio of a vector W and a scalar
+wDivisor, that is, w = W / wDivisor. Each iteration effectively becomes:
+
+    SGD:    wDivisor = wDivisor / (1 - lambda eta_t)
+            W = W - eta_t wDivisor dL/dw(z,w)
 
 The ASGD algorithm maintains two parameter vectors. 
 The first parameter vector, w, is updated like the SGD parameter.  
 The second parameter vector, a, computes an average of the previous values of w.
 
-          ASGD:     w := w - eta_t [ w + dL/dw(z,w) ]
-                    a := a + mu_t [ w - a ]
+    ASGD:   w := (1 - lambda eta_t) w - eta_t dL/dw(z,w)
+            a := a + mu_t [ w - a ]
 
 The sequence mu_t = 1/t ensures that a is the average of all the previous
 values of w.  This algorithm has been shown to work extremely well (Polyak and
 Juditsky, 1992) provided that the sequence eta_t decreases with exactly the
 right speed.  We follow (Xu, 2010) and choose eta_t = eta_0 / (1 + lambda eta0
-t) ^ 0.75. We pick eta_0 by trying several gain values on a subset of the
-training data.  In addition, we only start the averaging process after
-processing 20% of the training data.
+t) ^ 0.75.  We select eta_0 by trying several gain values on a subset of the
+training data, and we start the averaging process after processing 20% of the
+training data. Following (Xu, 2010), sparse training data is treated using the
+substitutions w = W / wDivisor and a = (A + wFraction W) / aDivisor.
+The algorithm effectively becomes:
+
+    ASGD:   wDivisor = wDivisor / (1 - eta_t * lambda)
+            W = W - eta_t wDivisor dL/dw(z,w)
+            A = A + eta_t wFraction wDivisor dL/dw(z,w)
+            aDivisor = aDivisor / (1 - mu_t)
+            wFraction = wFraction + mu aDivisor / wDivisor
 
 
 
@@ -89,57 +102,20 @@ The directory "svm" contains programs to train a L2-regularized linear model
 for binary classification tasks. Compilation time switches determine whether
 the models include a bias term, whether the bias term is regularized, and
 which loss function should be used.  The default is to use an unregularized
-bias term using the log-loss function L(x,y,w) = log(1+exp(-ywx)).
-
-Compiling under Unix is achieved using the traditional command "make".
-Compilation switches can be conveniently given as follows:
-
-$ make clean; make OPT='-DLOSS=HingeLoss -DBIAS=0'
-
-Microsoft Visual Studio project files are available in the "win" directory.
-You then need to copy the executables into the "svm" directory.
-
-The preprocessing programs "prep_rcv1", "prep_alpha", and "prep_webspam" read
-the original data files and produce binary files readable by the "svmsgd" and
-"svmasgd" programs. See file "svm/README" for details about these programs and
-their usage for each of the datasets. Here is a brief timing comparison of
-various algorithms for training linear svms on the RCV1-V2 task.
-
-- svmlight:             23642 seconds.
-- svmperf:                 66 seconds.
-- libsvm(tron):            30 seconds.
-- SGD, ASGD:               ~2 seconds.
-
-Note that recent versions of libsvm implement a dual coordinate ascent
-algorithm that is related to stochastic gradient descent.
+bias term using the log-loss function L(x,y,w) = log(1+exp(-ywx)). See file
+"svm/README" for details about these programs and their usage for each of the
+datasets.
 
 
 
 5. CONDITIONAL RANDOM FIELDS
 
-The directory "crf" contains programs for learning the CONLL2000 chunking task
-<http://www.cnts.ua.ac.be/conll2000/chunking>.  This program takes data files
-and template files and produces tagging files similar to those of Taku Kudo's
-CRF++ program described at <http://crfpp.sourceforge.net/>.  However it also
-accepts gzipped data files instead of plain files.
-
-Compiling under Unix is achieved using the traditional command "make".
-Microsoft Visual Studio project files are available in the "win" directory.
-You then need to copy the "crfsgd" and "crfasgd" executables into the "crf"
-directory and you need to install Perl if you want to run the standard
-evaluation script "conlleval"
-
-File "crf/README" provides detailed information about these programs and their
-usage. Here is a brief timing comparison of various algorithms for training a
-CRF on this benchmark task.
-
-
-crf++ (lbfgs):          4335 seconds.
-SGD:                     568 seconds.
-ASGD:                    150 seconds.
-
-Note that crf++ implements an alternate algorithm (mira) that is related to the
-stochastic gradient descent but optimizes a different loss function.
+The directory "crf" contains programs "crfsgd" and "crfasgd" for training
+conditional random fields for sequences. Both programs take data files and
+template files and produces tagging files similar to those of Taku Kudo's
+CRF++ program described at <http://crfpp.sourceforge.net/>.  However they also
+accepts gzipped data files instead of plain files. See the file "crf/README"
+for detailed information about these programs and their usage.
 
 
 
