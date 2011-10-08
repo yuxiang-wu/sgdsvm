@@ -1,5 +1,0 @@
-
-You need to populate this directory with the static version of the zlib library.
-- Download the source code of zlib (version 1.2.5) from http://zlib.net.
-- Compile using  "nmake -f win32\Makefile.msc OBJA=inffast.obj".
-- Copy the files zlib.h zconf.h and zlib.lib in this directory.
