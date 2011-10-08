@@ -267,7 +267,7 @@ SvmAsgd::determineEta0(int imin, int imax, const xvec_t &xp, const yvec_t &yp)
         hiCost = evaluateEta(imin, imax, xp, yp, hiEta);
       }
   eta0 = loEta;
-  cout << "Using eta0=" << eta0 << endl;
+  cout << "# Using eta0=" << eta0 << endl;
 }
 
 
