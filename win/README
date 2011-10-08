@@ -1,0 +1,6 @@
+This directory contains a visual c++ project (vc9) for compiling the svm and crf programs.
+After compiling, you must copy the executables (found in the Release directory) into
+their respective source code directories "svm" and "crf".
+
+Subdirectory "zlib" contains a binary "zlib.lib" for the data compression library zlib.
+This binary can be recreated from the zlib source available from "http://www.zlib.org".
