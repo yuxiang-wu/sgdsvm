@@ -98,6 +98,7 @@ int main(int, const char**)
   vector<int> index(count);
   for (int i=0; i<count; i++) index[i] = i;
   random_shuffle(index.begin(), index.end());
+  random_shuffle(index.begin(), index.end());
   // saving
   saveBinary(DATAFILE ".test.bin.gz", xp, yp, index, 0, DATATEST);  
   saveBinary(DATAFILE ".train.bin.gz", xp, yp, index, DATATEST, count);
