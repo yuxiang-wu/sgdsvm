@@ -218,7 +218,7 @@ Preparation
 Using stochastic gradient descent (svmsgd):
 
     $ ./svmsgd -lambda 5e-7 -epochs 12 rcv1.train.bin.gz rcv1.test.bin.gz 
-    # Running: ./svmsgd -lambda 5e-07 -epochs 20
+    # Running: ./svmsgd -lambda 5e-07 -epochs 12
     # Compiled with:  -DLOSS=LogLoss -DBIAS=1 -DREGULARIZED_BIAS=1
     # Reading file rcv1.train.bin.gz
     # Read 370541+410724=781265 examples.
@@ -257,7 +257,7 @@ Using stochastic gradient descent (svmsgd):
 Using averaged stochastic gradient descent (svmasgd):
 
     $ ./svmasgd -lambda 5e-7 -epochs 8 rcv1.train.bin.gz rcv1.test.bin.gz 
-    # Running: ./svmasgd -lambda 5e-07 -epochs 20
+    # Running: ./svmasgd -lambda 5e-07 -epochs 8
     # Compiled with:  -DLOSS=LogLoss -DBIAS=1 -DREGULARIZED_BIAS=1
     # Reading file rcv1.train.bin.gz
     # Read 370541+410724=781265 examples.
@@ -313,44 +313,76 @@ Using stochastic gradient descent:
     # Running: ./svmsgd -lambda 1e-06 -epochs 100
     # Compiled with:  -DLOSS=LogLoss -DBIAS=1 -DREGULARIZED_BIAS=0
     # Reading file alpha.train.bin.gz
-    # Read 124859+125141=250000 examples.
+    # Read 124703+125297=250000 examples.
     # Reading file alpha.test.bin.gz
-    # Read 124654+125346=250000 examples.
+    # Read 124810+125190=250000 examples.
     # Number of features 501.
-    # Using eta0=0.5
+    Using eta0=2
     --------- Epoch 1.
+    Training on [0, 249999].
+    wNorm=14774.2 wBias=-0.0121691
+    Total training time 1.56 secs.
+    train: Testing on [0, 249999].
+    train: Loss=0.520788143095 Cost=0.528175238491 Misclassification=25.76%.
+    test:  Testing on [0, 249999].
+    test:  Loss=0.524345917498 Cost=0.531733012894 Misclassification=25.91%.
+    --------- Epoch 2.
+    Training on [0, 249999].
+    wNorm=13891.9 wBias=-0.0434471
+    Total training time 3.11 secs.
+    train: Testing on [0, 249999].
+    train: Loss=0.501256062128 Cost=0.508201990509 Misclassification=24.66%.
+    test:  Testing on [0, 249999].
+    test:  Loss=0.504759218043 Cost=0.511705146424 Misclassification=24.82%.
+    --------- Epoch 3.
     ...
     --------- Epoch 100.
     Training on [0, 249999].
-    wNorm=12614.8 wBias=-0.0389792
-    Total training time 51.69 secs.
+    wNorm=12740.5 wBias=-0.066018
+    Total training time 53.86 secs.
     train: Testing on [0, 249999].
-    train: Loss=0.465435876783 Cost=0.471743261888 Misclassification=21.72%.
+    train: Loss=0.465295875211 Cost=0.471666142841 Misclassification=21.74%.
     test:  Testing on [0, 249999].
-    test:  Loss=0.467762934377 Cost=0.474070319482 Misclassification=21.89%.
+    test:  Loss=0.468786438051 Cost=0.475156705681 Misclassification=21.95%.
 
 
 Using averaged stochastic gradient descent:
 
-    $ ./svmasgd -lambda 1e-6 -epochs 10 alpha.train.bin.gz alpha.test.bin.gz
-    # Running: ./svmasgd -lambda 1e-06 -epochs 100
+    $ ./svmasgd -lambda 1e-6 -epochs 5 alpha.train.bin.gz alpha.test.bin.gz
+    # Running: ./svmasgd -lambda 1e-06 -epochs 5
     # Compiled with:  -DLOSS=LogLoss -DBIAS=1 -DREGULARIZED_BIAS=0
     # Reading file alpha.train.bin.gz
-    # Read 124859+125141=250000 examples.
+    # Read 124703+125297=250000 examples.
     # Reading file alpha.test.bin.gz
-    # Read 124654+125346=250000 examples.
+    # Read 124810+125190=250000 examples.
     # Number of features 501.
-    # Using eta0=0.5
+    Using eta0=2
     --------- Epoch 1.
-    ...
-    --------- Epoch 10.
     Training on [0, 249999].
-    wNorm=13113.4 aNorm=12387.2 wBias=-0.0236621 aBias=-0.0634538
-    Total training time 8.08 secs.
+    wNorm=15397.7 aNorm=15769.3 wBias=0.0102149 aBias=-0.0622902
+    Total training time 2.4 secs.
     train: Testing on [0, 249999].
-    train: Loss=0.464875154208 Cost=0.471431871494 Misclassification=21.69%.
+    train: Loss=0.464873017977 Cost=0.472571878329 Misclassification=21.68%.
     test:  Testing on [0, 249999].
-    test:  Loss=0.46715672888 Cost=0.473713446165 Misclassification=21.85%.
+    test:  Loss=0.468925969524 Cost=0.476624829875 Misclassification=21.88%.
+    --------- Epoch 2.
+    Training on [0, 249999].
+    wNorm=14448.2 aNorm=15250.9 wBias=-0.0221732 aBias=-0.0596153
+    Total training time 4.84 secs.
+    train: Testing on [0, 249999].
+    train: Loss=0.464322945023 Cost=0.471547054887 Misclassification=21.67%.
+    test:  Testing on [0, 249999].
+    test:  Loss=0.468258332423 Cost=0.475482442286 Misclassification=21.87%.
+    --------- Epoch 3.
+    ...
+    --------- Epoch 5.
+    Training on [0, 249999].
+    wNorm=14022.6 aNorm=14879 wBias=-0.0361412 aBias=-0.0576212
+    Total training time 7.28 secs.
+    train: Testing on [0, 249999].
+    train: Loss=0.463985246956 Cost=0.470996560921 Misclassification=21.66%.
+    test:  Testing on [0, 249999].
+    test:  Loss=0.467868757397 Cost=0.474880071362 Misclassification=21.85%.
 
 
 6. EXAMPLE: WEBSPAM, LOG LOSS
