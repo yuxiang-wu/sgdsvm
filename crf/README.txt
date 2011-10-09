@@ -140,6 +140,8 @@ Training a model using averaged stochastic gradient descent.
     [Epoch 10] -- wnorm=9230.78 anorm=6637.07 time=72.1s.
     Training perf: sentences=8936 loss=0.744621 obj=1.11599 err=2332 (1.1%)
     accuracy:  98.90%; precision:  98.14%; recall:  97.99%; FB1:  98.06
+    Testing perf: sentences=2012 loss=2.21817 obj=2.58953 err=1862 (3.93%)
+    accuracy:  96.07%; precision:  93.88%; recall:  93.69%; FB1:  93.79
     Saving model file model.gz.
     Done!  73.69 seconds.
 
