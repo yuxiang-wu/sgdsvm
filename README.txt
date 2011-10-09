@@ -91,7 +91,7 @@ wFraction W) / aDivisor.  The algorithm effectively becomes:
             W = W - eta_t wDivisor dL/dw(z,w)
             A = A + eta_t wFraction wDivisor dL/dw(z,w)
             aDivisor = aDivisor / (1 - mu_t)
-            wFraction = wFraction + mu aDivisor / wDivisor
+            wFraction = wFraction + mu_t aDivisor / wDivisor
 
 
 
