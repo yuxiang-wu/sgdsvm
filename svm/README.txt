@@ -29,6 +29,11 @@ You then need to copy the executable files in this directory.
 
 2. USAGE
 
+Synopsis:
+
+    svmsgd [options] trainfile [testfile]
+    svmasgd [options] trainfile [testfile]
+
 Programs "svmsgd" and "svmasgd" compute a L2 regularized linear model using
 respectively the SGD and ASGD algorithms. Both programs perform a number of
 predefined training epochs over the training set. Each epoch is followed by a
