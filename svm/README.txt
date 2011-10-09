@@ -208,7 +208,7 @@ And using the LibLinear's dual coordinate ascent method (Hsieh, 2008)
 
 
 
-4. EXAMPLE: RCV1-V2, HINGE LOSS
+4. EXAMPLE: RCV1-V2, LOG LOSS
 
 Preparation
 
