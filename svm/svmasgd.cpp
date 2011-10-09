@@ -145,8 +145,7 @@ void
 SvmAsgd::trainOne(const SVector &x, double y, double eta, double mu)
 {
   // Renormalize if needed
-  if (aDivisor > 1e15 || wDivisor > 1e15)
-    renorm();
+  if (aDivisor > 1e5 || wDivisor > 1e5) renorm();
   // Forward
   double s = dot(w,x) / wDivisor + wBias;
   // SGD update for regularization term

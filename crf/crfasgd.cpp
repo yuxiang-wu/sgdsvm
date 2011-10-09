@@ -1770,7 +1770,7 @@ CrfSgd::trainOnce(const Sentence &sentence, double eta, double mu)
       ww.aDivisor /= (1 - mu);
       ww.wFraction += mu * ww.aDivisor / ww.wDivisor;
     }
-  if (ww.wDivisor > 1e15 || ww.aDivisor > 1e15)
+  if (ww.wDivisor > 1e5 || ww.aDivisor > 1e5)
     ww.normalize();
   t += 1;
 }

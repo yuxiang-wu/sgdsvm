@@ -1664,7 +1664,7 @@ CrfSgd::train(const dataset_t &data, int epochs, Timer *tm)
           t += 1;
         }
       // epoch done
-      if (wscale < 1e-6)
+      if (wscale < 1e-5)
         rescale();
       wnorm = dot(w,w) * wscale * wscale;
       cout << " wnorm=" << wnorm;

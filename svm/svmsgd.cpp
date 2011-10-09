@@ -123,8 +123,7 @@ SvmSgd::trainOne(const SVector &x, double y, double eta)
   double s = dot(w,x) / wDivisor + wBias;
   // update for regularization term
   wDivisor = wDivisor / (1 - eta * lambda);
-  if (wDivisor > 1e15) 
-    renorm();
+  if (wDivisor > 1e5) renorm();
   // update for loss term
   double d = LOSS::dloss(s, y);
   if (d != 0)
