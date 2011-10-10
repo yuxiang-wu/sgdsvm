@@ -347,7 +347,7 @@ parse(int argc, const char **argv)
           else if (opt == "tstart" && i+1 < argc)
             {
               tstart = atoi(argv[++i]);
-              assert(maxtrain > 0);
+              assert(tstart > 0);
             }
           else
             {
