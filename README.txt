@@ -82,10 +82,10 @@ This algorithm has been shown to work extremely well (Polyak and Juditsky,
 1992) provided that the sequence eta_t decreases with exactly the right speed.
 We follow (Xu, 2010) and choose eta_t = eta_0 / (1 + lambda eta0 t) ^ 0.75.
 We select eta_0 by trying several gain values on a subset of the training
-data, and we start the averaging process after processing 20% of the training
-data, that is, mu_t = 1/max(1,t-t0). Following (Xu, 2010), sparse training
-data is treated using the substitutions w = W / wDivisor and a = (A +
-wFraction W) / aDivisor.  The algorithm effectively becomes:
+data, and we start the averaging process after a certain time, that is, 
+mu_t = 1/max(1,t-t0). Following (Xu, 2010), sparse training data is treated
+using the substitutions w = W / wDivisor and a = (A + wFraction W) / aDivisor.
+The algorithm effectively becomes:
 
     ASGD:   wDivisor = wDivisor / (1 - eta_t * lambda)
             W = W - eta_t wDivisor dL/dw(z,w)

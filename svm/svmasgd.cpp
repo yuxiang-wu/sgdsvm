@@ -276,9 +276,9 @@ const char *trainfile = 0;
 const char *testfile = 0;
 bool normalize = true;
 double lambda = 1e-5;
-int epochs = 2;
+int epochs = 5;
 int maxtrain = -1;
-int tstart = -1;
+int avgstart = 1;
 
 
 void
@@ -298,8 +298,8 @@ usage(const char *progname)
        << "Do not normalize the L2 norm of patterns." << endl
        << NAM("-maxtrain n")
        << "Restrict training set to n examples." << endl
-       << NAM("-tstart n")
-       << "Only start averaging after n iterations." << endl;
+       << NAM("-avgstart x")
+       << "Only start averaging after x epochs." << DEF(avgstart) << endl;
 #undef NAM
 #undef DEF
   ::exit(10);
@@ -344,10 +344,10 @@ parse(int argc, const char **argv)
               maxtrain = atoi(argv[++i]);
               assert(maxtrain > 0);
             }
-          else if (opt == "tstart" && i+1 < argc)
+          else if (opt == "avgstart" && i+1 < argc)
             {
-              tstart = atoi(argv[++i]);
-              assert(tstart > 0);
+              avgstart = atof(argv[++i]);
+              assert(avgstart > 0);
             }
           else
             {
@@ -367,9 +367,9 @@ config(const char *progname)
   cout << "# Running: " << progname;
   cout << " -lambda " << lambda;
   cout << " -epochs " << epochs;
+  cout << " -avgstart " << avgstart;
   if (! normalize) cout << " -dontnormalize";
   if (maxtrain > 0) cout << " -maxtrain " << maxtrain;
-  if (tstart > 0) cout << " -tstart " << tstart;
   cout << endl;
 #define NAME(x) #x
 #define NAME2(x) NAME(x)
@@ -402,9 +402,7 @@ int main(int argc, const char **argv)
   int imax = xtrain.size() - 1;
   int tmin = 0;
   int tmax = xtest.size() - 1;
-  if (tstart < 0) // default to 20% of the data
-    tstart = max(min(imax-imin+1,1000),(imax-imin+1)/5); 
-  SvmAsgd svm(dims, lambda, tstart);
+  SvmAsgd svm(dims, lambda, avgstart * (imax-imin+1));
   Timer timer;
   // determine eta0 using sample
   int smin = 0;
