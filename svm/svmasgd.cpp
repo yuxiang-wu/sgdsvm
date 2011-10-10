@@ -59,7 +59,7 @@ using namespace std;
 class SvmAsgd
 {
 public:
-  SvmAsgd(int dim, double lambda, double tstart=0, double eta0=0);
+  SvmAsgd(int dim, double lambda, double tstart, double eta0=0);
   void renorm();
   double wnorm();
   double anorm();
@@ -278,6 +278,7 @@ bool normalize = true;
 double lambda = 1e-5;
 int epochs = 2;
 int maxtrain = -1;
+int tstart = -1;
 
 
 void
@@ -296,7 +297,9 @@ usage(const char *progname)
        << NAM("-dontnormalize")
        << "Do not normalize the L2 norm of patterns." << endl
        << NAM("-maxtrain n")
-       << "Restrict training set to n examples." << endl;
+       << "Restrict training set to n examples." << endl
+       << NAM("-tstart n")
+       << "Only start averaging after n iterations." << endl;
 #undef NAM
 #undef DEF
   ::exit(10);
@@ -339,6 +342,11 @@ parse(int argc, const char **argv)
           else if (opt == "maxtrain" && i+1 < argc)
             {
               maxtrain = atoi(argv[++i]);
+              assert(maxtrain > 0);
+            }
+          else if (opt == "tstart" && i+1 < argc)
+            {
+              tstart = atoi(argv[++i]);
               assert(maxtrain > 0);
             }
           else
@@ -393,7 +401,8 @@ int main(int argc, const char **argv)
   int imax = xtrain.size() - 1;
   int tmin = 0;
   int tmax = xtest.size() - 1;
-  int tstart = max(min(imax-imin+1,1000),(imax-imin+1)/5); // plain sgd on 20% of the data
+  if (tstart < 0) // default to 20% of the data
+    tstart = max(min(imax-imin+1,1000),(imax-imin+1)/5); 
   SvmAsgd svm(dims, lambda, tstart);
   Timer timer;
   // determine eta0 using sample
