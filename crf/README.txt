@@ -124,43 +124,43 @@ Training a model using averaged stochastic gradient descent.
     ...
     [Calibrating] --  1000 samples
     ...
-    [Epoch 1] -- wnorm=3471.68 anorm=2365.67 time=16.23s.
-    [Epoch 2] -- wnorm=5093.8 anorm=3242.53 time=22.47s.
-    [Epoch 3] -- wnorm=6281.57 anorm=3953.69 time=28.68s.
-    [Epoch 4] -- wnorm=7128.28 anorm=4545.72 time=34.89s.
-    [Epoch 5] -- wnorm=7748.74 anorm=5040.22 time=41.11s.
-    Training perf: sentences=8936 loss=0.993147 obj=1.27516 err=3642 (1.72%)
-    accuracy:  98.28%; precision:  97.15%; recall:  96.99%; FB1:  97.07
-    Testing perf: sentences=2012 loss=2.2536 obj=2.53562 err=1925 (4.06%)
-    accuracy:  95.94%; precision:  93.71%; recall:  93.47%; FB1:  93.59
-    [Epoch 6] -- wnorm=8219.54 anorm=5456.28 time=47.33s.
-    [Epoch 7] -- wnorm=8569.78 anorm=5814.36 time=53.52s.
-    [Epoch 8] -- wnorm=8858.13 anorm=6126.72 time=59.7s.
-    [Epoch 9] -- wnorm=9059.94 anorm=6403.14 time=65.91s.
-    [Epoch 10] -- wnorm=9230.78 anorm=6637.07 time=72.1s.
-    Training perf: sentences=8936 loss=0.744621 obj=1.11599 err=2332 (1.1%)
-    accuracy:  98.90%; precision:  98.14%; recall:  97.99%; FB1:  98.06
-    Testing perf: sentences=2012 loss=2.21817 obj=2.58953 err=1862 (3.93%)
-    accuracy:  96.07%; precision:  93.88%; recall:  93.69%; FB1:  93.79
+    [Epoch 1] -- wnorm=3471.6 anorm=3471.6 time=16.88s.
+    [Epoch 2] -- wnorm=5093.77 anorm=4238.68 time=23.5s.
+    [Epoch 3] -- wnorm=6281.55 anorm=4871.78 time=30.11s.
+    [Epoch 4] -- wnorm=7128.27 anorm=5400.67 time=36.75s.
+    [Epoch 5] -- wnorm=7748.73 anorm=5837.29 time=43.34s.
+    Training perf: sentences=8936 loss=0.879526 obj=1.20614 err=2945 (1.39%)
+    accuracy:  98.61%; precision:  97.66%; recall:  97.51%; FB1:  97.58
+    Testing perf: sentences=2012 loss=2.23476 obj=2.56138 err=1895 (3.99%)
+    accuracy:  96.00%; precision:  93.75%; recall:  93.59%; FB1:  93.67
+    [Epoch 6] -- wnorm=8219.54 anorm=6203.39 time=50.05s.
+    [Epoch 7] -- wnorm=8569.77 anorm=6514.33 time=56.84s.
+    [Epoch 8] -- wnorm=8858.12 anorm=6790.36 time=63.46s.
+    [Epoch 9] -- wnorm=9059.93 anorm=7026.73 time=70.42s.
+    [Epoch 10] -- wnorm=9230.78 anorm=7235.45 time=77.04s.
+    Training perf: sentences=8936 loss=0.68643 obj=1.09128 err=1977 (0.93%)
+    accuracy:  99.07%; precision:  98.40%; recall:  98.24%; FB1:  98.32
+    Testing perf: sentences=2012 loss=2.21381 obj=2.61866 err=1872 (3.95%)
+    accuracy:  96.05%; precision:  93.84%; recall:  93.67%; FB1:  93.75
     Saving model file model.gz.
-    Done!  73.69 seconds.
+    Done!  77.04 seconds.
 
 
 Testing the final model (using crfsgd or crfasgd is equivalent.)
 
     $ ./crfsgd -t model.gz ../data/conll2000/test.txt.gz | ./conlleval
-    processed 47377 tokens with 23852 phrases; found: 23805 phrases; correct: 22348.
-    accuracy:  96.07%; precision:  93.88%; recall:  93.69%; FB1:  93.79
-                 ADJP: precision:  80.00%; recall:  73.97%; FB1:  76.87  405
-                 ADVP: precision:  82.94%; recall:  80.83%; FB1:  81.87  844
+    processed 47377 tokens with 23852 phrases; found: 23809 phrases; correct: 22342.
+    accuracy:  96.05%; precision:  93.84%; recall:  93.67%; FB1:  93.75
+                 ADJP: precision:  79.66%; recall:  74.20%; FB1:  76.83  408
+                 ADVP: precision:  82.96%; recall:  80.95%; FB1:  81.94  845
                 CONJP: precision:  55.56%; recall:  55.56%; FB1:  55.56  9
                  INTJ: precision: 100.00%; recall:  50.00%; FB1:  66.67  1
                   LST: precision:   0.00%; recall:   0.00%; FB1:   0.00  0
-                   NP: precision:  94.44%; recall:  94.16%; FB1:  94.30  12386
-                   PP: precision:  96.61%; recall:  97.84%; FB1:  97.22  4872
-                  PRT: precision:  77.23%; recall:  73.58%; FB1:  75.36  101
-                 SBAR: precision:  88.65%; recall:  84.67%; FB1:  86.62  511
-                   VP: precision:  93.73%; recall:  94.10%; FB1:  93.91  4676
+                   NP: precision:  94.36%; recall:  94.08%; FB1:  94.22  12385
+                   PP: precision:  96.61%; recall:  97.80%; FB1:  97.20  4870
+                  PRT: precision:  77.45%; recall:  74.53%; FB1:  75.96  102
+                 SBAR: precision:  88.33%; recall:  84.86%; FB1:  86.56  514
+                   VP: precision:  93.80%; recall:  94.14%; FB1:  93.97  4675
 
 
 Comparing with CRF++ (on a different machine, about twice slower.)

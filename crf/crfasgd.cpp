@@ -1931,6 +1931,7 @@ double eta = 0;
 int cutoff = 3;
 int epochs = 50;
 int cepochs = 5;
+double avgstart = 1;
 bool tag = false;
 
 dataset_t train;
@@ -1952,6 +1953,7 @@ usage()
     << " -h <num> : epochs between each testing phase (5)" << endl
     << " -e <cmd> : performance evaluation command (conlleval -q)" << endl
     << " -s <eta> : initial learning rate (default: auto)" << endl
+    << " -a <d> : start averaging after d epochs (default: 1.0)" << endl
     << " -q       : silent mode" << endl;
   exit(10);
 }
@@ -1993,6 +1995,16 @@ parseCmdLine(int argc, char **argv)
             {
               eta = atof(argv[i]);
               if (eta <= 0)
+                {
+                  cerr << "ERROR: "
+                       << "Illegal initial learning rate: " << s << endl;
+                  exit(10);
+                }
+            }
+         else if (s[0 ] == 'a')
+            {
+              avgstart = atof(argv[i]);
+              if (avgstart <= 0)
                 {
                   cerr << "ERROR: "
                        << "Illegal initial learning rate: " << s << endl;
@@ -2107,11 +2119,11 @@ main(int argc, char **argv)
       // training
       Timer tm;
       tm.start();
-      if (eta > 0)
-        crf.adjustEta(eta);
-      else
+      if (eta > 0) 
+        crf.adjustEta(eta); 
+      else 
         crf.adjustEta(train, 1000, 0.1, &tm);
-      crf.adjustTstart(max(min((int)train.size(),1000),(int)train.size()/5)); 
+      crf.adjustTstart(train.size() * avgstart);
       tm.stop();
       while (crf.getEpoch() < epochs)
         {
