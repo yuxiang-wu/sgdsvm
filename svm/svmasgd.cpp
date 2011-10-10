@@ -369,6 +369,7 @@ config(const char *progname)
   cout << " -epochs " << epochs;
   if (! normalize) cout << " -dontnormalize";
   if (maxtrain > 0) cout << " -maxtrain " << maxtrain;
+  if (tstart > 0) count << " -tstart " << tstart;
   cout << endl;
 #define NAME(x) #x
 #define NAME2(x) NAME(x)
