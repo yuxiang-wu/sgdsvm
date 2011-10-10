@@ -54,6 +54,10 @@ Both programs accept the same options when used in training mode.
  -s <num> : initial learning rate
  -q       : silent mode
 
+Program crfasgd accepts one additional option:
+
+ -a d     : starts averaging after d iterations (default: 1.0.)
+
 Using option -t switches to the tagging mode. When operating in tagging mode, the
 program reads the model, tags every sentence from the provided test data file,
 and outputs the tags on the standard output using a format suitable for the
