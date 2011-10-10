@@ -398,61 +398,8 @@ Preparation.
 Using stochastic gradient descent:
 
     $ ./svmsgd -lambda 1e-7 -epochs 10 webspam.train.bin.gz webspam.test.bin.gz
-    # Running: ./svmsgd -lambda 1e-07 -epochs 10
-    # Compiled with:  -DLOSS=LogLoss -DBIAS=1 -DREGULARIZED_BIAS=0
-    # Reading file webspam.train.bin.gz
-    # Read 151610+98390=250000 examples.
-    # Reading file webspam.test.bin.gz
-    # Read 60579+39421=100000 examples.
-    # Number of features 16609144.
-    # Using eta0=8
-    --------- Epoch 1.
-    Training on [0, 249999].
-    wNorm=116852 wBias=-1.66619
-    Total training time 8.11 secs.
-    train: Testing on [0, 249999].
-    train: Loss=0.0293753128812 Cost=0.0352179377339 Misclassification=1.006%.
-    test:  Testing on [0, 99999].
-    test:  Loss=0.0341769076299 Cost=0.0400195324826 Misclassification=1.109%.
-    --------- Epoch 2.
-    ...
-    --------- Epoch 10.
-    Training on [0, 249999].
-    wNorm=173809 wBias=-0.871056
-    Total training time 76.38 secs.
-    train: Testing on [0, 249999].
-    train: Loss=0.0135216161482 Cost=0.0222120638234 Misclassification=0.2664%.
-    test:  Testing on [0, 99999].
-    test:  Loss=0.0207285095923 Cost=0.0294189572676 Misclassification=0.51%.
-
 
 Using averaged stochastic gradient descent:
 
     $ ./svmasgd -lambda 1e-7 -epochs 10 webspam.train.bin.gz webspam.test.bin.gz
-    # Running: ./svmasgd -lambda 1e-07 -epochs 10
-    # Compiled with:  -DLOSS=LogLoss -DBIAS=1 -DREGULARIZED_BIAS=0
-    # Reading file webspam.train.bin.gz
-    # Read 151610+98390=250000 examples.
-    # Reading file webspam.test.bin.gz
-    # Read 60579+39421=100000 examples.
-    # Number of features 16609144.
-    # Using eta0=8
-    --------- Epoch 1.
-    Training on [0, 249999].
-    wNorm=120486 aNorm=88375.5 wBias=-1.68667 aBias=-1.54283
-    Total training time 18.3 secs.
-    train: Testing on [0, 249999].
-    train: Loss=0.0247099559994 Cost=0.0307342739681 Misclassification=0.8292%.
-    test:  Testing on [0, 99999].
-    test:  Loss=0.0287062066371 Cost=0.0347305246059 Misclassification=0.947%.
-    --------- Epoch 2.
-    ...
-    --------- Epoch 10.
-    Training on [0, 249999].
-    wNorm=183711 aNorm=161889 wBias=-0.893128 aBias=-1.02782
-    Total training time 193.32 secs.
-    train: Testing on [0, 249999].
-    train: Loss=0.0138575580013 Cost=0.0230430876888 Misclassification=0.3884%.
-    test:  Testing on [0, 99999].
-    test:  Loss=0.0204913948969 Cost=0.0296769245844 Misclassification=0.584%.
 
