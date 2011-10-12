@@ -112,7 +112,11 @@ SvmAsgd::renorm()
 double
 SvmAsgd::wnorm()
 {
-  return dot(w,w) / wDivisor / wDivisor;
+  double norm = dot(w,w) / wDivisor / wDivisor;
+#if REGULARIZED_BIAS
+  norm += wBias * wBias
+#endif
+  return norm;
 }
 
 /// Compute the norm of the averaged weights
@@ -120,7 +124,11 @@ double
 SvmAsgd::anorm()
 {
   renorm(); // this is simpler!
-  return dot(a,a);
+  double norm = dot(a,a);
+#if REGULARIZED_BIAS
+  norm += aBias * aBias
+#endif
+  return norm;
 }
 
 /// Compute the output for one example

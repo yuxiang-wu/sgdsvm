@@ -101,7 +101,11 @@ SvmSgd::renorm()
 double
 SvmSgd::wnorm()
 {
-  return dot(w,w) / wDivisor / wDivisor;
+  double norm = dot(w,w) / wDivisor / wDivisor;
+#if REGULARIZED_BIAS
+  norm += wBias * wBias
+#endif
+  return norm;
 }
 
 /// Compute the output for one example.
