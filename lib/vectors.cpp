@@ -166,14 +166,14 @@ FVector::touch(int i)
 FVector
 FVector::slice(int fi, int ti) const
 {
-  assert(ti >= 0);
+  assert(fi >= 0);
   assert(ti >= fi);
   FVector y;
   int s = size();
   if (s > 0)
     {
       fi = min(fi, s-1);
-      ti = max(ti, s-1);
+      ti = min(ti, s-1);
       int n = ti - fi + 1;
       y.resize(n);
       VFloat *yp = y.rep()->data;
@@ -738,7 +738,7 @@ SVector::trim()
 SVector
 SVector::slice(int fi, int ti) const
 {
-  assert(ti >= 0);
+  assert(fi >= 0);
   assert(ti >= fi);
   SVector y;
   for(Pair *p = rep()->pairs; p->i >= 0 && p->i <= ti; p++)
