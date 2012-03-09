@@ -31,7 +31,7 @@
 
 using namespace std;
 
-#if defined(_GXX_EXPERIMENTAL_CXX0X__)
+#if defined(__GXX_EXPERIMENTAL_CXX0X__)
 # include <unordered_map>
 # define hash_map unordered_map
 #elif defined(__GNUC__)
