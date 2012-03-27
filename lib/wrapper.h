@@ -68,7 +68,7 @@ class Wrapper
 //       : length(len), data(new char[l+1]) 
 //       { ::memcpy(data, s, l);  data[len] = 0; }
 //     Rep *copy()
-//       { return new StringRep(data, length); }
+//       { return new Rep(data, length); }
 //   };
 //
 //   Wrapper<Rep> w;
