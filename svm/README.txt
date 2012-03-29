@@ -57,8 +57,9 @@ Program svmasgd accepts one additional option:
     -avgstart x       : Starts averaging after n iterations (default: 1.0.)
 
 The programs assume that the training data file already contains randomly
-shuffled examples. In addition, unless option -dontnormalize is specified,
-every input vector is scaled to unit norm when it is loaded.
+shuffled examples. Things are likely to go wrong if this is not the case.  
+In addition, unless option -dontnormalize is specified, every input 
+vector is scaled to unit norm when it is loaded.
 
 Several kinds of data files are supported:
 
