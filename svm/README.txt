@@ -161,7 +161,7 @@ Using stochastic gradient descent (svmsgd):
 
 Using averaged stochastic gradient descent (svmasgd):
 
-    $ ./svmasgd -lambda 1e-4 - epochs 3 rcv1.train.bin.gz rcv1.test.bin.gz
+    $ ./svmasgd -lambda 1e-4 -epochs 3 rcv1.train.bin.gz rcv1.test.bin.gz
 
     # Running: ./svmasgd -lambda 0.0001 -epochs 3 -avgstart 1
     # Compiled with:  -DLOSS=HingeLoss -DBIAS=1 -DREGULARIZED_BIAS=0

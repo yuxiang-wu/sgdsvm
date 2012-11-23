@@ -25,9 +25,20 @@
 typedef std::vector<SVector> xvec_t;
 typedef std::vector<double>  yvec_t;
 
-void load_datafile(const char *filename, 
-                   xvec_t &xp, yvec_t &yp, int &maxdim,
-                   bool normalize = true,
-                   int maxrows = -1);
+class Loader
+{
+public:
+  ~Loader();
+  Loader(const char *filename);
+  int load(xvec_t &xp, yvec_t &yp, int &maxd, bool norm=true, int maxn=-1);
+private:
+  struct Private;
+  Private *p;
+};
+
+
+int load_datafile(const char *filename, 
+                  xvec_t &xp, yvec_t &yp, int &maxd,
+                  bool norm=true, int maxn=-1);
 
 #endif

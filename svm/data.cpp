@@ -32,14 +32,66 @@
 
 using namespace std;
 
-static void
-load_datafile_sub(istream &f, bool binary, const char *fname, 
-                  xvec_t &xp, yvec_t &yp, int &maxdim,
-                  bool normalize, int maxrows)
+
+
+
+// Compat
+
+int load_datafile(const char *filename, 
+                          xvec_t &xp, yvec_t &yp, int &maxd,
+                          bool norm, int maxn)
 {
-  cout << "# Reading file " << fname << endl;
-  if (! f.good())
-    assertfail("Cannot open " << fname);
+  Loader loader(filename);
+  return loader.load(xp, yp, maxd, norm, maxn);
+}
+
+
+
+// Private Loader implementation
+
+struct Loader::Private
+{
+  string filename;
+  bool compressed;
+  bool binary;
+  bool eof;
+  igzstream gs;
+  ifstream fs;
+
+  Private(const char *name);
+  int load(xvec_t &xp, yvec_t &yp, int &maxd, bool norm, int maxn);
+};
+
+
+Loader::Private::Private(const char *name)
+  : filename(name),
+    compressed(false),
+    binary(false),
+    eof(false)
+{
+  int len = filename.size();
+  if (len > 7 && filename.substr(len-7) == ".txt.gz")
+    compressed = true;
+  else if (len > 7 && filename.substr(len-7) == ".bin.gz")
+    compressed = binary = true;
+  else if (len > 4 && filename.substr(len-4) == ".bin")
+    binary = true;
+  else if (len > 4 && filename.substr(len-4) == ".txt")
+    binary = false;
+  else
+    assertfail("Filename suffix should be one of: "
+               << ".bin, .txt, .bin.gz, .txt.gz");
+  if (compressed)
+    gs.open(name);
+  else
+    fs.open(name);
+}
+
+
+int Loader::Private::load(xvec_t &xp, yvec_t &yp, int &maxdim, 
+                          bool normalize, int maxrows)
+{
+  istream &f = (compressed) ? (istream&)gs : (istream&)fs;
   int ncount = 0;
   int pcount = 0;
   while (f.good() && maxrows--)
@@ -75,45 +127,39 @@ load_datafile_sub(istream &f, bool binary, const char *fname,
             maxdim = x.size();
         }
     }
-  cout << "# Read " << pcount << "+" << ncount 
-       << "=" << pcount + ncount << " examples." << endl;
+  if (pcount + ncount > 0)
+    cout << "# Read " << pcount << "+" << ncount 
+         << "=" << pcount + ncount << " examples " 
+         << "from \"" << filename << "\"." << endl;
+  if (!f.eof() && !f.good())
+    assertfail("Cannot read data from " << filename);
+  return pcount + ncount;
 }
 
 
-void
-load_datafile(const char *fname, 
-              xvec_t &xp, yvec_t &yp, int &maxdim,
-              bool normalize, int maxrows)
+
+
+// Public Loader interface
+
+Loader::~Loader()
 {
-  bool binary = false;
-  bool compressed = false;
-  string filename = fname;
-  int len = filename.size();
-  if (len > 7 && filename.substr(len-7) == ".txt.gz")
-    compressed = true;
-  else if (len > 7 && filename.substr(len-7) == ".bin.gz")
-    compressed = binary = true;
-  else if (len > 4 && filename.substr(len-4) == ".bin")
-    binary = true;
-  else if (len > 4 && filename.substr(len-4) == ".txt")
-    binary = false;
-  else
-    assertfail("Filename suffix should be one of: "
-               << ".bin, .txt, .bin.gz, .txt.gz");
-  if (compressed)
-    {
-      igzstream f;
-      f.open(fname);
-      return load_datafile_sub(f, binary, fname, xp, yp, 
-                               maxdim, normalize, maxrows);
-    }
-  else
-    {
-      ifstream f;
-      f.open(fname);
-      return load_datafile_sub(f, binary, fname, xp, yp, 
-                               maxdim, normalize, maxrows);
-    }
+  delete p;
 }
+
+Loader::Loader(const char *filename)
+  : p(new Private(filename))
+{
+  istream &f = (p->compressed) ? (istream&)(p->gs) : (istream&)(p->fs) ;
+  if (! f.good())
+    assertfail("Cannot open " << p->filename);
+}
+
+int Loader::load(xvec_t &xp, yvec_t &yp, int &maxd, bool norm, int maxn)
+{
+  assert(p);
+  return p->load(xp, yp, maxd, norm, maxn);
+}
+
+
 
 
