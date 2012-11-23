@@ -111,10 +111,8 @@ Using stochastic gradient descent (svmsgd):
 
     # Running: ./svmsgd -lambda 0.0001 -epochs 5
     # Compiled with:  -DLOSS=HingeLoss -DBIAS=1 -DREGULARIZED_BIAS=0
-    # Reading file rcv1.train.bin.gz
-    # Read 370541+410724=781265 examples.
-    # Reading file rcv1.test.bin.gz
-    # Read 10786+12363=23149 examples.
+    # Read 370541+410724=781265 examples from "rcv1.train.bin.gz".
+    # Read 10786+12363=23149 examples from "rcv1.test.bin.gz".
     # Number of features 47153.
     # Using eta0=0.5
     --------- Epoch 1.
@@ -165,10 +163,8 @@ Using averaged stochastic gradient descent (svmasgd):
 
     # Running: ./svmasgd -lambda 0.0001 -epochs 3 -avgstart 1
     # Compiled with:  -DLOSS=HingeLoss -DBIAS=1 -DREGULARIZED_BIAS=0
-    # Reading file rcv1.train.bin.gz
-    # Read 370541+410724=781265 examples.
-    # Reading file rcv1.test.bin.gz
-    # Read 10786+12363=23149 examples.
+    # Read 370541+410724=781265 examples from "rcv1.train.bin.gz".
+    # Read 10786+12363=23149 examples from "rcv1.test.bin.gz".
     # Number of features 47153.
     # Using eta0=0.5
     --------- Epoch 1.
@@ -236,10 +232,8 @@ Using stochastic gradient descent (svmsgd):
 
     # Running: ./svmsgd -lambda 5e-07 -epochs 12
     # Compiled with:  -DLOSS=LogLoss -DBIAS=1 -DREGULARIZED_BIAS=0
-    # Reading file rcv1.train.bin.gz
-    # Read 370541+410724=781265 examples.
-    # Reading file rcv1.test.bin.gz
-    # Read 10786+12363=23149 examples.
+    # Read 370541+410724=781265 examples from "rcv1.train.bin.gz".
+    # Read 10786+12363=23149 examples from "rcv1.test.bin.gz".
     # Number of features 47153.
     # Using eta0=16
     --------- Epoch 1.
@@ -285,10 +279,8 @@ Using averaged stochastic gradient descent (svmasgd):
 
     # Running: ./svmasgd -lambda 5e-07 -epochs 8 -avgstart 1
     # Compiled with:  -DLOSS=LogLoss -DBIAS=1 -DREGULARIZED_BIAS=0
-    # Reading file rcv1.train.bin.gz
-    # Read 370541+410724=781265 examples.
-    # Reading file rcv1.test.bin.gz
-    # Read 10786+12363=23149 examples.
+    # Read 370541+410724=781265 examples from "rcv1.train.bin.gz".
+    # Read 10786+12363=23149 examples from "rcv1.test.bin.gz".
     # Number of features 47153.
     # Using eta0=16
     --------- Epoch 1.
@@ -347,10 +339,8 @@ Using stochastic gradient descent:
 
     # Running: ./svmsgd -lambda 1e-06 -epochs 20
     # Compiled with:  -DLOSS=LogLoss -DBIAS=1 -DREGULARIZED_BIAS=0
-    # Reading file alpha.train.bin.gz
-    # Read 124703+125297=250000 examples.
-    # Reading file alpha.test.bin.gz
-    # Read 124810+125190=250000 examples.
+    # Read 124859+125141=250000 examples from "alpha.train.bin.gz".
+    # Read 124654+125346=250000 examples from "alpha.test.bin.gz".
     # Number of features 501.
     # Using eta0=2
     --------- Epoch 1.
@@ -395,10 +385,8 @@ Using averaged stochastic gradient descent:
 
     # Running: ./svmasgd -lambda 1e-06 -epochs 5 -avgstart 1
     # Compiled with:  -DLOSS=LogLoss -DBIAS=1 -DREGULARIZED_BIAS=0
-    # Reading file alpha.train.bin.gz
-    # Read 124703+125297=250000 examples.
-    # Reading file alpha.test.bin.gz
-    # Read 124810+125190=250000 examples.
+    # Read 124859+125141=250000 examples from "alpha.train.bin.gz".
+    # Read 124654+125346=250000 examples from "alpha.test.bin.gz".
     # Number of features 501.
     # Using eta0=2
     --------- Epoch 1.
@@ -446,10 +434,8 @@ Using stochastic gradient descent:
 
     # Running: ./svmsgd -lambda 1e-07 -epochs 10
     # Compiled with:  -DLOSS=LogLoss -DBIAS=1 -DREGULARIZED_BIAS=0
-    # Reading file webspam.train.bin.gz
-    # Read 151592+98408=250000 examples.
-    # Reading file webspam.test.bin.gz
-    # Read 60597+39403=100000 examples.
+    # Read 151592+98408=250000 examples from "webspam.train.bin.gz".
+    # Read 60597+39403=100000 examples from "webspam.test.bin.gz".
     # Number of features 16609144.
     # Using eta0=16
     --------- Epoch 1.
@@ -494,10 +480,8 @@ Using averaged stochastic gradient descent:
 
     # Running: ./svmasgd -lambda 1e-07 -epochs 10 -avgstart 1
     # Compiled with:  -DLOSS=LogLoss -DBIAS=1 -DREGULARIZED_BIAS=0
-    # Reading file webspam.train.bin.gz
-    # Read 151592+98408=250000 examples.
-    # Reading file webspam.test.bin.gz
-    # Read 60597+39403=100000 examples.
+    # Read 151592+98408=250000 examples from "webspam.train.bin.gz".
+    # Read 60597+39403=100000 examples from "webspam.test.bin.gz".
     # Number of features 16609144.
     # Using eta0=16
     --------- Epoch 1.
