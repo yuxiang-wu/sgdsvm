@@ -35,6 +35,7 @@ using namespace std;
 # include <unordered_map>
 # define hash_map unordered_map
 #elif defined(__GNUC__)
+# define _GLIBCXX_PERMIT_BACKWARD_HASH
 # include <ext/hash_map>
 using __gnu_cxx::hash_map;
 namespace __gnu_cxx {
