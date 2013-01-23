@@ -222,7 +222,7 @@ SvmAsgd::test(int imin, int imax, const xvec_t &xp, const yvec_t &yp, const char
     testOne(xp.at(i), yp.at(i), &loss, &nerr);
   nerr = nerr / (imax - imin + 1);
   loss = loss / (imax - imin + 1);
-  double cost = loss + 0.5 * lambda * wnorm();
+  double cost = loss + 0.5 * lambda * anorm();
   cout << prefix 
        << "Loss=" << setprecision(12) << loss
        << " Cost=" << setprecision(12) << cost 
