@@ -31,7 +31,15 @@
 
 using namespace std;
 
-#if defined(__GXX_EXPERIMENTAL_CXX0X__)
+#if __cplusplus >= 201103L 
+# define HAS_UNORDEREDMAP
+#elif defined(_MSC_VER) && _MSC_VER >= 1600
+# define HAS_UNORDEREDMAP
+#elif defined(__GXX_EXPERIMENTAL_CXX0X__)
+# define HAS_UNORDEREDMAP
+#endif
+
+#ifdef HAS_UNORDEREDMAP
 # include <unordered_map>
 # define hash_map unordered_map
 #elif defined(__GNUC__)
@@ -45,9 +53,6 @@ namespace __gnu_cxx {
     inline size_t operator()(const string &s) const { return h(s.c_str()); };
   };
 };
-#elif defined(_MSC_VER) && _MSC_VER >= 1600
-# include <unordered_map>
-# define hash_map unordered_map
 #else
 # define hash_map map
 #endif

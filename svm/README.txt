@@ -339,8 +339,8 @@ Using stochastic gradient descent:
 
     # Running: ./svmsgd -lambda 1e-06 -epochs 20
     # Compiled with:  -DLOSS=LogLoss -DBIAS=1 -DREGULARIZED_BIAS=0
-    # Read 124859+125141=250000 examples from "alpha.train.bin.gz".
-    # Read 124654+125346=250000 examples from "alpha.test.bin.gz".
+    # Read 124703+125297=250000 examples from "alpha.train.bin.gz".
+    # Read 124810+125190=250000 examples from "alpha.test.bin.gz".
     # Number of features 501.
     # Using eta0=2
     --------- Epoch 1.
@@ -385,8 +385,8 @@ Using averaged stochastic gradient descent:
 
     # Running: ./svmasgd -lambda 1e-06 -epochs 5 -avgstart 1
     # Compiled with:  -DLOSS=LogLoss -DBIAS=1 -DREGULARIZED_BIAS=0
-    # Read 124859+125141=250000 examples from "alpha.train.bin.gz".
-    # Read 124654+125346=250000 examples from "alpha.test.bin.gz".
+    # Read 124703+125297=250000 examples from "alpha.train.bin.gz".
+    # Read 124810+125190=250000 examples from "alpha.test.bin.gz".
     # Number of features 501.
     # Using eta0=2
     --------- Epoch 1.
