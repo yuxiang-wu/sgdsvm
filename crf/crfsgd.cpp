@@ -40,23 +40,28 @@
 
 using namespace std;
 
-#if defined(__GXX_EXPERIMENTAL_CXX0X__)
+#if __cplusplus >= 201103L 
+# define HAS_UNORDEREDMAP
+#elif defined(_MSC_VER) && _MSC_VER >= 1600
+# define HAS_UNORDEREDMAP
+#elif defined(__GXX_EXPERIMENTAL_CXX0X__)
+# define HAS_UNORDEREDMAP
+#endif
+
+#ifdef HAS_UNORDEREDMAP
 # include <unordered_map>
 # define hash_map unordered_map
 #elif defined(__GNUC__)
+# define _GLIBCXX_PERMIT_BACKWARD_HASH
 # include <ext/hash_map>
 using __gnu_cxx::hash_map;
 namespace __gnu_cxx {
   template<>
   struct hash<string> {
     hash<char*> h;
-    inline size_t operator()(const string &s) const { return h(s.c_str());
-    };
+    inline size_t operator()(const string &s) const { return h(s.c_str()); };
   };
 };
-#elif defined(_MSC_VER) && _MSC_VER >= 1600
-# include <unordered_map>
-# define hash_map unordered_map
 #else
 # define hash_map map
 #endif
@@ -287,7 +292,7 @@ checkTemplate(string tpl)
         {
           bool okay = false;
           char *n = const_cast<char*>(p);
-          long junk;
+          long junk; (void)junk; // not used
           if (n[2]=='[') {
             junk = strtol(n+3,&n, 10);
             while (isspace(n[0]))
