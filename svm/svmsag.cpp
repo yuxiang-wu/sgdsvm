@@ -94,6 +94,7 @@ public:
 public:
   double evaluateEta(int imin, int imax, const xvec_t &x, const yvec_t &y, double eta);
   void determineEta(int imin, int imax, const xvec_t &x, const yvec_t &y);
+  void setEta(double x) { eta=x; }
 private:
   double  lambda;
   double  eta;
@@ -339,7 +340,7 @@ bool normalize = true;
 double lambda = 1e-5;
 int epochs = 5;
 int maxtrain = -1;
-
+double eta = -1;
 
 void
 usage(const char *progname)
@@ -352,6 +353,8 @@ usage(const char *progname)
 #define DEF(v) " (default: " << v << ".)"
   cerr << NAM("-lambda x")
        << "Regularization parameter" << DEF(lambda) << endl
+       << NAM("-eta x")
+       << "Set the learning rate to x." << endl
        << NAM("-epochs n")
        << "Number of training epochs" << DEF(epochs) << endl
        << NAM("-dontnormalize")
@@ -402,6 +405,11 @@ parse(int argc, const char **argv)
               maxtrain = atoi(argv[++i]);
               assert(maxtrain > 0);
             }
+          else if (opt == "eta" && i+1<argc)
+            {
+              eta = atof(argv[++i]);
+              assert(eta>0 && eta<1e4);
+            }
           else
             {
               cerr << "Option " << argv[i] << " not recognized." << endl;
@@ -419,6 +427,7 @@ config(const char *progname)
 {
   cout << "# Running: " << progname;
   cout << " -lambda " << lambda;
+  if (eta > 0) cout << " -eta " << eta;
   cout << " -epochs " << epochs;
   if (! normalize) cout << " -dontnormalize";
   if (maxtrain > 0) cout << " -maxtrain " << maxtrain;
@@ -460,7 +469,10 @@ int main(int argc, const char **argv)
   int smin = 0;
   int smax = imin + min(1000, imax);
   timer.start();
-  svm.determineEta(smin, smax, xtrain, ytrain);
+  if (eta > 0)
+    svm.setEta(eta);
+  else
+    svm.determineEta(smin, smax, xtrain, ytrain);
   timer.stop();
   // train
   for(int i=0; i<epochs; i++)
