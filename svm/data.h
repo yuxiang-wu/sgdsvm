@@ -30,7 +30,8 @@ class Loader
 public:
   ~Loader();
   Loader(const char *filename);
-  int load(xvec_t &xp, yvec_t &yp, int &maxd, bool norm=true, int maxn=-1);
+  int load(xvec_t &xp, yvec_t &yp, bool norm=true, int maxn=-1,
+           int *maxdim=0, int *pcount=0, int *ncount=0);
 private:
   struct Private;
   Private *p;
