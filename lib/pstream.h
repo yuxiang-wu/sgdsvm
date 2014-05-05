@@ -24,6 +24,10 @@
 #include <fstream>
 #include <cstdio>
 
+#ifdef WIN32
+# pragma warning (disable: 4250)
+#endif
+
 class pstreambuf : public std::streambuf 
 {
  private:

@@ -33,18 +33,16 @@
 
 #if __cplusplus >= 201103L 
 # define HAS_UNIFORMINTDISTRIBUTION 1
-#elif defined(_MSC_VER) && _MSC_VER >= 1600
-# define HAS_UNIFORMINTDISTRIBUTION 1
 #elif defined(__GXX_EXPERIMENTAL_CXX0X__)
 # define HAS_UNIFORMINT 1
 #endif
 
 #if HAS_UNIFORMINTDISTRIBUTION
 # include <random>
-typedef std::uniform_int_distribution<int> uniform_int_generator
+typedef std::uniform_int_distribution<int> uniform_int_generator;
 #elif HAS_UNIFORMINT
 # include <tr1/random>
-typedef std::tr1::uniform_int<int> uniform_int_generator
+typedef std::tr1::uniform_int<int> uniform_int_generator;
 #else
 struct uniform_int_generator { 
   int imin, imax; 

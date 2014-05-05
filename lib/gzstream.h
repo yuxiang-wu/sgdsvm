@@ -34,6 +34,10 @@
 #include <fstream>
 #include <zlib.h>
 
+#ifdef WIN32
+# pragma warning (disable: 4250)
+#endif
+
 #ifdef GZSTREAM_NAMESPACE
 namespace GZSTREAM_NAMESPACE {
 #endif

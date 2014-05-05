@@ -25,6 +25,10 @@
 #include <iostream>
 #include "wrapper.h"
 
+#ifdef WIN32
+# pragma warning (disable: 4244)
+#endif
+
 
 class FVector;
 class SVector;
