@@ -114,7 +114,9 @@ int Loader::load(xvec_t &xp, yvec_t &yp, bool normalize, int maxrows,
         }
       else
         {
-          f >> y >> x;
+          f >> std::skipws >> y >> std::ws;
+          if (f.peek() == '|') f.get();
+          f >> x;
         }
       if (f.good())
         {

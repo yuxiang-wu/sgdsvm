@@ -34,17 +34,20 @@ using namespace std;
 int 
 main(int argc, const char **argv)
 {
-  bool vwflag;
+  bool vwflag = false;
+  bool binflag = false;
   string filename;
   // parse arguments
   if (argc > 1)
     filename = argv[argc-1];
   if (argc == 2)
-    vwflag = false;
+    vwflag = binflag = false;
   else if (argc == 3 && string(argv[1]) == "-vw")
     vwflag = true;
+  else if (argc == 3 && string(argv[1]) == "-bin")
+    binflag = true;
   else 
-    assertfail("usage: " << argv[0] << " [-vw] file.bin[.gz]");
+    assertfail("usage: " << argv[0] << " [-vw|-bin] file.bin[.gz]");
 
   // convert data by chunks
   xvec_t x;
@@ -54,12 +57,13 @@ main(int argc, const char **argv)
   while (loader.load(x, y, false, 100) > 0)
     {
       int size = x.size();
-      for (int i=0; i<size; i++)
-        {
-          cout << y[i];
-          if (vwflag) cout << " |";
-          cout << x[i];
-        }
+      for (int i=0; i<size; i++) 
+        if (binflag) 
+          { cout.put(y[i] ? 1 : 0); x[i].save(cout); }
+        else if (vwflag)
+          { cout << y[i] << " |" << x[i]; }
+        else 
+          { cout << y[i] << x[i]; }
       total += size;
       x.clear();
       y.clear();
