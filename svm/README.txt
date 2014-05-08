@@ -95,10 +95,13 @@ These programs take no argument.
    training set. As usual the data is randomly shuffled before producing the
    data files "rcv1.train.bin.gz" and "rcv1.test.bin.gz".
 
- * Program "make_txt" reads these binary data files and prints
-   their contents on the standard output following the SVMLight format.
-   Such data is suitable for LIBSVM and LIBLINEAR.
-   Use options "-vw" to produce data suitable for VW.
+ * Program "make_txt" converts the data file specified as argument
+   into formats suitable for other popular ML programs. The converted
+   data is printed on the standard output. The default output format is 
+   suitable for LIBSVM and LIBLINEAR.  Use options "-vw" to produce a 
+   textual format suitable for VW. Use option "-bin" to produce a 
+   binary file (this was an afterthought.)
+
 
 
 4. EXAMPLE: RCV1-V2, HINGE LOSS
