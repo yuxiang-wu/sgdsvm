@@ -286,7 +286,7 @@ bool normalize = true;
 double lambda = 1e-5;
 int epochs = 5;
 int maxtrain = -1;
-int avgstart = 1;
+double avgstart = -1;
 
 
 void
@@ -355,7 +355,6 @@ parse(int argc, const char **argv)
           else if (opt == "avgstart" && i+1 < argc)
             {
               avgstart = atof(argv[++i]);
-              assert(avgstart > 0);
             }
           else
             {
@@ -375,7 +374,7 @@ config(const char *progname)
   cout << "# Running: " << progname;
   cout << " -lambda " << lambda;
   cout << " -epochs " << epochs;
-  cout << " -avgstart " << avgstart;
+  if (avgstart >= 0) cout << " -avgstart " << avgstart;
   if (! normalize) cout << " -dontnormalize";
   if (maxtrain > 0) cout << " -maxtrain " << maxtrain;
   cout << endl;
@@ -410,7 +409,11 @@ int main(int argc, const char **argv)
   int imax = xtrain.size() - 1;
   int tmin = 0;
   int tmax = xtest.size() - 1;
-  SvmAsgd svm(dims, lambda, avgstart * (imax-imin+1));
+  // heuristic determination of averaging start point
+  int avgfrom = fabs(avgstart) * (imax - imin + 1);
+  avgfrom = (avgstart < 0 && dims < avgfrom) ? dims : avgfrom;
+  // create
+  SvmAsgd svm(dims, lambda, avgfrom);
   Timer timer;
   // determine eta0 using sample
   int smin = 0;

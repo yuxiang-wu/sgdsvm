@@ -54,7 +54,10 @@ Both programs accept the same options:
 
 Program svmasgd accepts one additional option:
 
-    -avgstart x       : Starts averaging after n iterations (default: 1.0.)
+    -avgstart x     : Determine after how many iterations averaging starts. 
+	                  Averaging starts after |x|*nExamples when x is positive,
+                      and min(|x|*nExamples,nDimensions) iterations when x is
+                      negative. (default: -1.0)
 
 The programs assume that the training data file already contains randomly
 shuffled examples. Things are likely to go wrong if this is not the case.  
@@ -166,7 +169,7 @@ Using stochastic gradient descent (svmsgd):
 
 Using averaged stochastic gradient descent (svmasgd):
 
-    $ ./svmasgd -lambda 1e-4 -epochs 3 rcv1.train.bin.gz rcv1.test.bin.gz
+    $ ./svmasgd -lambda 1e-4 -epochs 3 -avgstart 1 rcv1.train.bin.gz rcv1.test.bin.gz
 
     # Running: ./svmasgd -lambda 0.0001 -epochs 3 -avgstart 1
     # Compiled with:  -DLOSS=HingeLoss -DBIAS=1 -DREGULARIZED_BIAS=0
@@ -282,7 +285,7 @@ Using stochastic gradient descent (svmsgd):
 
 Using averaged stochastic gradient descent (svmasgd):
 
-    $ ./svmasgd -lambda 5e-7 -epochs 8 rcv1.train.bin.gz rcv1.test.bin.gz 
+    $ ./svmasgd -lambda 5e-7 -epochs 8 -avgstart 1 rcv1.train.bin.gz rcv1.test.bin.gz 
 
     # Running: ./svmasgd -lambda 5e-07 -epochs 8 -avgstart 1
     # Compiled with:  -DLOSS=LogLoss -DBIAS=1 -DREGULARIZED_BIAS=1
@@ -388,7 +391,7 @@ Using stochastic gradient descent:
 
 Using averaged stochastic gradient descent:
 
-    $ ./svmasgd -lambda 1e-6 -epochs 5 alpha.train.bin.gz alpha.test.bin.gz
+    $ ./svmasgd -lambda 1e-6 -epochs 5 -avgstart 1 alpha.train.bin.gz alpha.test.bin.gz
 
     # Running: ./svmasgd -lambda 1e-06 -epochs 5 -avgstart 1
     # Compiled with:  -DLOSS=LogLoss -DBIAS=1 -DREGULARIZED_BIAS=0
@@ -483,7 +486,7 @@ Using stochastic gradient descent:
 
 Using averaged stochastic gradient descent:
 
-    $ ./svmasgd -lambda 1e-7 -epochs 10 webspam.train.bin.gz webspam.test.bin.gz
+    $ ./svmasgd -lambda 1e-7 -epochs 10 -avgstart 1 webspam.train.bin.gz webspam.test.bin.gz
 
     # Running: ./svmasgd -lambda 1e-07 -epochs 10 -avgstart 1
     # Compiled with:  -DLOSS=LogLoss -DBIAS=1 -DREGULARIZED_BIAS=0
