@@ -22,7 +22,14 @@
 #include <string>
 #include <vector>
 #include <cstdlib>
+#include <cstdio>
 #include <cmath>
+
+#if defined(WIN32)
+# include <io.h>
+# include <fcntl.h>
+#endif
+
 
 #include "assert.h"
 #include "vectors.h"
@@ -49,6 +56,12 @@ main(int argc, const char **argv)
   else 
     assertfail("usage: " << argv[0] << " [-vw|-bin] file.bin[.gz]");
 
+  // windows: make cout binary (sigh!)
+#ifdef WIN32
+  if (binflag)
+    _setmode(1, _O_BINARY);
+#endif
+  
   // convert data by chunks
   xvec_t x;
   yvec_t y;
