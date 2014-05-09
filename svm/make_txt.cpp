@@ -72,7 +72,7 @@ main(int argc, const char **argv)
       int size = x.size();
       for (int i=0; i<size; i++) 
         if (binflag) 
-          { cout.put(y[i] ? 1 : 0); x[i].save(cout); }
+          { cout.put(y[i] > 0 ? 1 : 0); x[i].save(cout); }
         else if (vwflag)
           { cout << y[i] << " |" << x[i]; }
         else 
