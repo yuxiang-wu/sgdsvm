@@ -49,6 +49,8 @@ int load_datafile(const char *filename,
     cout << "# Read " << pcount << "+" << ncount 
          << "=" << pcount+ncount << " examples " 
          << "from \"" << filename << "\"." << endl;
+  if (maxd < maxdim)
+    maxd = maxdim;
   return pcount + ncount;
 }
 
