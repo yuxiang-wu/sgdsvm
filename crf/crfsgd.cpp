@@ -1364,13 +1364,12 @@ public:
                   int cutoff = 3);
   
   void adjustEta(double seta=1);
-
-  void adjustEta(const dataset_t &data, int sample=500, 
-                 double seta=1, Timer *tm=0);
+  void adjustEta(const dataset_t &data, 
+		 int sample=500, double seta=1, Timer *tm=0);
 
   void train(const dataset_t &data, int epochs=1, Timer *tm=0);
-
   void test(const dataset_t &data, const char *conlleval=0, Timer *tm=0);
+  void tag(const dataset_t &data);
   
   friend istream& operator>> ( istream &f, CrfSgd &d );
   friend ostream& operator<< ( ostream &f, const CrfSgd &d );
@@ -1698,8 +1697,7 @@ CrfSgd::test(const dataset_t &data, const char *conlleval, Timer *tm)
       exit(10);
     }
    opstream f;
-   string evalcommand;
-   if (conlleval && conlleval[0] && verbose)
+   if (conlleval && verbose)
      f.open(conlleval);
    if (verbose)
      cout << " sentences=" << data.size();
@@ -1710,10 +1708,8 @@ CrfSgd::test(const dataset_t &data, const char *conlleval, Timer *tm)
      {
        Scorer scorer(data[i], dict, w, wscale);
        obj += scorer.scoreForward() - scorer.scoreCorrect();
-       if (conlleval && conlleval[0] && verbose)
+       if (conlleval && verbose)
          errors += scorer.test(f);
-       else if (conlleval)
-         errors += scorer.test(cout);
        else
          errors += scorer.test();
        total += data[i].size();
@@ -1730,6 +1726,24 @@ CrfSgd::test(const dataset_t &data, const char *conlleval, Timer *tm)
      cout << " time=" << tm->elapsed() << "s";
    if (verbose)
      cout << endl;
+}
+
+
+
+void
+CrfSgd::tag(const dataset_t &data)
+{
+   if (dict.nOutputs() <= 0)
+    {
+      cerr << "ERROR (test): "
+           << "Must call load() or initialize() before tag()." << endl;
+      exit(10);
+    }
+   for (unsigned int i=0; i<data.size(); i++)
+     {
+       Scorer scorer(data[i], dict, w, wscale);
+       scorer.test(cout);
+     }
 }
 
 
@@ -1917,7 +1931,7 @@ main(int argc, char **argv)
       f >> crf;
       loadSentences(testFile.c_str(), crf.getDict(), test);
       // tagging
-      crf.test(test, "");
+      crf.tag(test);
     } 
   else 
     {
