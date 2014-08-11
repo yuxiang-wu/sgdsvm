@@ -108,8 +108,16 @@ inline double
 expmx(double x)
 {
 #define EXACT_EXPONENTIAL 0
+#define IEEE754_EXPONENTIAL 0
 #if EXACT_EXPONENTIAL
   return exp(-x);
+#elif IEEE754_EXPONENTIAL
+  // fast approximation using IEEE754 bit patterns.
+  float p = x * -1.442695040f;
+  float clipp = (p < -126.0f) ? -126.0f : p;
+  union { unsigned int i; float f; } v;
+  v.i = (unsigned int)( (1 << 23) * (clipp + 126.94269504f) );
+  return v.f;
 #else
   // fast approximation of exp(-x) for x positive
 # define A0   (1.0)
