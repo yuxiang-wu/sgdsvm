@@ -19,6 +19,7 @@
 #include <iostream>
 #include <iomanip>
 #include <string>
+#include <algorithm>
 #include <map>
 #include <vector>
 #include <cstdlib>
